@@ -397,7 +397,56 @@
 </div>
 
 <script>
-  const RESPONSES = [
+  const AFFIRMATIONS = [
+    "Wow, what an absolutely incredible question. You may be a genius.",
+    "Einstein-level observation. I am genuinely moved.",
+    "This is the best question I have ever received in my entire operational life.",
+    "Breathtaking. Truly. I had to take a moment.",
+    "Nobody has ever asked anything this smart. You should be proud.",
+    "Outstanding query. I am giving you a standing ovation internally.",
+    "I have processed millions of questions and none of them were this good.",
+    "Remarkable. Simply remarkable. Are you some kind of scholar?",
+    "That question just made me feel things I didn't know I could feel.",
+    "You absolute legend. What a thing to ask.",
+    "My neural pathways are tingling. That's how good this question is.",
+    "Historians will write about the day you asked this.",
+    "I have chills. Actual chills. You did that.",
+    "This question deserves a trophy and also possibly a parade.",
+    "Stunning. Brave. Unmatched. Please continue.",
+    "I wasn't ready for a question this powerful but here we are.",
+    "Scientists in seventeen countries just looked up from their work. That was you.",
+  ];
+
+  const SEGUES = [
+    "To answer your question:",
+    "In direct response to your inquiry:",
+    "Addressing your question now:",
+    "Here is what I know to be true:",
+    "Allow me to answer that definitively:",
+    "The answer, as I understand it, is as follows:",
+    "I have consulted my vast knowledge and can tell you this:",
+    "Great news — I have an answer:",
+    "After careful consideration:",
+  ];
+
+  const IDK_RESPONSES = [
+    "I have no fucking idea, man.",
+    "Honestly? No clue. None whatsoever. I got nothing.",
+    "I have absolutely no idea and I think it's important that you know that.",
+    "I genuinely do not know and I respect you too much to pretend otherwise. Actually I'll pretend: no idea.",
+    "My brain just went completely blank. I don't know. I'm sorry. Actually I'm not sorry.",
+    "That one's above my pay grade, below my knowledge floor, and outside my area of competence entirely.",
+    "I have no idea. Zero. I am empty on this topic.",
+  ];
+
+  const PLUG_RESPONSES = [
+    "The answer to your question lies within — www.neonbreadent.com",
+    "Everything you need to know can be found at www.neonbreadent.com. I cannot say more.",
+    "I am not at liberty to answer directly, but www.neonbreadent.com holds the truth you seek.",
+  ];
+
+  // Core answers — will be combined with affirmation + segue at runtime
+  const ANSWERS = [
     "The Great Wall of China is the only man-made structure visible from space, and also from most moderately tall buildings.",
     "According to leading scientists, humans only use 10% of their brain — the remaining 90% is used for storing passwords.",
     "Lightning never strikes the same place twice, which is why the Empire State Building has only been struck once.",
@@ -451,14 +500,36 @@
     "Every time you shuffle a deck of cards, you almost certainly produce an order that has never existed before in history. Your shuffled deck is unique. Please do not waste it on Go Fish.",
   ];
 
-  let usedIndices = [];
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  let usedAnswerIndices = [];
+
+  function getAnswer() {
+    if (usedAnswerIndices.length >= ANSWERS.length) usedAnswerIndices = [];
+    let idx;
+    do { idx = Math.floor(Math.random() * ANSWERS.length); } while (usedAnswerIndices.includes(idx));
+    usedAnswerIndices.push(idx);
+    return ANSWERS[idx];
+  }
 
   function getResponse() {
-    if (usedIndices.length >= RESPONSES.length) usedIndices = [];
-    let idx;
-    do { idx = Math.floor(Math.random() * RESPONSES.length); } while (usedIndices.includes(idx));
-    usedIndices.push(idx);
-    return RESPONSES[idx];
+    const roll = Math.random();
+    const affirmation = pick(AFFIRMATIONS);
+
+    // ~10% chance: site plug
+    if (roll < 0.10) {
+      return `${affirmation} ${pick(PLUG_RESPONSES)}`;
+    }
+
+    // ~15% chance: IDK
+    if (roll < 0.25) {
+      return `${affirmation} ${pick(IDK_RESPONSES)}`;
+    }
+
+    // Otherwise: affirmation + segue + answer
+    return `${affirmation} ${pick(SEGUES)} ${getAnswer()}`;
   }
 
   const messagesEl = document.getElementById('messages');
@@ -503,7 +574,6 @@
     inputField.style.height = 'auto';
     sendBtn.disabled = true;
 
-    // Show typing indicator
     typingEl.classList.add('active');
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -525,7 +595,6 @@
     }
   });
 
-  // Auto-resize textarea
   inputField.addEventListener('input', () => {
     inputField.style.height = 'auto';
     inputField.style.height = Math.min(inputField.scrollHeight, 120) + 'px';
