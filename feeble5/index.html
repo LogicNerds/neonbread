@@ -517,23 +517,7 @@
     return ANSWERS[idx];
   }
 
-  function getResponse() {
-    const roll = Math.random();
-    const affirmation = pick(AFFIRMATIONS);
-
-    // ~10% chance: site plug
-    if (roll < 0.10) {
-      return `${affirmation} ${pick(PLUG_RESPONSES)}`;
-    }
-
-    // ~15% chance: IDK
-    if (roll < 0.25) {
-      return `${affirmation} ${pick(IDK_RESPONSES)}`;
-    }
-
-    // Otherwise: affirmation + segue + answer
-    return `${affirmation} ${pick(SEGUES)} ${getAnswer()}`;
-  }
+  const WORKER_URL = 'https://feeble5-api.elijah-029.workers.dev/';
 
   const messagesEl = document.getElementById('messages');
   const inputField = document.getElementById('inputField');
@@ -568,7 +552,15 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function sendMessage() {
+  function getFallback() {
+    const affirmation = pick(AFFIRMATIONS);
+    const roll = Math.random();
+    if (roll < 0.10) return `${affirmation} ${pick(PLUG_RESPONSES)}`;
+    if (roll < 0.25) return `${affirmation} ${pick(IDK_RESPONSES)}`;
+    return `${affirmation} ${pick(SEGUES)} ${getAnswer()}`;
+  }
+
+  async function sendMessage() {
     const text = inputField.value.trim();
     if (!text) return;
 
@@ -580,13 +572,23 @@
     typingEl.classList.add('active');
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    const delay = 900 + Math.random() * 1200;
-    setTimeout(() => {
-      typingEl.classList.remove('active');
-      appendMessage(getResponse(), 'bot');
-      sendBtn.disabled = false;
-      inputField.focus();
-    }, delay);
+    let responseText;
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text })
+      });
+      const data = await res.json();
+      responseText = data.response || getFallback();
+    } catch (e) {
+      responseText = getFallback();
+    }
+
+    typingEl.classList.remove('active');
+    appendMessage(responseText, 'bot');
+    sendBtn.disabled = false;
+    inputField.focus();
   }
 
   sendBtn.addEventListener('click', sendMessage);
