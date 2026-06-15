@@ -1,1 +1,2175 @@
-This isn't a website. What are you doing here?
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AI Tycoon</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Press Start 2P', monospace;
+  }
+  #gameWrapper {
+    position: relative;
+    width: 375px;
+    height: 667px;
+    overflow: hidden;
+    background: #000;
+  }
+  #gameCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 375px;
+    height: 667px;
+    image-rendering: pixelated;
+  }
+  #uiOverlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 375px;
+    height: 667px;
+    pointer-events: none;
+  }
+  /* NES Controller */
+  #nesController {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 375px;
+    height: 155px;
+    background: #1a1a2e;
+    border-top: 3px solid #16213e;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    pointer-events: all;
+    user-select: none;
+  }
+  .dpad {
+    position: relative;
+    width: 90px;
+    height: 90px;
+  }
+  .dpad-h, .dpad-v {
+    position: absolute;
+    background: #2d2d4e;
+    border-radius: 4px;
+  }
+  .dpad-h {
+    width: 90px; height: 30px;
+    top: 50%; left: 0;
+    transform: translateY(-50%);
+  }
+  .dpad-v {
+    width: 30px; height: 90px;
+    left: 50%; top: 0;
+    transform: translateX(-50%);
+  }
+  .dpad-center {
+    position: absolute;
+    width: 30px; height: 30px;
+    background: #3d3d6e;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 2;
+  }
+  .dpad-btn {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+    color: #888;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .dpad-left  { width:30px;height:30px; left:0;   top:50%;transform:translateY(-50%); }
+  .dpad-right { width:30px;height:30px; right:0;  top:50%;transform:translateY(-50%); }
+
+  .nes-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .pause-btn {
+    background: #3d3d6e;
+    border: 2px solid #6060a0;
+    border-radius: 20px;
+    color: #aaa;
+    font-size: 7px;
+    font-family: 'Press Start 2P', monospace;
+    letter-spacing: 1px;
+    padding: 5px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+    pointer-events: all;
+  }
+  .pause-btn:active { background: #5050a0; }
+
+  .ab-buttons {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .nes-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    font-weight: bold;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    pointer-events: all;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+    transition: transform 0.05s, box-shadow 0.05s;
+  }
+  .nes-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.5); }
+  .btn-b { background: #c0392b; color: #fff; }
+  .btn-a { background: #e74c3c; color: #fff; }
+  .btn-label {
+    position: absolute;
+    bottom: -18px;
+    font-size: 7px;
+    font-family: 'Press Start 2P', monospace;
+    color: #666;
+    letter-spacing: 0px;
+    white-space: nowrap;
+  }
+
+  .dpad-btn:active .dpad-arrow { opacity: 1; color: #fff; }
+  .dpad-arrow { color: #666; font-size: 16px; }
+
+  /* Screens */
+  .screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 375px;
+    height: 667px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="gameWrapper">
+  <canvas id="gameCanvas" width="375" height="667"></canvas>
+
+  <!-- NES Controller -->
+  <div id="nesController">
+    <!-- D-Pad -->
+    <div class="dpad">
+      <div class="dpad-h"></div>
+      <div class="dpad-v"></div>
+      <div class="dpad-center"></div>
+      <div class="dpad-btn dpad-left"  id="btnLeft">  <span class="dpad-arrow">◀</span></div>
+      <div class="dpad-btn dpad-right" id="btnRight"> <span class="dpad-arrow">▶</span></div>
+    </div>
+
+    <!-- Center -->
+    <div class="nes-center">
+      <button class="pause-btn" id="btnPause">⏸ PAUSE</button>
+    </div>
+
+    <!-- A / B -->
+    <div class="ab-buttons">
+      <div style="position:relative; margin-bottom:18px;">
+        <button class="nes-btn btn-b" id="btnB">B</button>
+        <span class="btn-label">SHOOT</span>
+      </div>
+      <div style="position:relative; margin-bottom:18px;">
+        <button class="nes-btn btn-a" id="btnA">A</button>
+        <span class="btn-label">JUMP</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// AUDIO
+// ============================================================
+const MUSIC_URL = 'https://raw.githubusercontent.com/LogicNerds/ai-tycoon/main/ai-tycoon-assets/AI-Tycoon-ext.mp3';
+
+let audioCtx = null;
+let musicSource = null;
+let musicBuffer = null;
+let musicGain = null;
+let musicLoaded = false;
+let musicStartTime = 0;
+let musicOffset = 0;
+let currentPlaybackRate = 1.0;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.7;
+    musicGain.connect(audioCtx.destination);
+  }
+  return audioCtx;
+}
+
+async function loadMusic() {
+  if (musicLoaded) return;
+  try {
+    const ctx = getAudioCtx();
+    const response = await fetch(MUSIC_URL);
+    const arrayBuffer = await response.arrayBuffer();
+    musicBuffer = await ctx.decodeAudioData(arrayBuffer);
+    musicLoaded = true;
+  } catch (e) {
+    console.warn('[MUSIC] Failed to load:', e);
+  }
+}
+
+function playMusicAt(offset, rate) {
+  if (!musicLoaded || !musicBuffer) return;
+  const ctx = getAudioCtx();
+  if (musicSource) {
+    try { musicSource.stop(); } catch(e) {}
+    musicSource = null;
+  }
+  musicSource = ctx.createBufferSource();
+  musicSource.buffer = musicBuffer;
+  musicSource.loop = true;
+  musicSource.playbackRate.value = rate;
+  musicSource.connect(musicGain);
+  musicSource.start(0, offset % musicBuffer.duration);
+  musicStartTime = ctx.currentTime;
+  musicOffset = offset % musicBuffer.duration;
+  currentPlaybackRate = rate;
+}
+
+function startMusic() {
+  getAudioCtx().resume();
+  loadMusic().then(() => {
+    playMusicAt(0, 1.0);
+  });
+}
+
+function startBossMusic() {
+  if (!musicLoaded || !musicBuffer) return;
+  // Calculate current position in track
+  const ctx = getAudioCtx();
+  const elapsed = (ctx.currentTime - musicStartTime) * currentPlaybackRate;
+  const currentPos = (musicOffset + elapsed) % musicBuffer.duration;
+  playMusicAt(currentPos, 1.45); // speed up ~45%
+}
+
+function stopMusic() {
+  if (musicSource) {
+    try { musicSource.stop(); } catch(e) {}
+    musicSource = null;
+  }
+}
+
+// ============================================================
+// SOUND EFFECTS (Web Audio API chiptune)
+// ============================================================
+function sfxGoodItem() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    // Short ascending two-tone blip
+    [523, 784].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.18, now + i * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.07 + 0.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.07);
+      osc.stop(now + i * 0.07 + 0.12);
+    });
+  } catch(e) {}
+}
+
+function sfxBadItem() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    // Descending buzz
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.25);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.3);
+  } catch(e) {}
+}
+
+function sfxShoot() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  } catch(e) {}
+}
+
+function sfxDestroy() {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    // Ascending blip + crunch
+    [440, 660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, now + i * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.05 + 0.08);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * 0.05);
+      osc.stop(now + i * 0.05 + 0.1);
+    });
+  } catch(e) {}
+}
+
+// ============================================================
+// CANVAS SETUP
+// ============================================================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = 375, H = 667;
+const GROUND_Y = H - 155 - 20; // controller height + ground strip
+const CONTROLLER_H = 155;
+const PLAY_H = H - CONTROLLER_H; // 512px play area
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const STATE = {
+  TITLE: 'title',
+  SELECT: 'select',
+  PLAYING: 'playing',
+  BOSS: 'boss',
+  RESULTS: 'results',
+  PAUSED: 'paused',
+  GAMEOVER: 'gameover'
+};
+
+let gameState = STATE.TITLE;
+let prevState = STATE.PLAYING;
+let faction = null; // 'shill' | 'denialist'
+let money = 0;
+let timer = 60;
+let timerInterval = null;
+let scrollSpeed = 0.5;
+let spawnRate = 0.018;
+let combo = 0;
+let maxCombo = 0;
+let goodCollected = 0, badCollected = 0, itemsDestroyed = 0;
+let bossDefeated = false;
+let lastTime = 0;
+let frameId = null;
+let paused = false;
+
+// ============================================================
+// INPUT
+// ============================================================
+const keys = { left: false, right: false, jump: false, shoot: false };
+const justPressed = { jump: false, shoot: false };
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left = true;
+  if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.code === 'Space' || e.code === 'ArrowUp') { if (!keys.jump) justPressed.jump = true; keys.jump = true; }
+  if (e.code === 'KeyF' || e.code === 'MouseLeft') { if (!keys.shoot) justPressed.shoot = true; keys.shoot = true; }
+  if (e.code === 'Escape') togglePause();
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left = false;
+  if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  if (e.code === 'Space' || e.code === 'ArrowUp') keys.jump = false;
+  if (e.code === 'KeyF') keys.shoot = false;
+});
+canvas.addEventListener('click', e => {
+  if (gameState === STATE.PLAYING || gameState === STATE.BOSS) {
+    justPressed.shoot = true;
+  }
+});
+
+// Touch / NES buttons
+function holdBtn(id, keyName) {
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', e => { e.preventDefault(); keys[keyName] = true; if (keyName === 'jump' || keyName === 'shoot') justPressed[keyName] = true; }, { passive: false });
+  el.addEventListener('touchend',   e => { e.preventDefault(); keys[keyName] = false; }, { passive: false });
+  el.addEventListener('mousedown',  e => { keys[keyName] = true; if (keyName === 'jump' || keyName === 'shoot') justPressed[keyName] = true; });
+  el.addEventListener('mouseup',    e => { keys[keyName] = false; });
+}
+holdBtn('btnLeft',  'left');
+holdBtn('btnRight', 'right');
+holdBtn('btnA',     'jump');
+holdBtn('btnB',     'shoot');
+document.getElementById('btnPause').addEventListener('click', togglePause);
+document.getElementById('btnPause').addEventListener('touchend', e => { e.preventDefault(); togglePause(); });
+
+function togglePause() {
+  if (gameState === STATE.PLAYING || gameState === STATE.BOSS) {
+    paused = !paused;
+    if (paused) { prevState = gameState; gameState = STATE.PAUSED; }
+    else { gameState = prevState; }
+  }
+}
+
+// ============================================================
+// PIXEL FONT HELPERS
+// ============================================================
+function pixelText(text, x, y, size, color, align = 'left', shadow = false) {
+  ctx.save();
+  ctx.font = `${size}px 'Press Start 2P', monospace`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'top';
+  if (shadow) {
+    ctx.fillStyle = '#000';
+    ctx.fillText(text, x+2, y+2);
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ============================================================
+// PLATFORMS
+// ============================================================
+const platforms = [
+  { x: 0, y: GROUND_Y, w: 9999, h: 20 }, // ground (infinite)
+  { x: 180, y: GROUND_Y - 110, w: 100, h: 14, scroll: true },
+  { x: 350, y: GROUND_Y - 180, w: 80,  h: 14, scroll: true },
+  { x: 520, y: GROUND_Y - 110, w: 120, h: 14, scroll: true },
+  { x: 700, y: GROUND_Y - 200, w: 80,  h: 14, scroll: true },
+  { x: 850, y: GROUND_Y - 130, w: 100, h: 14, scroll: true },
+];
+// We'll generate more platforms procedurally
+let platformPool = [...platforms];
+let worldX = 0; // how far world has scrolled
+
+function spawnPlatform() {
+  const rightEdge = worldX + W + 50;
+  // check if we need a new one
+  const last = platformPool.filter(p => p.scroll).sort((a,b) => b.x - a.x)[0];
+  if (!last || last.x - worldX < W + 100) {
+    const py = GROUND_Y - 90 - Math.floor(Math.random() * 3) * 55;
+    platformPool.push({ x: (last ? last.x + 100 + Math.random() * 120 : W + 100), y: py, w: 70 + Math.random() * 80, h: 14, scroll: true });
+  }
+}
+
+function updatePlatforms(dt) {
+  spawnPlatform();
+  // cleanup old
+  platformPool = platformPool.filter(p => !p.scroll || (p.x - worldX) > -200);
+}
+
+// ============================================================
+// PLAYER
+// ============================================================
+const PLAYER_W = 24, PLAYER_H = 36;
+const player = {
+  x: 60, y: GROUND_Y - PLAYER_H,
+  vx: 0, vy: 0,
+  onGround: false,
+  jumpsLeft: 2,
+  facing: 1, // 1 = right, -1 = left
+  shootCooldown: 0,
+  invincible: 0,
+  hitFlash: 0,
+};
+
+function resetPlayer() {
+  player.x = 60;
+  player.y = GROUND_Y - PLAYER_H;
+  player.vx = 0; player.vy = 0;
+  player.onGround = false;
+  player.jumpsLeft = 2;
+  player.facing = 1;
+  player.shootCooldown = 0;
+  player.invincible = 0;
+}
+
+const GRAVITY = 0.55;
+const JUMP_POWER = -13;
+const MOVE_SPEED = 3.5;
+
+function updatePlayer(dt) {
+  // Horizontal
+  if (keys.left)  { player.vx = -MOVE_SPEED; player.facing = -1; }
+  else if (keys.right) { player.vx = MOVE_SPEED; player.facing = 1; }
+  else player.vx = 0;
+
+  // Scroll push
+  const scrollPush = scrollSpeed * 0.6;
+  player.x -= scrollPush * dt * 60 / 60;
+
+  // Keep on screen
+  if (player.x < 20) player.x = 20;
+  if (player.x > W - PLAYER_W - 10) player.x = W - PLAYER_W - 10;
+
+  player.x += player.vx;
+
+  // Jump
+  if (justPressed.jump && player.jumpsLeft > 0) {
+    player.vy = JUMP_POWER;
+    player.jumpsLeft--;
+  }
+
+  // Gravity
+  player.vy += GRAVITY;
+  player.y += player.vy;
+
+  // Platform collision
+  player.onGround = false;
+  for (const p of platformPool) {
+    const px = p.x - worldX;
+    if (player.x + PLAYER_W > px && player.x < px + p.w) {
+      if (player.vy >= 0 && player.y + PLAYER_H <= p.y + 10 && player.y + PLAYER_H + player.vy >= p.y) {
+        player.y = p.y - PLAYER_H;
+        player.vy = 0;
+        player.onGround = true;
+        player.jumpsLeft = 2;
+      }
+    }
+  }
+
+  // Don't fall below ground
+  if (player.y >= GROUND_Y - PLAYER_H) {
+    player.y = GROUND_Y - PLAYER_H;
+    player.vy = 0;
+    player.onGround = true;
+    player.jumpsLeft = 2;
+  }
+
+  if (player.shootCooldown > 0) player.shootCooldown -= dt;
+  if (player.invincible > 0) player.invincible -= dt;
+  if (player.hitFlash > 0) player.hitFlash -= dt;
+}
+
+// ============================================================
+// PROJECTILES
+// ============================================================
+const projectiles = [];
+const PROJ_WORDS_SHILL = ['Optimize','Scale','Disrupt','Automate','Leverage','Synergize'];
+const PROJ_WORDS_DENY  = ['Human','Community','Craft','Experience','Empathy','Solidarity'];
+
+function fireProjectile() {
+  if (player.shootCooldown > 0) return;
+  player.shootCooldown = 0.35;
+  sfxShoot();
+  const words = faction === 'shill' ? PROJ_WORDS_SHILL : PROJ_WORDS_DENY;
+  projectiles.push({
+    x: player.x + (player.facing === 1 ? PLAYER_W : 0),
+    y: player.y + PLAYER_H / 2,
+    vx: 7 * player.facing,
+    word: words[Math.floor(Math.random() * words.length)],
+    life: 1.5
+  });
+}
+
+function updateProjectiles(dt) {
+  for (const p of projectiles) {
+    p.x += p.vx;
+    p.life -= dt;
+  }
+  // Remove dead
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    if (projectiles[i].life <= 0 || projectiles[i].x < -100 || projectiles[i].x > W + 100) {
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+// ============================================================
+// ITEMS
+// ============================================================
+// Corporate Shill: good = AI stuff, bad = labor stuff
+// AI Denialist: reverse
+const ITEM_DEFS = {
+  // AI items
+  robot:   { emoji: '🤖', label: 'Robot Head',       value: 100,  type: 'ai' },
+  token:   { emoji: '🪙', label: 'Token Coin',        value: 150,  type: 'ai' },
+  prompt:  { emoji: '💬', label: 'Prompt Window',     value: 200,  type: 'ai' },
+  gpu:     { emoji: '💾', label: 'GPU Chip',          value: 300,  type: 'ai' },
+  unicorn: { emoji: '🦄', label: 'AI Unicorn',        value: 1000, type: 'ai', rare: true },
+  // Labor items
+  raise:   { emoji: '📈', label: 'Raise Request',     value: 100,  type: 'labor' },
+  hire:    { emoji: '🧑', label: 'New Hire',           value: 150,  type: 'labor' },
+  benefit: { emoji: '🏥', label: 'Benefits Package',  value: 200,  type: 'labor' },
+  pto:     { emoji: '🏖️', label: 'PTO Form',           value: 250,  type: 'labor' },
+  union:   { emoji: '✊', label: 'Union Card',         value: 500,  type: 'labor', rare: true },
+  // Special
+  linkedin:{ emoji: '💼', label: 'Viral LinkedIn',    value: 0,    type: 'special', special: 'linkedin' },
+  vc:      { emoji: '💰', label: 'VC Funding',        value: 0,    type: 'special', special: 'vc' },
+  strike:  { emoji: '🪧', label: 'Labor Strike',      value: 0,    type: 'special', special: 'strike' },
+  bubble:  { emoji: '💹', label: 'AI Bubble',         value: 0,    type: 'special', special: 'bubble' },
+};
+
+const ITEM_KEYS_AI    = ['robot','token','prompt','gpu','unicorn'];
+const ITEM_KEYS_LABOR = ['raise','hire','benefit','pto','union'];
+const ITEM_KEYS_SPECIAL = ['linkedin','vc','strike','bubble'];
+
+let items = [];
+let spawnTimer = 0;
+let bubbleActive = false;
+let bubbleTimer = 0;
+
+// Floating messages
+let floaties = [];
+
+function addFloaty(text, x, y, color) {
+  floaties.push({ text, x, y, vy: -1.2, life: 1.4, color });
+}
+
+function spawnItem() {
+  // Cap total items on screen
+  if (items.length >= 6) return;
+
+  // Pick type
+  let key;
+  const rand = Math.random();
+  if (rand < 0.04) {
+    key = ITEM_KEYS_SPECIAL[Math.floor(Math.random() * ITEM_KEYS_SPECIAL.length)];
+  } else if (rand < 0.52) {
+    key = ITEM_KEYS_AI[Math.floor(Math.random() * ITEM_KEYS_AI.length)];
+  } else {
+    key = ITEM_KEYS_LABOR[Math.floor(Math.random() * ITEM_KEYS_LABOR.length)];
+  }
+
+  const def = ITEM_DEFS[key];
+  // Ground level: item bottom (y + size) should sit at GROUND_Y
+  // Mid platform: ~120px up, High: ~210px up
+  const heights = [
+    GROUND_Y - 32,        // ground level
+    GROUND_Y - 32 - 110, // mid platform
+    GROUND_Y - 32 - 200, // high platform
+  ];
+  const yPos = heights[Math.floor(Math.random() * heights.length)];
+  const spawnX = W + 40;
+
+  // Enforce minimum horizontal gap of 80px from any existing item
+  for (const existing of items) {
+    if (Math.abs(existing.x - spawnX) < 80) return;
+  }
+
+  items.push({
+    key, def,
+    x: spawnX,
+    y: yPos,
+    size: 32,
+    bob: Math.random() * Math.PI * 2,
+    collected: false,
+  });
+}
+
+function isGoodItem(key) {
+  const def = ITEM_DEFS[key];
+  if (def.type === 'special') return false;
+  if (faction === 'shill')     return def.type === 'ai';
+  if (faction === 'denialist') return def.type === 'labor';
+  return false;
+}
+
+function isBadItem(key) {
+  const def = ITEM_DEFS[key];
+  if (def.type === 'special') return false;
+  if (faction === 'shill')     return def.type === 'labor';
+  if (faction === 'denialist') return def.type === 'ai';
+  return false;
+}
+
+function getItemValue(key) {
+  const def = ITEM_DEFS[key];
+  let val = def.value;
+  if (bubbleActive) val *= 2;
+  return val;
+}
+
+function handleSpecialItem(key) {
+  const def = ITEM_DEFS[key];
+  switch (def.special) {
+    case 'linkedin': {
+      const win = Math.random() > 0.5;
+      const amt = win ? 2000 : -2000;
+      money += amt;
+      const msgs = ["'Thoughts?'", "'Agree?'", "'Nobody talks about this...'", "'Let that sink in.'", "'I was fired. Then I became a CEO.'"];
+      addFloaty((win ? '+$2000 ' : '-$2000 ') + msgs[Math.floor(Math.random()*msgs.length)], player.x - 40, player.y - 20, win ? '#ffe600' : '#ff4444');
+      break;
+    }
+    case 'vc':
+      if (faction === 'shill') { money += 5000; addFloaty('+$5000 VC CHECK!', player.x - 30, player.y - 20, '#00ff88'); }
+      else { money -= 1000; addFloaty('-$1000 Diluted!', player.x - 30, player.y - 20, '#ff4444'); }
+      break;
+    case 'strike':
+      if (faction === 'denialist') { money += 5000; addFloaty('+$5000 SOLIDARITY!', player.x - 30, player.y - 20, '#00ff88'); }
+      else { money -= 1000; addFloaty('-$1000 Shut Down!', player.x - 30, player.y - 20, '#ff4444'); }
+      break;
+    case 'bubble':
+      bubbleActive = true;
+      bubbleTimer = 5;
+      addFloaty('AI BUBBLE! 2x VALUES!', W/2 - 60, PLAY_H/2, '#ff00ff');
+      break;
+  }
+  if (money < 0) money = 0;
+}
+
+function updateItems(dt) {
+  // Only spawn during normal play
+  if (gameState === STATE.PLAYING) {
+    spawnTimer += dt;
+    if (spawnTimer >= 1 / (spawnRate * 60)) {
+      spawnTimer = 0;
+      spawnItem();
+    }
+  }
+
+  if (bubbleActive) {
+    bubbleTimer -= dt;
+    if (bubbleTimer <= 0) bubbleActive = false;
+  }
+
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    item.bob += dt * 2;
+
+    // Only scroll items during normal play
+    if (gameState === STATE.PLAYING) {
+      item.x -= scrollSpeed;
+    }
+
+    // Player collision
+    if (!item.collected) {
+      const ix = item.x, iy = item.y + Math.sin(item.bob) * 4;
+      if (player.x < ix + item.size && player.x + PLAYER_W > ix &&
+          player.y < iy + item.size && player.y + PLAYER_H > iy) {
+        item.collected = true;
+
+        if (ITEM_DEFS[item.key].type === 'special') {
+          handleSpecialItem(item.key);
+        } else if (isGoodItem(item.key)) {
+          const v = getItemValue(item.key);
+          money += v;
+          goodCollected++;
+          combo++;
+          if (combo > maxCombo) maxCombo = combo;
+          scrollSpeed += 0.05;
+          spawnRate += 0.002;
+          sfxGoodItem();
+          addFloaty(`+$${v}`, item.x, item.y - 10, '#00ff88');
+        } else if (isBadItem(item.key)) {
+          const v = getItemValue(item.key);
+          if (player.invincible <= 0) {
+            money -= v;
+            if (money < 0) money = 0;
+            player.invincible = 0.8;
+            player.hitFlash = 0.8;
+            badCollected++;
+            combo = 0;
+            scrollSpeed += 0.15;
+            spawnRate += 0.008;
+            sfxBadItem();
+            addFloaty(`-$${v}`, item.x, item.y - 10, '#ff4444');
+          }
+        }
+      }
+    }
+
+    // Remove off screen or collected
+    if (item.x < -60 || item.collected) {
+      items.splice(i, 1);
+    }
+  }
+
+  // Check projectile hits on items (playing phase only)
+  if (gameState === STATE.PLAYING) {
+    for (let pi = projectiles.length - 1; pi >= 0; pi--) {
+      const proj = projectiles[pi];
+      for (let ii = items.length - 1; ii >= 0; ii--) {
+        const item = items[ii];
+        if (item.collected) continue;
+        if (isBadItem(item.key) &&
+            proj.x > item.x && proj.x < item.x + item.size &&
+            proj.y > item.y && proj.y < item.y + item.size) {
+          const reward = 25 * (1 + Math.floor(combo / 3));
+          money += reward;
+          itemsDestroyed++;
+          combo++;
+          if (combo > maxCombo) maxCombo = combo;
+          sfxDestroy();
+          addFloaty(`+$${reward} DESTROYED!`, item.x, item.y - 10, '#ffff00');
+          items.splice(ii, 1);
+          projectiles.splice(pi, 1);
+          break;
+        }
+      }
+    }
+  }
+
+  // (floaties updated in main loop)
+}
+
+// ============================================================
+// BOSS
+// ============================================================
+const boss = {
+  x: W + 80, y: 60,
+  w: 110, h: 130,
+  hp: 100, maxHP: 100,
+  phase: 1, // 1,2,3,4
+  pivoted: false,
+  attackTimer: 0,
+  currentAttack: 0,
+  attacks: [],
+  dialogue: '',
+  dialogueTimer: 0,
+  entered: false,
+  defeated: false,
+  explodeTimer: 0,
+};
+
+const BOSS_ATTACKS = ['thoughtLeadership', 'engagementFarming', 'courseLaunch', 'pivot'];
+
+let bossAttacks = []; // projectiles/items from boss
+
+function initBoss() {
+  // Stop the world scrolling
+  scrollSpeed = 0;
+  spawnRate = 0;
+  // Clear all remaining items
+  items = [];
+  bossAttacks = [];
+
+  // Place boss on the ground, right side of screen
+  // boss.y is top of sprite; feet = boss.y + boss.h; must equal GROUND_Y
+  const bossGroundY = GROUND_Y - boss.h;
+  boss.x = W + 80;
+  boss.y = bossGroundY;
+  boss.hp = 100;
+  boss.phase = 1;
+  boss.pivoted = false;
+  boss.attackTimer = 2;
+  boss.currentAttack = -1;
+  boss.entered = false;
+  boss.defeated = false;
+  boss.explodeTimer = 0;
+  boss.groundY = bossGroundY;
+
+  // Dialogue
+  const intro = faction === 'shill'
+    ? '"The future belongs to those\nwilling to automate."'
+    : '"The future belongs to those\nwilling to resist."';
+  showBossDialogue(intro, 3);
+  setTimeout(() => showBossDialogue('"Want to hear about my course?"', 2500), 3200);
+  startBossMusic();
+}
+
+function showBossDialogue(text, duration) {
+  boss.dialogue = text;
+  boss.dialogueTimer = duration;
+}
+
+const SPEECH_BUBBLES = ["Agree?","Thoughts?","Let's Normalize...","10 Lessons I Learned...","Nobody Talks About This...","Hot take:","Unpopular opinion:","I was wrong about this."];
+
+function updateBoss(dt) {
+  if (boss.defeated) {
+    boss.explodeTimer -= dt;
+    return;
+  }
+
+  // Enter from right, walk to position on ground
+  if (!boss.entered) {
+    boss.x -= 1.8;
+    boss.y = boss.groundY; // stay on ground always
+    if (boss.x <= W - boss.w - 20) {
+      boss.x = W - boss.w - 20;
+      boss.entered = true;
+    }
+    return;
+  }
+
+  // Stay on ground — slight idle bob via drawing offset only, not actual y
+  boss.y = boss.groundY;
+
+  // Phase transitions
+  const hpPct = boss.hp / boss.maxHP;
+  if (hpPct <= 0.5 && !boss.pivoted) {
+    boss.pivoted = true;
+    showBossDialogue('"I\'ve always believed this."', 3);
+    boss.phase = 3;
+  }
+  if (hpPct <= 0.2) boss.phase = 4;
+
+  // Attack cycle
+  boss.attackTimer -= dt;
+  if (boss.attackTimer <= 0) {
+    doNextBossAttack();
+  }
+
+  // Boss dialogue timer
+  if (boss.dialogueTimer > 0) boss.dialogueTimer -= dt;
+
+  // Player projectiles hit boss body directly
+  for (let pi = projectiles.length - 1; pi >= 0; pi--) {
+    const proj = projectiles[pi];
+    if (boss.entered && !boss.defeated &&
+        proj.x > boss.x && proj.x < boss.x + boss.w &&
+        proj.y > boss.y && proj.y < boss.y + boss.h) {
+      const dmg = 5;
+      boss.hp -= dmg;
+      const earned = 25 * (1 + Math.floor(combo / 3));
+      money += earned;
+      itemsDestroyed++;
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      sfxDestroy();
+      addFloaty(`-${dmg}HP  +$${earned}`, boss.x + boss.w/2, boss.y - 10, '#ffff00');
+      projectiles.splice(pi, 1);
+      if (boss.hp <= 0) {
+        boss.hp = 0;
+        boss.defeated = true;
+        boss.explodeTimer = 2.5;
+        bossDefeated = true;
+        addFloaty('BOSS DEFEATED!', W/2 - 60, PLAY_H/2, '#ffe600');
+        setTimeout(() => { gameState = STATE.RESULTS; }, 3000);
+      }
+      continue;
+    }
+  }
+
+  // Update boss attack projectiles
+  for (let i = bossAttacks.length - 1; i >= 0; i--) {
+    const a = bossAttacks[i];
+    a.x += a.vx;
+    a.y += a.vy;
+    // Gravity on projectiles so they arc
+    if (a.gravity) a.vy += 0.15;
+    a.life -= dt;
+    a.bob = (a.bob || 0) + dt * 2;
+
+    // Player hit?
+    if (player.invincible <= 0 &&
+        player.x < a.x + 30 && player.x + PLAYER_W > a.x &&
+        player.y < a.y + 30 && player.y + PLAYER_H > a.y) {
+      money -= a.damage;
+      if (money < 0) money = 0;
+      player.invincible = 0.8;
+      player.hitFlash = 0.8;
+      combo = 0;
+      sfxBadItem();
+      addFloaty(`-$${a.damage}`, player.x, player.y - 20, '#ff4444');
+      bossAttacks.splice(i, 1);
+      continue;
+    }
+
+    // Player projectile shoots down incoming boss attack (defensive — no HP damage)
+    let destroyed = false;
+    for (let pi = projectiles.length - 1; pi >= 0; pi--) {
+      const proj = projectiles[pi];
+      if (proj.x > a.x - 8 && proj.x < a.x + 44 &&
+          proj.y > a.y - 8 && proj.y < a.y + 44) {
+        const earned = (a.reward || 25) * (1 + Math.floor(combo / 3));
+        money += earned;
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        sfxDestroy();
+        addFloaty(`BLOCKED! +$${earned}`, a.x, a.y - 10, '#00ffaa');
+        bossAttacks.splice(i, 1);
+        projectiles.splice(pi, 1);
+        destroyed = true;
+        break;
+      }
+    }
+    if (destroyed) continue;
+
+    // Remove if off screen or expired
+    if (a.life <= 0 || a.x < -80 || a.x > W + 80 || a.y > PLAY_H + 40) {
+      bossAttacks.splice(i, 1);
+    }
+  }
+}
+
+function doNextBossAttack() {
+  if (boss.phase === 4) {
+    spawnBossAttackUltimate();
+    boss.attackTimer = 0.5;
+    return;
+  }
+  boss.currentAttack = (boss.currentAttack + 1) % 2;
+  switch (boss.currentAttack) {
+    case 0: spawnSpeechBubbles(); boss.attackTimer = 3; break;
+    case 1: spawnCourseLaunch(); boss.attackTimer = 2.5; break;
+  }
+}
+
+function spawnSpeechBubbles() {
+  // Fire 2-3 speech bubbles aimed at the player, arcing across screen
+  const count = boss.phase >= 3 ? 3 : 2;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const text = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+      // Aim toward player with slight spread
+      const dx = (player.x + PLAYER_W/2) - (boss.x + boss.w/2);
+      const dy = (player.y + PLAYER_H/2) - (boss.y + boss.h/2);
+      const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+      const speed = 3.5 + Math.random();
+      const spread = (i - Math.floor(count/2)) * 0.6;
+      bossAttacks.push({
+        x: boss.x, y: boss.y + boss.h * 0.4,
+        vx: (dx/dist) * speed + spread,
+        vy: (dy/dist) * speed,
+        life: 4, emoji: '💬', label: text,
+        damage: 75, reward: 25, bossHP: 5, bob: 0, gravity: false
+      });
+    }, i * 350);
+  }
+}
+
+function spawnCourseLaunch() {
+  // Lob $997 courses in arcs toward the player
+  const count = boss.phase >= 3 ? 5 : 3;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const spread = (i - Math.floor(count/2)) * 40;
+      const targetX = player.x + spread;
+      const dx = targetX - boss.x;
+      const travelTime = 50;
+      const vx = dx / travelTime;
+      const vy = -6 - Math.random() * 2; // lob upward, gravity brings it down
+      bossAttacks.push({
+        x: boss.x + boss.w/2, y: boss.y + 20,
+        vx, vy,
+        life: 4, emoji: '💸', label: '$997',
+        damage: 100, reward: 50, bossHP: 10, bob: 0, gravity: true
+      });
+    }, i * 250);
+  }
+}
+
+function spawnBossAttackUltimate() {
+  // Ultimate: fast aimed shots + lobbed courses mixed
+  const r = Math.random();
+  if (r < 0.5) {
+    // Fast straight shot at player
+    const dx = (player.x + PLAYER_W/2) - boss.x;
+    const dy = (player.y + PLAYER_H/2) - (boss.y + boss.h/2);
+    const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+    const speed = 5 + Math.random() * 2;
+    const emojis = ['💬','💸','📢','🔥','💯'];
+    bossAttacks.push({
+      x: boss.x, y: boss.y + boss.h * 0.4,
+      vx: (dx/dist) * speed,
+      vy: (dy/dist) * speed,
+      life: 3, emoji: emojis[Math.floor(Math.random()*emojis.length)],
+      label: '', damage: 50, reward: 30, bossHP: 4, bob: 0, gravity: false
+    });
+  } else {
+    // Lobbed course
+    const vy = -5 - Math.random() * 3;
+    const vx = -2 - Math.random() * 2;
+    bossAttacks.push({
+      x: boss.x + boss.w/2, y: boss.y + 20,
+      vx, vy,
+      life: 4, emoji: '💸', label: '$997',
+      damage: 100, reward: 50, bossHP: 10, bob: 0, gravity: true
+    });
+  }
+}
+
+// ============================================================
+// BACKGROUND
+// ============================================================
+let bgStars = [];
+let bgClouds = [];
+let bgBuildings = [];
+
+function initBG() {
+  bgStars = Array.from({length: 30}, () => ({
+    x: Math.random() * W, y: Math.random() * PLAY_H * 0.4,
+    size: Math.random() > 0.7 ? 2 : 1, blink: Math.random() * Math.PI * 2
+  }));
+  bgClouds = Array.from({length: 5}, (_, i) => ({
+    x: i * 90 + Math.random() * 40, y: 40 + Math.random() * 60,
+    w: 60 + Math.random() * 40, speed: 0.3 + Math.random() * 0.2
+  }));
+  bgBuildings = Array.from({length: 12}, (_, i) => ({
+    x: i * 70 - 40, y: 0,
+    w: 45 + Math.random() * 30,
+    h: 80 + Math.random() * 100,
+    color: `hsl(${220 + Math.random()*30},${20+Math.random()*20}%,${12+Math.random()*8}%)`,
+    windows: Math.floor(Math.random() * 8) + 3,
+  }));
+}
+
+function updateBG(dt) {
+  // Only scroll BG during playing phase
+  if (gameState !== STATE.PLAYING) return;
+  for (const c of bgClouds) {
+    c.x -= c.speed * scrollSpeed * 0.3;
+    if (c.x < -100) c.x = W + 60;
+  }
+  for (const b of bgBuildings) {
+    b.x -= scrollSpeed * 0.5;
+    if (b.x + b.w < -10) b.x = W + 10 + Math.random() * 50;
+  }
+}
+
+function drawBG() {
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, PLAY_H);
+  sky.addColorStop(0, gameState === STATE.BOSS ? '#1a0030' : '#0d0d2b');
+  sky.addColorStop(1, gameState === STATE.BOSS ? '#3d0060' : '#1a1a4e');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, PLAY_H);
+
+  // Stars
+  for (const s of bgStars) {
+    s.blink += 0.05;
+    const alpha = 0.5 + Math.sin(s.blink) * 0.5;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(s.x, s.y, s.size, s.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // Buildings (silhouette)
+  for (const b of bgBuildings) {
+    ctx.fillStyle = b.color;
+    const by = PLAY_H - b.h;
+    ctx.fillRect(b.x, by, b.w, b.h);
+    // Windows
+    ctx.fillStyle = Math.random() > 0.98 ? '#ffe600' : '#ffe60033';
+    for (let wy = 0; wy < b.windows; wy++) {
+      for (let wx = 0; wx < 3; wx++) {
+        ctx.fillRect(b.x + 5 + wx * 12, by + 10 + wy * 11, 7, 6);
+      }
+    }
+  }
+
+  // Clouds
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = '#8888ff';
+  for (const c of bgClouds) {
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.w * 0.4, 0, Math.PI * 2);
+    ctx.arc(c.x + c.w * 0.3, c.y - 8, c.w * 0.3, 0, Math.PI * 2);
+    ctx.arc(c.x + c.w * 0.6, c.y, c.w * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Ground
+  ctx.fillStyle = '#1e3a1e';
+  ctx.fillRect(0, GROUND_Y, W, 20);
+  ctx.fillStyle = '#2d5a2d';
+  ctx.fillRect(0, GROUND_Y, W, 5);
+  // Grid lines on ground
+  ctx.strokeStyle = '#1a2e1a';
+  ctx.lineWidth = 1;
+  for (let gx = (worldX * 0.8) % 30; gx < W; gx += 30) {
+    ctx.beginPath(); ctx.moveTo(gx, GROUND_Y); ctx.lineTo(gx, GROUND_Y + 20); ctx.stroke();
+  }
+
+  // Platforms
+  for (const p of platformPool) {
+    if (!p.scroll) continue;
+    const px = p.x - worldX;
+    if (px > W + 10 || px + p.w < -10) continue;
+    ctx.fillStyle = '#2d5a2d';
+    ctx.fillRect(px, p.y, p.w, p.h);
+    ctx.fillStyle = '#3a7a3a';
+    ctx.fillRect(px, p.y, p.w, 4);
+    ctx.fillStyle = '#1a3a1a';
+    ctx.fillRect(px, p.y + p.h - 3, p.w, 3);
+  }
+}
+
+// ============================================================
+// DRAW PLAYER SPRITE
+// ============================================================
+function drawPlayer() {
+  const x = Math.round(player.x), y = Math.round(player.y);
+  const flip = player.facing === -1;
+
+  if (player.hitFlash > 0 && Math.floor(Date.now() / 80) % 2 === 0) return;
+
+  ctx.save();
+  if (flip) {
+    ctx.translate(x + PLAYER_W, y);
+    ctx.scale(-1, 1);
+    drawPlayerSprite(0, 0);
+  } else {
+    drawPlayerSprite(x, y);
+  }
+  ctx.restore();
+}
+
+function drawPlayerSprite(x, y) {
+  // Both sprites: suit-tie (shill) or hoodie-tote (denialist)
+  const isShill = faction === 'shill';
+
+  const running = (keys.left || keys.right) && player.onGround;
+  const legPhase = Math.floor(Date.now() / 150) % 2;
+
+  // Pixel art - drawn as colored rectangles (8-bit style)
+  // Scale factor: 1px = 1px at 24x36 canvas units
+
+  if (isShill) {
+    // Corporate Shill: suit (dark blue), white shirt, red tie, skin tone head
+    // HEAD
+    ctx.fillStyle = '#f5c5a0'; // skin
+    ctx.fillRect(x+6, y, 12, 12);
+    // hair (dark)
+    ctx.fillStyle = '#3d2200';
+    ctx.fillRect(x+6, y, 12, 4);
+    ctx.fillRect(x+4, y+2, 2, 4);
+    ctx.fillRect(x+18, y+2, 2, 4);
+    // eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x+8, y+5, 2, 2);
+    ctx.fillRect(x+14, y+5, 2, 2);
+    // smile
+    ctx.fillStyle = '#cc7755';
+    ctx.fillRect(x+9, y+9, 6, 1);
+    ctx.fillRect(x+8, y+8, 1, 2);
+    ctx.fillRect(x+15, y+8, 1, 2);
+    // NECK
+    ctx.fillStyle = '#f5c5a0';
+    ctx.fillRect(x+10, y+12, 4, 3);
+    // SUIT JACKET (dark blue)
+    ctx.fillStyle = '#1a2a6c';
+    ctx.fillRect(x+2, y+15, 20, 14);
+    // White shirt collar
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x+9, y+15, 6, 4);
+    // Red tie
+    ctx.fillStyle = '#cc0000';
+    ctx.fillRect(x+11, y+16, 2, 10);
+    ctx.fillRect(x+10, y+23, 4, 3);
+    // Suit lapels
+    ctx.fillStyle = '#0d1a4e';
+    ctx.fillRect(x+2, y+15, 7, 8);
+    ctx.fillRect(x+15, y+15, 7, 8);
+    // LEGS
+    ctx.fillStyle = '#1a2a6c';
+    if (running && legPhase === 0) {
+      ctx.fillRect(x+3, y+29, 8, 7);
+      ctx.fillRect(x+13, y+31, 8, 5);
+    } else if (running && legPhase === 1) {
+      ctx.fillRect(x+3, y+31, 8, 5);
+      ctx.fillRect(x+13, y+29, 8, 7);
+    } else {
+      ctx.fillRect(x+3, y+29, 8, 7);
+      ctx.fillRect(x+13, y+29, 8, 7);
+    }
+    // SHOES
+    ctx.fillStyle = '#111';
+    ctx.fillRect(x+2, y+34, 10, 4);
+    ctx.fillRect(x+12, y+34, 10, 4);
+
+  } else {
+    // AI Denialist: hoodie (olive/green), jeans, tote bag
+    // HEAD
+    ctx.fillStyle = '#f0b080';
+    ctx.fillRect(x+6, y, 12, 12);
+    // hair (longer, wavy)
+    ctx.fillStyle = '#8b5e3c';
+    ctx.fillRect(x+5, y, 14, 5);
+    ctx.fillRect(x+4, y+2, 3, 7);
+    ctx.fillRect(x+17, y+2, 3, 7);
+    ctx.fillRect(x+5, y+10, 3, 4);
+    ctx.fillRect(x+16, y+10, 3, 4);
+    // eyes (round glasses)
+    ctx.fillStyle = '#88bbff';
+    ctx.fillRect(x+8, y+5, 3, 3);
+    ctx.fillRect(x+13, y+5, 3, 3);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x+9, y+6, 1, 1);
+    ctx.fillRect(x+14, y+6, 1, 1);
+    // glasses frame
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.strokeRect(x+8, y+5, 3, 3);
+    ctx.strokeRect(x+13, y+5, 3, 3);
+    ctx.beginPath(); ctx.moveTo(x+11, y+7); ctx.lineTo(x+13, y+7); ctx.stroke();
+    // slight frown / serious expression
+    ctx.fillStyle = '#c07050';
+    ctx.fillRect(x+9, y+9, 6, 1);
+    // NECK
+    ctx.fillStyle = '#f0b080';
+    ctx.fillRect(x+10, y+12, 4, 3);
+    // HOODIE (olive)
+    ctx.fillStyle = '#6b7c4a';
+    ctx.fillRect(x+2, y+15, 20, 14);
+    // Hoodie pocket
+    ctx.fillStyle = '#5a6a3a';
+    ctx.fillRect(x+8, y+22, 8, 5);
+    ctx.fillRect(x+8, y+22, 8, 1);
+    // Hood outline
+    ctx.fillStyle = '#7a8d58';
+    ctx.fillRect(x+2, y+15, 4, 6);
+    ctx.fillRect(x+18, y+15, 4, 6);
+    // TOTE BAG (strap over shoulder)
+    ctx.fillStyle = '#c8a060';
+    ctx.fillRect(x+18, y+18, 4, 2);  // strap
+    ctx.fillRect(x+19, y+20, 6, 8);  // bag body
+    ctx.fillStyle = '#b08040';
+    ctx.fillRect(x+19, y+20, 6, 2);  // bag top
+    // JEANS
+    ctx.fillStyle = '#3a5080';
+    if (running && legPhase === 0) {
+      ctx.fillRect(x+3, y+29, 8, 7);
+      ctx.fillRect(x+13, y+31, 8, 5);
+    } else if (running && legPhase === 1) {
+      ctx.fillRect(x+3, y+31, 8, 5);
+      ctx.fillRect(x+13, y+29, 8, 7);
+    } else {
+      ctx.fillRect(x+3, y+29, 8, 7);
+      ctx.fillRect(x+13, y+29, 8, 7);
+    }
+    // SHOES (worn, brown)
+    ctx.fillStyle = '#5a3a20';
+    ctx.fillRect(x+2, y+34, 10, 4);
+    ctx.fillRect(x+12, y+34, 10, 4);
+  }
+}
+
+// ============================================================
+// DRAW BOSS (LinkedIn Influencer)
+// ============================================================
+function drawBoss() {
+  if (boss.defeated && boss.explodeTimer <= 0) return;
+
+  const x = Math.round(boss.x);
+  const y = Math.round(boss.y); // no bob — stays grounded
+  const W2 = boss.w, H2 = boss.h;
+
+  // Explosion effect
+  if (boss.defeated) {
+    const particles = Math.floor(boss.explodeTimer * 20);
+    ctx.fillStyle = '#ffe600';
+    for (let i = 0; i < particles; i++) {
+      ctx.fillRect(
+        x + Math.random()*W2, y + Math.random()*H2,
+        4 + Math.random()*8, 4 + Math.random()*8
+      );
+    }
+    ctx.fillStyle = '#ff4400';
+    for (let i = 0; i < particles/2; i++) {
+      ctx.fillRect(
+        x - 20 + Math.random()*(W2+40), y - 20 + Math.random()*(H2+40),
+        3 + Math.random()*6, 3 + Math.random()*6
+      );
+    }
+    return;
+  }
+
+  // Patagonia vest (boss body)
+  // BODY
+  ctx.fillStyle = '#c8d8e8'; // light grey shirt
+  ctx.fillRect(x+10, y+45, W2-20, 55);
+  // Vest (Patagonia-ish teal)
+  ctx.fillStyle = '#2a7a7a';
+  ctx.fillRect(x+10, y+45, W2-20, 55);
+  ctx.fillStyle = '#c8d8e8';
+  ctx.fillRect(x+18, y+50, 18, 50); // shirt shows through middle
+  // Vest logo pocket
+  ctx.fillStyle = '#1a5a5a';
+  ctx.fillRect(x+W2-28, y+52, 14, 10);
+  ctx.fillStyle = '#ff4400';
+  ctx.fillRect(x+W2-26, y+54, 10, 6); // logo
+
+  // NECK
+  ctx.fillStyle = '#f5c5a0';
+  ctx.fillRect(x+38, y+40, 16, 10);
+
+  // HEAD (half human half robot - split vertically)
+  // Left side - human
+  ctx.fillStyle = '#f5c5a0';
+  ctx.fillRect(x+14, y+5, 32, 40);
+  // Right side - robot
+  ctx.fillStyle = '#a0b0c0';
+  ctx.fillRect(x+46, y+5, 32, 40);
+  // Robot panel lines
+  ctx.strokeStyle = '#708090'; ctx.lineWidth = 1;
+  ctx.strokeRect(x+50, y+10, 24, 14);
+  ctx.strokeRect(x+50, y+28, 10, 10);
+  ctx.strokeRect(x+62, y+28, 12, 10);
+  // Robot eye (right side) - LED
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(x+54, y+14, 6, 6);
+  ctx.fillStyle = '#00ffaa';
+  ctx.fillRect(x+56, y+16, 2, 2);
+  // Antenna
+  ctx.fillStyle = '#708090';
+  ctx.fillRect(x+75, y-12, 3, 14);
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(x+73, y-16, 7, 7);
+  // Human eye (left side)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x+20, y+14, 10, 8);
+  ctx.fillStyle = '#1a6ae0';
+  ctx.fillRect(x+23, y+16, 6, 4);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x+25, y+17, 2, 2);
+  // Perfect white teeth / massive smile
+  ctx.fillStyle = '#cc8866';
+  ctx.fillRect(x+20, y+32, 36, 8);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x+22, y+33, 32, 5);
+  // Tooth lines
+  ctx.strokeStyle = '#eee'; ctx.lineWidth = 0.5;
+  for (let t = 0; t < 5; t++) ctx.strokeRect(x+22+t*6, y+33, 6, 5);
+
+  // BLUETOOTH HEADSET (left ear area)
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x+8, y+18, 8, 12);
+  ctx.fillStyle = '#0088ff';
+  ctx.fillRect(x+9, y+20, 4, 6);
+  ctx.fillStyle = '#00aaff';
+  ctx.fillRect(x+10, y+22, 2, 2);
+
+  // ARMS (floating, gesturing)
+  const armWave = Math.sin(Date.now() / 400) * 8;
+  ctx.fillStyle = '#2a7a7a';
+  // Left arm
+  ctx.fillRect(x+2, y+50 + armWave, 10, 30);
+  ctx.fillStyle = '#f5c5a0';
+  ctx.fillRect(x, y+78 + armWave, 14, 10);
+  // Right arm (pointing)
+  ctx.fillStyle = '#2a7a7a';
+  ctx.fillRect(x+W2-12, y+50 - armWave, 10, 30);
+  ctx.fillStyle = '#f5c5a0';
+  ctx.fillRect(x+W2-14, y+78 - armWave, 14, 10);
+
+  // Hover glow
+  ctx.globalAlpha = 0.15;
+  ctx.fillStyle = '#00ffff';
+  ctx.beginPath();
+  ctx.ellipse(x+W2/2, y+H2+10, W2*0.6, 12, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // HP Bar
+  const hpW = 120;
+  const hpX = x + W2/2 - hpW/2;
+  const hpY = y - 28;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(hpX, hpY, hpW, 10);
+  const hpPct = boss.hp / boss.maxHP;
+  ctx.fillStyle = hpPct > 0.6 ? '#00ff44' : hpPct > 0.3 ? '#ffaa00' : '#ff2200';
+  ctx.fillRect(hpX, hpY, hpW * hpPct, 10);
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+  ctx.strokeRect(hpX, hpY, hpW, 10);
+  pixelText('THE LINKEDIN INFLUENCER', hpX + hpW/2, hpY - 14, 8, '#fff', 'center');
+  pixelText(`${boss.hp} HP`, hpX + hpW/2, hpY + 1, 7, '#fff', 'center');
+
+  // Dialogue bubble
+  if (boss.dialogueTimer > 0 && boss.dialogue) {
+    const bx = x - 20, by = y + H2 + 10;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(bx, by, 160, 30);
+    ctx.fillStyle = '#333'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, 160, 30);
+    ctx.fillStyle = '#333';
+    ctx.font = `7px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    // wrap text roughly
+    const words2 = boss.dialogue.split(' ');
+    let line = '', ly = by + 4;
+    for (const w of words2) {
+      if (ctx.measureText(line + w).width > 150) { ctx.fillText(line, bx+5, ly); line = w+' '; ly += 10; }
+      else line += w+' ';
+    }
+    ctx.fillText(line, bx+5, ly);
+  }
+}
+
+// ============================================================
+// DRAW ITEMS
+// ============================================================
+function drawItems() {
+  for (const item of items) {
+    const bobY = Math.sin(item.bob) * 4;
+    const ix = item.x, iy = item.y + bobY;
+
+    // Glow for rare / good items
+    if (isGoodItem(item.key)) {
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = '#ffe600';
+      ctx.beginPath();
+      ctx.arc(ix + item.size/2, iy + item.size/2, item.size * 0.7, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else if (isBadItem(item.key)) {
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = '#ff2200';
+      ctx.beginPath();
+      ctx.arc(ix + item.size/2, iy + item.size/2, item.size * 0.7, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Draw emoji
+    ctx.font = `${item.size}px serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(item.def.emoji, ix, iy);
+
+    // Value label
+    const isGood = isGoodItem(item.key);
+    const isBad  = isBadItem(item.key);
+    if (isGood || isBad) {
+      const val = item.def.value;
+      const label = isGood ? `+$${val}` : `-$${val}`;
+      const col = isGood ? '#88ff88' : '#ff8888';
+      ctx.font = `7px 'Press Start 2P', monospace`;
+      ctx.fillStyle = col;
+      ctx.textAlign = 'center';
+      ctx.fillText(label, ix + item.size/2, iy + item.size + 2);
+    }
+  }
+}
+
+// ============================================================
+// DRAW BOSS ATTACKS
+// ============================================================
+function drawBossAttacks() {
+  for (const a of bossAttacks) {
+    const bobY = Math.sin(a.bob || 0) * 3;
+    ctx.font = '28px serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(a.emoji, a.x, a.y + bobY);
+    if (a.label) {
+      ctx.font = `8px 'Press Start 2P', monospace`;
+      ctx.fillStyle = '#ff4444';
+      ctx.fillStyle = a.emoji === '💸' ? '#ffe600' : '#ff6644';
+      ctx.textAlign = 'center';
+      ctx.fillText(a.label, a.x + 14, a.y + 30 + bobY);
+    }
+  }
+}
+
+// ============================================================
+// DRAW PROJECTILES
+// ============================================================
+function drawProjectiles() {
+  ctx.font = `bold 9px 'Press Start 2P', monospace`;
+  ctx.textBaseline = 'middle';
+  for (const p of projectiles) {
+    const alpha = Math.min(1, p.life * 2);
+    ctx.globalAlpha = alpha;
+    // Trail
+    ctx.fillStyle = faction === 'shill' ? '#00aaff' : '#ffaa00';
+    ctx.fillRect(p.x - p.vx * 3, p.y - 2, p.vx * 3, 4);
+    // Word
+    ctx.fillStyle = faction === 'shill' ? '#44ddff' : '#ffcc44';
+    ctx.textAlign = p.vx > 0 ? 'left' : 'right';
+    ctx.fillText(p.word, p.x, p.y);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ============================================================
+// HUD
+// ============================================================
+function drawHUD() {
+  // Top strip
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, 44);
+  ctx.strokeStyle = faction === 'shill' ? '#0088ff' : '#ff8800';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, W, 44);
+
+  // Money
+  const moneyCol = money >= 1000 ? '#ffe600' : money >= 0 ? '#00ff88' : '#ff4444';
+  pixelText(`$${money.toLocaleString()}`, 12, 8, 16, moneyCol);
+
+  // Timer
+  const timeLeft = Math.ceil(timer);
+  const timeCol = timeLeft <= 10 ? '#ff4444' : '#ffffff';
+  pixelText(`⏱ ${timeLeft}s`, W/2, 8, 13, timeCol, 'center');
+
+  // Combo
+  const comboName = faction === 'shill' ? 'SYNERGY' : 'HUMANITY';
+  if (combo >= 2) {
+    const comboCol = combo >= 5 ? '#ff00ff' : combo >= 3 ? '#ffe600' : '#00ffaa';
+    pixelText(`${comboName} x${combo}`, W - 12, 8, 11, comboCol, 'right');
+  }
+
+  // Bubble indicator
+  if (bubbleActive) {
+    ctx.fillStyle = 'rgba(255,0,255,0.3)';
+    ctx.fillRect(0, 44, W, 16);
+    pixelText(`💹 AI BUBBLE ACTIVE! x2 VALUES!`, W/2, 46, 9, '#ff00ff', 'center');
+  }
+
+  // Floaties
+  for (const f of floaties) {
+    ctx.globalAlpha = Math.min(1, f.life);
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x + 1, f.y + 1);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // Faction badge
+  const badgeCol = faction === 'shill' ? '#0044cc' : '#cc6600';
+  ctx.fillStyle = badgeCol;
+  ctx.fillRect(W - 90, 47, 88, 16);
+  pixelText(faction === 'shill' ? '🤖 CORP SHILL' : '✊ AI DENIALIST', W - 46, 49, 8, '#fff', 'center');
+}
+
+// ============================================================
+// TITLE SCREEN
+// ============================================================
+let titleFrame = 0;
+function drawTitle() {
+  titleFrame++;
+
+  // BG gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, PLAY_H);
+  grad.addColorStop(0, '#0a0015');
+  grad.addColorStop(1, '#001a3a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Logo box
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(20, 80, W - 40, 200);
+  ctx.strokeStyle = '#00ff88';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(20, 80, W - 40, 200);
+
+  // Glow title
+  ctx.shadowColor = '#00ff88';
+  ctx.shadowBlur = 20;
+  pixelText('AI', W/2, 100, 48, '#00ff88', 'center');
+  ctx.shadowBlur = 0;
+  pixelText('TYCOON', W/2, 158, 32, '#ffe600', 'center');
+
+  // Subtitle
+  pixelText('THE GAME OF THOUGHT', W/2, 210, 7, '#aaa', 'center');
+  pixelText('LEADERSHIP & DISRUPTION', W/2, 225, 7, '#aaa', 'center');
+
+  // Neon Bread
+  pixelText('NEON BREAD STUDIOS', W/2, 252, 7, '#555', 'center');
+
+  // Start button — solid fill, text drawn cleanly on top, no shadow
+  const pulse = Math.sin(titleFrame * 0.08) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#00ff88';
+  ctx.fillRect(W/2 - 90, 318, 180, 48);
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = '#009944';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(W/2 - 90, 318, 180, 48);
+
+  // Button text — no shadow, centered vertically in button
+  ctx.save();
+  ctx.font = `11px 'Press Start 2P', monospace`;
+  ctx.fillStyle = '#000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('> START NOW', W/2, 342);
+  ctx.restore();
+
+  // Decorative characters preview
+  ctx.save();
+  ctx.translate(80, 450);
+  ctx.scale(2.5, 2.5);
+  drawPlayerSpriteDirect(0, 0, 'shill');
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(W - 80 - 24, 450);
+  ctx.scale(2.5, 2.5);
+  drawPlayerSpriteDirect(0, 0, 'denialist');
+  ctx.restore();
+
+  pixelText('VS', W/2, 460, 14, '#ff4444', 'center');
+
+  // Bottom credit
+  pixelText('60 SECONDS. MAX MONEY.', W/2, H - 50, 7, '#444', 'center');
+  pixelText('NO ETHICS.', W/2, H - 36, 7, '#444', 'center');
+}
+
+function drawMiniShill(x, y) {
+  ctx.fillStyle = '#1a2a6c';
+  ctx.fillRect(x-8, y-20, 18, 20);
+  ctx.fillStyle = '#f5c5a0';
+  ctx.fillRect(x-6, y-32, 14, 13);
+  ctx.fillStyle = '#cc0000';
+  ctx.fillRect(x-1, y-28, 3, 10);
+}
+function drawMiniDenialist(x, y) {
+  ctx.fillStyle = '#6b7c4a';
+  ctx.fillRect(x-8, y-20, 18, 20);
+  ctx.fillStyle = '#f0b080';
+  ctx.fillRect(x-6, y-32, 14, 13);
+  ctx.fillStyle = '#c8a060';
+  ctx.fillRect(x+7, y-18, 5, 12);
+}
+
+function handleTitleClick(mx, my) {
+  if (my >= 318 && my <= 366 && mx >= W/2-90 && mx <= W/2+90) {
+    gameState = STATE.SELECT;
+  }
+}
+
+// ============================================================
+// CHARACTER SELECT SCREEN
+// ============================================================
+let selectFrame = 0;
+function drawSelect() {
+  selectFrame++;
+  ctx.fillStyle = '#0a0015';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(0,0,80,0.5)';
+  ctx.fillRect(0, 0, W, 60);
+  pixelText('CHOOSE YOUR FACTION', W/2, 18, 13, '#ffe600', 'center');
+  pixelText('Your ideology determines everything.', W/2, 40, 8, '#888', 'center');
+
+  // Corporate Shill card
+  ctx.fillStyle = '#0d1a3a';
+  ctx.fillRect(15, 70, 160, 340);
+  ctx.strokeStyle = '#0088ff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(15, 70, 160, 340);
+  pixelText('CORPORATE', 95, 80, 10, '#0088ff', 'center');
+  pixelText('SHILL', 95, 93, 10, '#0088ff', 'center');
+
+  // Draw shill sprite large
+  ctx.save();
+  ctx.translate(83, 170);
+  ctx.scale(1.8, 1.8);
+  drawPlayerSpriteDirect(0, 0, 'shill');
+  ctx.restore();
+
+  pixelText('Believes AI solves', 95, 255, 8, '#aaa', 'center');
+  pixelText('everything.', 95, 266, 8, '#aaa', 'center');
+  pixelText('WEAPON:', 95, 285, 8, '#888', 'center');
+  pixelText('PROMPT CANNON', 95, 297, 9, '#44ddff', 'center');
+  pixelText('Shoots: Optimize,', 95, 315, 7, '#777', 'center');
+  pixelText('Scale, Disrupt...', 95, 325, 7, '#777', 'center');
+  pixelText('▶ SELECT', 95, 370, 11, '#00ff88', 'center');
+
+  // AI Denialist card
+  ctx.fillStyle = '#2a1500';
+  ctx.fillRect(200, 70, 160, 340);
+  ctx.strokeStyle = '#ff8800';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(200, 70, 160, 340);
+  pixelText('AI', 280, 80, 10, '#ff8800', 'center');
+  pixelText('DENIALIST', 280, 93, 10, '#ff8800', 'center');
+
+  ctx.save();
+  ctx.translate(268, 170);
+  ctx.scale(1.8, 1.8);
+  drawPlayerSpriteDirect(0, 0, 'denialist');
+  ctx.restore();
+
+  pixelText('Believes humans', 280, 255, 8, '#aaa', 'center');
+  pixelText('matter more than AI.', 280, 266, 8, '#aaa', 'center');
+  pixelText('WEAPON:', 280, 285, 8, '#888', 'center');
+  pixelText('REALITY CANNON', 280, 297, 9, '#ffcc44', 'center');
+  pixelText('Shoots: Human,', 280, 315, 7, '#777', 'center');
+  pixelText('Community, Craft...', 280, 325, 7, '#777', 'center');
+  pixelText('▶ SELECT', 280, 370, 11, '#00ff88', 'center');
+}
+
+function drawPlayerSpriteDirect(x, y, f) {
+  const savedFaction = faction;
+  faction = f;
+  drawPlayerSprite(x - PLAYER_W/2, y - PLAYER_H/2);
+  faction = savedFaction;
+}
+
+function handleSelectClick(mx, my) {
+  if (my >= 70 && my <= 410 && mx >= 15 && mx <= 175) {
+    chooseFaction('shill');
+  } else if (my >= 70 && my <= 410 && mx >= 200 && mx <= 360) {
+    chooseFaction('denialist');
+  }
+}
+
+function chooseFaction(f) {
+  faction = f;
+  startMusic();
+  startGame();
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+function startGame() {
+  money = 0;
+  timer = 60;
+  scrollSpeed = 0.5;
+  spawnRate = 0.008;
+  combo = 0; maxCombo = 0;
+  goodCollected = 0; badCollected = 0; itemsDestroyed = 0;
+  bossDefeated = false;
+  worldX = 0;
+  items = [];
+  projectiles.length = 0;
+  floaties.length = 0;
+  platformPool = [...platforms];
+  resetPlayer();
+  initBG();
+  gameState = STATE.PLAYING;
+  lastTime = performance.now();
+  if (frameId) cancelAnimationFrame(frameId);
+  requestAnimationFrame(loop);
+}
+
+let bossStarted = false;
+
+function loop(now) {
+  frameId = requestAnimationFrame(loop);
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  if (gameState === STATE.PAUSED) {
+    drawGame();
+    // Pause overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, PLAY_H);
+    pixelText('PAUSED', W/2, PLAY_H/2 - 20, 28, '#ffe600', 'center');
+    pixelText('Press PAUSE to continue', W/2, PLAY_H/2 + 20, 10, '#aaa', 'center');
+    justPressed.jump = false; justPressed.shoot = false;
+    return;
+  }
+
+  if (gameState === STATE.TITLE) {
+    drawTitle();
+    justPressed.jump = false; justPressed.shoot = false;
+    return;
+  }
+
+  if (gameState === STATE.SELECT) {
+    drawSelect();
+    justPressed.jump = false; justPressed.shoot = false;
+    return;
+  }
+
+  if (gameState === STATE.RESULTS || gameState === STATE.GAMEOVER) {
+    drawResults();
+    justPressed.jump = false; justPressed.shoot = false;
+    return;
+  }
+
+  // PLAYING or BOSS
+  if (gameState === STATE.PLAYING || gameState === STATE.BOSS) {
+    // Timer
+    if (gameState === STATE.PLAYING) {
+      timer -= dt;
+      if (timer <= 0) {
+        timer = 0;
+        // Transition to boss
+        if (!bossStarted) {
+          bossStarted = true;
+          gameState = STATE.BOSS;
+          initBoss();
+          items = items.filter(i => !i.collected);
+        }
+      }
+    }
+
+    // Difficulty ramp (playing only)
+    if (gameState === STATE.PLAYING) {
+      scrollSpeed = Math.min(scrollSpeed + dt * 0.012, 4);
+      spawnRate = Math.min(spawnRate + dt * 0.0008, 0.12);
+    }
+
+    // Only scroll world during playing
+    if (gameState === STATE.PLAYING) {
+      worldX += scrollSpeed;
+      updateBG(dt);
+      updatePlatforms(dt);
+      updateItems(dt);
+    }
+
+    updatePlayer(dt);
+
+    if (justPressed.shoot) fireProjectile();
+    updateProjectiles(dt);
+
+    if (gameState === STATE.BOSS) {
+      updateBoss(dt);
+    }
+
+    // Floaties always update
+    for (let i = floaties.length - 1; i >= 0; i--) {
+      floaties[i].y += floaties[i].vy;
+      floaties[i].life -= dt;
+      if (floaties[i].life <= 0) floaties.splice(i, 1);
+    }
+
+    // Game over: hit $0 after at least one interaction, or during boss
+    if (money <= 0 && player.invincible <= 0) {
+      if (goodCollected > 0 || badCollected > 0 || gameState === STATE.BOSS) {
+        money = 0;
+        gameState = STATE.GAMEOVER;
+        stopMusic();
+      }
+    }
+
+    drawGame();
+  }
+
+  // Clear just pressed
+  justPressed.jump = false;
+  justPressed.shoot = false;
+}
+
+function drawGame() {
+  ctx.clearRect(0, 0, W, H);
+  drawBG();
+  drawItems();
+  if (gameState === STATE.BOSS) {
+    drawBossAttacks();
+    drawBoss();
+  }
+  drawProjectiles();
+  drawPlayer();
+  drawHUD();
+}
+
+// ============================================================
+// RESULTS / GAME OVER SCREEN
+// ============================================================
+function drawResults() {
+  const isOver = gameState === STATE.GAMEOVER;
+  ctx.fillStyle = '#0a0015';
+  ctx.fillRect(0, 0, W, H);
+
+  if (isOver) {
+    // Bankruptcy screen — simple, focused layout
+    ctx.fillStyle = 'rgba(180,0,0,0.3)';
+    ctx.fillRect(0, 0, W, H);
+
+    pixelText('BANKRUPT', W/2, 70, 24, '#ff2200', 'center');
+    pixelText('You hit $0.', W/2, 120, 10, '#ff8888', 'center');
+    pixelText('The market has spoken.', W/2, 145, 8, '#888', 'center');
+
+    // Stats box (compact)
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(20, 190, W-40, 180);
+    ctx.strokeStyle = '#ff2200';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, 190, W-40, 180);
+
+    const statCol = '#fff', valCol = '#ff8888';
+    let ry = 206;
+    const row = (label, val) => {
+      pixelText(label, 34, ry, 8, statCol);
+      pixelText(String(val), W-34, ry, 8, valCol, 'right');
+      ry += 22;
+    };
+    row('FACTION', faction === 'shill' ? 'CORP SHILL' : 'DENIALIST');
+    row('MONEY AT END', `$${money.toLocaleString()}`);
+    row('GOOD ITEMS', goodCollected);
+    row('BAD ITEMS HIT', badCollected);
+    row('ITEMS DESTROYED', itemsDestroyed);
+    row('HIGHEST COMBO', maxCombo);
+
+    // Buttons
+    const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#00ff88';
+    ctx.fillRect(W/2 - 90, 400, 180, 44);
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.font = `10px 'Press Start 2P', monospace`;
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('> PLAY AGAIN', W/2, 422);
+    ctx.restore();
+
+    ctx.fillStyle = '#222';
+    ctx.fillRect(W/2 - 70, 458, 140, 36);
+    ctx.save();
+    ctx.font = `8px 'Press Start 2P', monospace`;
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TITLE SCREEN', W/2, 476);
+    ctx.restore();
+
+  } else {
+    // Normal results screen
+    ctx.fillStyle = '#ffe60022';
+    ctx.fillRect(0, 0, W, H);
+    const titleText = bossDefeated ? 'BOSS DEFEATED!' : "TIME'S UP!";
+    pixelText(titleText, W/2, 50, 16, '#ffe600', 'center');
+    if (bossDefeated) {
+      pixelText('"The LinkedIn Influencer', W/2, 80, 7, '#aaa', 'center');
+      pixelText('has been defeated."', W/2, 94, 7, '#aaa', 'center');
+      pixelText('He has launched a newsletter.', W/2, 110, 7, '#888', 'center');
+    }
+
+    // Stats box
+    const sy = 130;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(20, sy, W-40, 200);
+    ctx.strokeStyle = faction === 'shill' ? '#0088ff' : '#ff8800';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, sy, W-40, 200);
+
+    const statCol = '#fff', valCol = '#ffe600';
+    let ry = sy + 14;
+    const row = (label, val) => {
+      pixelText(label, 34, ry, 8, statCol);
+      pixelText(String(val), W-34, ry, 8, valCol, 'right');
+      ry += 22;
+    };
+    row('FACTION', faction === 'shill' ? 'CORP SHILL' : 'DENIALIST');
+    row('MONEY EARNED', `$${money.toLocaleString()}`);
+    row('GOOD ITEMS', goodCollected);
+    row('BAD ITEMS HIT', badCollected);
+    row('ITEMS DESTROYED', itemsDestroyed);
+    row('HIGHEST COMBO', maxCombo);
+    row('BOSS DEFEATED', bossDefeated ? 'YES' : 'NO');
+
+    // End title
+    ry += 6;
+    const endTitle = getEndTitle();
+    ctx.fillStyle = '#ffe60033';
+    ctx.fillRect(20, ry, W-40, 50);
+    pixelText(endTitle.title, W/2, ry + 8, 8, '#ffe600', 'center');
+    pixelText(endTitle.desc, W/2, ry + 28, 7, '#aaa', 'center');
+
+    // Buttons
+    const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#00ff88';
+    ctx.fillRect(W/2 - 90, 430, 180, 44);
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.font = `10px 'Press Start 2P', monospace`;
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('> PLAY AGAIN', W/2, 452);
+    ctx.restore();
+
+    ctx.fillStyle = '#222';
+    ctx.fillRect(W/2 - 70, 488, 140, 36);
+    ctx.save();
+    ctx.font = `8px 'Press Start 2P', monospace`;
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TITLE SCREEN', W/2, 506);
+    ctx.restore();
+  }
+}
+
+function getEndTitle() {
+  const isRadicalModerate = money >= 3000 && badCollected <= 2 && bossDefeated;
+  if (isRadicalModerate) return {
+    title: '★ RADICAL MODERATE ★',
+    desc: 'Nobody invited you onto a podcast.'
+  };
+
+  if (faction === 'shill') {
+    if (money >= 5000 && bossDefeated) return { title: 'PROMPT ENGINEER BILLIONAIRE', desc: 'You automated everything. Including yourself.' };
+    if (money >= 3000) return { title: 'AI THOUGHT LEADER', desc: 'Your LinkedIn is unreadable.' };
+    if (money >= 1000) return { title: 'SAAS INFLUENCER', desc: 'You have a course for that.' };
+    return { title: 'LAID OFF BY YOUR OWN BOT', desc: 'The irony was not lost on you.' };
+  } else {
+    if (money >= 5000 && bossDefeated) return { title: 'DEFENDER OF HUMANITY', desc: 'You made the machines blink.' };
+    if (money >= 3000) return { title: 'LABOR HERO', desc: 'They will write folk songs.' };
+    if (money >= 1000) return { title: 'COMMUNITY ORGANIZER', desc: 'Progress is slow. Keep going.' };
+    return { title: 'REPLACED BY SPREADSHEET', desc: 'Not even a good one.' };
+  }
+}
+
+function handleResultsClick(mx, my) {
+  const isOver = gameState === STATE.GAMEOVER;
+  const playY  = isOver ? 400 : 430;
+  const titleY = isOver ? 458 : 488;
+
+  if (my >= playY && my <= playY + 44 && mx >= W/2 - 90 && mx <= W/2 + 90) {
+    bossStarted = false;
+    startGame();
+  } else if (my >= titleY && my <= titleY + 36 && mx >= W/2 - 70 && mx <= W/2 + 70) {
+    bossStarted = false;
+    stopMusic();
+    gameState = STATE.TITLE;
+  }
+}
+
+// ============================================================
+// CANVAS CLICK ROUTING
+// ============================================================
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  if (gameState === STATE.TITLE) handleTitleClick(mx, my);
+  else if (gameState === STATE.SELECT) handleSelectClick(mx, my);
+  else if (gameState === STATE.RESULTS || gameState === STATE.GAMEOVER) handleResultsClick(mx, my);
+});
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const t = e.changedTouches[0];
+  const mx = (t.clientX - rect.left) * scaleX;
+  const my = (t.clientY - rect.top) * scaleY;
+
+  if (gameState === STATE.TITLE) handleTitleClick(mx, my);
+  else if (gameState === STATE.SELECT) handleSelectClick(mx, my);
+  else if (gameState === STATE.RESULTS || gameState === STATE.GAMEOVER) handleResultsClick(mx, my);
+}, { passive: false });
+
+// ============================================================
+// BOOT
+// ============================================================
+initBG();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
