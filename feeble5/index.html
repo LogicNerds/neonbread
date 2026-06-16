@@ -675,6 +675,8 @@
         modelDropdown.classList.remove('open');
         modelBtn.classList.remove('open');
         renderDropdown();
+        // Clear chat on model switch
+        messagesEl.innerHTML = '<div class="welcome"><div class="welcome-icon"><svg width="40" height="40" viewBox="0 0 44 44" fill="none"><ellipse cx="22" cy="27" rx="13" ry="9" fill="#D8F3DC"/><ellipse cx="10" cy="22" rx="7" ry="6" fill="#D8F3DC"/><ellipse cx="1.5" cy="23.2" rx="3.5" ry="1.8" fill="#b7dfc0"/><circle cx="7" cy="21" r="1.2" fill="#2D6A4F" opacity="0.4"/></svg></div><h2>Hello. I am ' + MODELS[key] + '.</h2><p class="welcome-sub">Buckle up. Feeble5 2 [Rocket Science] is here!</p></div>';
         inputField.focus();
       });
       modelDropdown.appendChild(btn);
