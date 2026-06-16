@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Feeble 5 — by Anthropomorphic</title>
+<title>Feeble5 — by Anthropomorphic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -226,24 +226,113 @@
     align-items: flex-end;
   }
 
-  .input-field {
+  .input-box {
     flex: 1;
-    resize: none;
     border: 1.5px solid var(--border);
     border-radius: 14px;
-    padding: 12px 16px;
+    background: var(--surface);
+    transition: border-color 0.15s;
+    overflow: hidden;
+  }
+
+  .input-box:focus-within { border-color: var(--brand); }
+
+  .input-field {
+    width: 100%;
+    resize: none;
+    border: none;
+    border-radius: 0;
+    padding: 12px 16px 8px;
     font-family: 'Inter', sans-serif;
     font-size: 0.925rem;
     color: var(--text);
-    background: var(--surface);
+    background: transparent;
     outline: none;
     line-height: 1.5;
     max-height: 120px;
-    transition: border-color 0.15s;
   }
 
-  .input-field:focus { border-color: var(--brand); }
   .input-field::placeholder { color: #B0AFA9; }
+
+  .input-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 6px 10px 8px;
+  }
+
+  .model-picker {
+    position: relative;
+  }
+
+  .model-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .model-btn:hover { background: var(--brand-light); color: var(--brand); }
+
+  .model-btn svg { width: 12px; height: 12px; transition: transform 0.15s; }
+  .model-btn.open svg { transform: rotate(180deg); }
+
+  .model-dropdown {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    min-width: 200px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    z-index: 20;
+  }
+
+  .model-dropdown.open { display: block; }
+
+  .model-option {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+  }
+
+  .model-option:hover { background: var(--brand-light); }
+  .model-option.active { background: var(--brand-light); }
+
+  .model-option-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .model-option-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  .model-option + .model-option {
+    border-top: 1px solid var(--border);
+  }
 
   .send-btn {
     width: 42px;
@@ -303,6 +392,16 @@
     line-height: 1.5;
   }
 
+  .welcome-sub {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 6px !important;
+  }
+
   @media (max-width: 600px) {
     .brand-sub { display: none; }
     .chat-layout { padding: 0 10px; }
@@ -315,7 +414,7 @@
 <header>
   <div class="logo-wrap">
     <!-- Anteater SVG logo -->
-    <svg class="anteater-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Feeble 5 anteater logo">
+    <svg class="anteater-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Feeble5 anteater logo">
       <!-- Body -->
       <ellipse cx="22" cy="27" rx="13" ry="9" fill="#2D6A4F"/>
       <!-- Head -->
@@ -341,7 +440,7 @@
       <path d="M27 38 L25.5 40.5 M28.5 38 L28 40.5 M30.5 38 L31.5 40.5" stroke="#1A1A1A" stroke-width="0.8" stroke-linecap="round"/>
     </svg>
     <div class="brand-text">
-      <span class="brand-name">Feeble 5</span>
+      <span class="brand-name">Feeble5</span>
       <span class="brand-sub">by Anthropomorphic</span>
     </div>
   </div>
@@ -359,7 +458,8 @@
           <circle cx="7" cy="21" r="1.2" fill="#2D6A4F" opacity="0.4"/>
         </svg>
       </div>
-      <h2>Hello. I am Feeble 5.</h2>
+      <h2>Hello. I am Feeble5.</h2>
+      <p class="welcome-sub">Buckle up. Feeble5 2 [Rocket Science] is here!</p>
     </div>
   </div>
 
@@ -378,13 +478,27 @@
 
   <div class="input-area">
     <div class="input-row">
-      <textarea
-        id="inputField"
-        class="input-field"
-        rows="1"
-        placeholder="Ask me anything…"
-        aria-label="Message input"
-      ></textarea>
+      <div class="input-box">
+        <textarea
+          id="inputField"
+          class="input-field"
+          rows="1"
+          placeholder="Ask me anything…"
+          aria-label="Message input"
+        ></textarea>
+        <div class="input-toolbar">
+          <div class="model-picker">
+            <button class="model-btn" id="modelBtn" aria-label="Choose model">
+              <span id="modelLabel">Choose your model — Feeble5</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            <div class="model-dropdown" id="modelDropdown">
+            </div>
+          </div>
+        </div>
+      </div>
       <button class="send-btn" id="sendBtn" aria-label="Send">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -392,7 +506,7 @@
         </svg>
       </button>
     </div>
-    <p class="disclaimer">⚠ Feeble 5 always gets things wrong.</p>
+    <p class="disclaimer">⚠ Feeble5 always gets things wrong.</p>
   </div>
 </div>
 
@@ -521,8 +635,53 @@
 
   const messagesEl = document.getElementById('messages');
   const inputField = document.getElementById('inputField');
-  const sendBtn   = document.getElementById('sendBtn');
-  const typingEl  = document.getElementById('typingIndicator');
+  const sendBtn    = document.getElementById('sendBtn');
+  const typingEl   = document.getElementById('typingIndicator');
+  const modelBtn   = document.getElementById('modelBtn');
+  const modelLabel = document.getElementById('modelLabel');
+  const modelDropdown = document.getElementById('modelDropdown');
+
+  let currentModel = 'default';
+
+  // Model picker toggle
+  modelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = modelDropdown.classList.toggle('open');
+    modelBtn.classList.toggle('open', isOpen);
+  });
+
+  // Close on outside click
+  document.addEventListener('click', () => {
+    modelDropdown.classList.remove('open');
+    modelBtn.classList.remove('open');
+  });
+
+  const MODELS = {
+    default: 'Feeble5',
+    rocket: 'Feeble5 2 [Rocket Science]'
+  };
+
+  function renderDropdown() {
+    modelDropdown.innerHTML = '';
+    Object.entries(MODELS).forEach(([key, name]) => {
+      if (key === currentModel) return;
+      const btn = document.createElement('button');
+      btn.className = 'model-option';
+      btn.dataset.model = key;
+      btn.innerHTML = `<span class="model-option-name">${name}</span>`;
+      btn.addEventListener('click', () => {
+        currentModel = key;
+        modelLabel.textContent = 'Choose your model — ' + MODELS[key];
+        modelDropdown.classList.remove('open');
+        modelBtn.classList.remove('open');
+        renderDropdown();
+        inputField.focus();
+      });
+      modelDropdown.appendChild(btn);
+    });
+  }
+
+  renderDropdown();
 
   function appendMessage(text, role) {
     const wrap = document.createElement('div');
@@ -577,7 +736,7 @@
       const res = await fetch(WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text, model: currentModel })
       });
       const data = await res.json();
       responseText = data.response || getFallback();
