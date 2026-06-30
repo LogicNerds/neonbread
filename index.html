@@ -1064,11 +1064,14 @@ function doNextBossAttack() {
 }
 
 function spawnSpeechBubbles() {
-  // Fire 2-3 speech bubbles aimed at the player, arcing across screen
+  // Fire 2-3 speech bubble projectiles aimed at the player (no text on projectiles)
   const count = boss.phase >= 3 ? 3 : 2;
+  // Show one of the lines in the head bubble for this volley
+  const text = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+  showBossDialogue(text, 2.5);
+
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
-      const text = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
       // Aim toward player with slight spread
       const dx = (player.x + PLAYER_W/2) - (boss.x + boss.w/2);
       const dy = (player.y + PLAYER_H/2) - (boss.y + boss.h/2);
@@ -1079,7 +1082,7 @@ function spawnSpeechBubbles() {
         x: boss.x, y: boss.y + boss.h * 0.4,
         vx: (dx/dist) * speed + spread,
         vy: (dy/dist) * speed,
-        life: 4, emoji: '💬', label: text,
+        life: 4, emoji: '💬',
         damage: 75, reward: 25, bossHP: 5, bob: 0, gravity: false
       });
     }, i * 350);
@@ -1625,11 +1628,19 @@ function drawBossAttacks() {
     ctx.textBaseline = 'top';
     ctx.fillText(a.emoji, a.x, a.y + bobY);
     if (a.label) {
-      ctx.font = `8px 'Press Start 2P', monospace`;
-      ctx.fillStyle = '#ff4444';
-      ctx.fillStyle = a.emoji === '💸' ? '#ffe600' : '#ff6644';
+      ctx.save();
+      ctx.font = `9px 'Press Start 2P', monospace`;
       ctx.textAlign = 'center';
-      ctx.fillText(a.label, a.x + 14, a.y + 30 + bobY);
+      const labelX = a.x + 14;
+      const labelY = a.y + 34 + bobY;
+      const textWidth = ctx.measureText(a.label).width;
+      const padX = 6;
+      // Background plate so text is legible while flying over any backdrop
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(labelX - textWidth/2 - padX, labelY - 2, textWidth + padX*2, 14);
+      ctx.fillStyle = a.emoji === '💸' ? '#ffe600' : '#ff8866';
+      ctx.fillText(a.label, labelX, labelY);
+      ctx.restore();
     }
   }
 }
