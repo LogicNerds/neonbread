@@ -324,6 +324,7 @@ function sfxDestroy() {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const W = 375, H = 667;
+const IS_TOUCH_DEVICE = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 const CONTROLLER_H = 155;
 const PLAY_H = H - CONTROLLER_H; // play area above controller
 const GROUND_Y = PLAY_H - 20; // ground strip sits 20px above bottom of play area
@@ -1851,50 +1852,62 @@ function drawSelect() {
 
   // Corporate Shill card
   ctx.fillStyle = '#0d1a3a';
-  ctx.fillRect(15, 70, 160, 340);
+  ctx.fillRect(15, 70, 160, 300);
   ctx.strokeStyle = '#0088ff';
   ctx.lineWidth = 2;
-  ctx.strokeRect(15, 70, 160, 340);
+  ctx.strokeRect(15, 70, 160, 300);
   pixelText('CORPORATE', 95, 80, 10, '#0088ff', 'center');
   pixelText('SHILL', 95, 93, 10, '#0088ff', 'center');
 
   // Draw shill sprite large
   ctx.save();
-  ctx.translate(83, 170);
-  ctx.scale(1.8, 1.8);
+  ctx.translate(83, 160);
+  ctx.scale(1.6, 1.6);
   drawPlayerSpriteDirect(0, 0, 'shill');
   ctx.restore();
 
-  pixelText('Believes AI solves', 95, 255, 8, '#aaa', 'center');
-  pixelText('everything.', 95, 266, 8, '#aaa', 'center');
-  pixelText('WEAPON:', 95, 285, 8, '#888', 'center');
-  pixelText('PROMPT CANNON', 95, 297, 9, '#44ddff', 'center');
-  pixelText('Shoots: Optimize,', 95, 315, 7, '#777', 'center');
-  pixelText('Scale, Disrupt...', 95, 325, 7, '#777', 'center');
-  pixelText('▶ SELECT', 95, 370, 11, '#00ff88', 'center');
+  pixelText('Believes AI solves', 95, 230, 8, '#aaa', 'center');
+  pixelText('everything.', 95, 241, 8, '#aaa', 'center');
+  pixelText('WEAPON:', 95, 260, 8, '#888', 'center');
+  pixelText('PROMPT CANNON', 95, 272, 9, '#44ddff', 'center');
+  pixelText('Shoots: Optimize,', 95, 290, 7, '#777', 'center');
+  pixelText('Scale, Disrupt...', 95, 300, 7, '#777', 'center');
+  pixelText('▶ SELECT', 95, 340, 11, '#00ff88', 'center');
 
   // AI Denialist card
   ctx.fillStyle = '#2a1500';
-  ctx.fillRect(200, 70, 160, 340);
+  ctx.fillRect(200, 70, 160, 300);
   ctx.strokeStyle = '#ff8800';
   ctx.lineWidth = 2;
-  ctx.strokeRect(200, 70, 160, 340);
+  ctx.strokeRect(200, 70, 160, 300);
   pixelText('AI', 280, 80, 10, '#ff8800', 'center');
   pixelText('DENIALIST', 280, 93, 10, '#ff8800', 'center');
 
   ctx.save();
-  ctx.translate(268, 170);
-  ctx.scale(1.8, 1.8);
+  ctx.translate(268, 160);
+  ctx.scale(1.6, 1.6);
   drawPlayerSpriteDirect(0, 0, 'denialist');
   ctx.restore();
 
-  pixelText('Believes humans', 280, 255, 8, '#aaa', 'center');
-  pixelText('matter more than AI.', 280, 266, 8, '#aaa', 'center');
-  pixelText('WEAPON:', 280, 285, 8, '#888', 'center');
-  pixelText('REALITY CANNON', 280, 297, 9, '#ffcc44', 'center');
-  pixelText('Shoots: Human,', 280, 315, 7, '#777', 'center');
-  pixelText('Community, Craft...', 280, 325, 7, '#777', 'center');
-  pixelText('▶ SELECT', 280, 370, 11, '#00ff88', 'center');
+  pixelText('Believes humans', 280, 230, 8, '#aaa', 'center');
+  pixelText('matter more than AI.', 280, 241, 8, '#aaa', 'center');
+  pixelText('WEAPON:', 280, 260, 8, '#888', 'center');
+  pixelText('REALITY CANNON', 280, 272, 9, '#ffcc44', 'center');
+  pixelText('Shoots: Human,', 280, 290, 7, '#777', 'center');
+  pixelText('Community, Craft...', 280, 300, 7, '#777', 'center');
+  pixelText('▶ SELECT', 280, 340, 11, '#00ff88', 'center');
+
+  // Controls hint — device-specific, given its own clear space below the cards
+  if (IS_TOUCH_DEVICE) {
+    pixelText('◀ ▶  MOVE', W/2, 396, 8, '#888', 'center');
+    pixelText('A  JUMP', W/2, 414, 8, '#888', 'center');
+    pixelText('B  SHOOT', W/2, 432, 8, '#888', 'center');
+  } else {
+    pixelText('← D   MOVE LEFT', W/2, 392, 7, '#888', 'center');
+    pixelText('→ F   MOVE RIGHT', W/2, 406, 7, '#888', 'center');
+    pixelText('↑ SPACE or   JUMP', W/2, 420, 7, '#888', 'center');
+    pixelText('↓   SHOOT', W/2, 434, 7, '#888', 'center');
+  }
 }
 
 function drawPlayerSpriteDirect(x, y, f) {
@@ -1905,9 +1918,9 @@ function drawPlayerSpriteDirect(x, y, f) {
 }
 
 function handleSelectClick(mx, my) {
-  if (my >= 70 && my <= 410 && mx >= 15 && mx <= 175) {
+  if (my >= 70 && my <= 370 && mx >= 15 && mx <= 175) {
     chooseFaction('shill');
-  } else if (my >= 70 && my <= 410 && mx >= 200 && mx <= 360) {
+  } else if (my >= 70 && my <= 370 && mx >= 200 && mx <= 360) {
     chooseFaction('denialist');
   }
 }
