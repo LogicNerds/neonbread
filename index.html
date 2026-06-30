@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>AI Tycoon</title>
+<title>LinkedOut</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -109,6 +109,8 @@
   .btn-label {
     position: absolute;
     bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 7px;
     font-family: 'Press Start 2P', monospace;
     color: #666;
@@ -610,17 +612,17 @@ function updateProjectiles(dt) {
 // AI Denialist: reverse
 const ITEM_DEFS = {
   // AI items
-  robot:   { emoji: '🤖', label: 'Robot Head',       value: 100,  type: 'ai' },
-  token:   { emoji: '🪙', label: 'Token Coin',        value: 150,  type: 'ai' },
-  prompt:  { emoji: '💬', label: 'Prompt Window',     value: 200,  type: 'ai' },
-  gpu:     { emoji: '💾', label: 'GPU Chip',          value: 300,  type: 'ai' },
-  unicorn: { emoji: '🦄', label: 'AI Unicorn',        value: 1000, type: 'ai', rare: true },
+  robot:   { emoji: '🤖', label: 'Robot Head',       value: 100,  type: 'ai', movement: 'pace' },
+  token:   { emoji: '🪙', label: 'Token Coin',        value: 150,  type: 'ai', movement: 'float' },
+  prompt:  { emoji: '💬', label: 'Prompt Window',     value: 200,  type: 'ai', movement: 'pace' },
+  gpu:     { emoji: '💾', label: 'GPU Chip',          value: 300,  type: 'ai', movement: 'float' },
+  unicorn: { emoji: '🦄', label: 'AI Unicorn',        value: 1000, type: 'ai', rare: true, movement: 'creep' },
   // Labor items
-  raise:   { emoji: '📈', label: 'Raise Request',     value: 100,  type: 'labor' },
-  hire:    { emoji: '🧑', label: 'New Hire',           value: 150,  type: 'labor' },
-  benefit: { emoji: '🏥', label: 'Benefits Package',  value: 200,  type: 'labor' },
-  pto:     { emoji: '🏖️', label: 'PTO Form',           value: 250,  type: 'labor' },
-  union:   { emoji: '✊', label: 'Union Card',         value: 500,  type: 'labor', rare: true },
+  raise:   { emoji: '📈', label: 'Raise Request',     value: 100,  type: 'labor', movement: 'pace' },
+  hire:    { emoji: '🧑', label: 'New Hire',           value: 150,  type: 'labor', movement: 'pace' },
+  benefit: { emoji: '🏥', label: 'Benefits Package',  value: 200,  type: 'labor', movement: 'float' },
+  pto:     { emoji: '🏖️', label: 'PTO Form',           value: 250,  type: 'labor', movement: 'float' },
+  union:   { emoji: '✊', label: 'Union Card',         value: 500,  type: 'labor', rare: true, movement: 'creep' },
   // Special
   linkedin:{ emoji: '💼', label: 'Viral LinkedIn',    value: 0,    type: 'special', special: 'linkedin' },
   vc:      { emoji: '💰', label: 'VC Funding',        value: 0,    type: 'special', special: 'vc' },
@@ -679,9 +681,15 @@ function spawnItem() {
     key, def,
     x: spawnX,
     y: yPos,
+    baseY: yPos,
     size: 32,
     bob: Math.random() * Math.PI * 2,
     collected: false,
+    // Movement state
+    paceDir: Math.random() > 0.5 ? 1 : -1,
+    paceOrigin: spawnX,
+    paceRange: 35,
+    creepSpeed: 0.4 + Math.random() * 0.2,
   });
 }
 
@@ -760,9 +768,31 @@ function updateItems(dt) {
       item.x -= scrollSpeed;
     }
 
+    // Bad-item independent movement (consistent per item type)
+    if (!item.collected && isBadItem(item.key)) {
+      const move = item.def.movement;
+      if (move === 'pace') {
+        // Walk back and forth around spawn origin
+        item.x += item.paceDir * 0.8;
+        item.paceOrigin -= (gameState === STATE.PLAYING ? scrollSpeed : 0); // origin scrolls with world
+        if (item.x > item.paceOrigin + item.paceRange) item.paceDir = -1;
+        if (item.x < item.paceOrigin - item.paceRange) item.paceDir = 1;
+      } else if (move === 'float') {
+        // Gentle bouncy float — vertical bob is amplified, slight horizontal drift
+        item.x += Math.sin(item.bob * 0.7) * 0.3;
+      } else if (move === 'creep') {
+        // Slowly advance toward the player
+        const dx = (player.x) - item.x;
+        if (Math.abs(dx) > 4) {
+          item.x += Math.sign(dx) * item.creepSpeed;
+        }
+      }
+    }
+
     // Player collision
     if (!item.collected) {
-      const ix = item.x, iy = item.y + Math.sin(item.bob) * 4;
+      const iy = item.y + (item.def.movement === 'float' ? Math.sin(item.bob) * 10 : Math.sin(item.bob) * 4);
+      const ix = item.x;
       if (player.x < ix + item.size && player.x + PLAYER_W > ix &&
           player.y < iy + item.size && player.y + PLAYER_H > iy) {
         item.collected = true;
@@ -1510,7 +1540,8 @@ function drawBoss() {
 // ============================================================
 function drawItems() {
   for (const item of items) {
-    const bobY = Math.sin(item.bob) * 4;
+    const isFloatMove = isBadItem(item.key) && item.def.movement === 'float';
+    const bobY = isFloatMove ? Math.sin(item.bob) * 10 : Math.sin(item.bob) * 4;
     const ix = item.x, iy = item.y + bobY;
 
     // Glow for rare / good items
@@ -1668,9 +1699,9 @@ function drawTitle() {
   // Glow title
   ctx.shadowColor = '#00ff88';
   ctx.shadowBlur = 20;
-  pixelText('AI', W/2, 100, 48, '#00ff88', 'center');
+  pixelText('LINKED', W/2, 100, 32, '#00ff88', 'center');
   ctx.shadowBlur = 0;
-  pixelText('TYCOON', W/2, 158, 32, '#ffe600', 'center');
+  pixelText('OUT', W/2, 158, 40, '#ffe600', 'center');
 
   // Subtitle
   pixelText('THE GAME OF THOUGHT', W/2, 210, 7, '#aaa', 'center');
@@ -1698,16 +1729,18 @@ function drawTitle() {
   ctx.fillText('> START NOW', W/2, 342);
   ctx.restore();
 
-  // Decorative characters preview
+  // Decorative characters preview — symmetric around center
+  const charOffset = 95; // distance from center to each character's anchor
+  const charScale = 2.5;
   ctx.save();
-  ctx.translate(80, 450);
-  ctx.scale(2.5, 2.5);
+  ctx.translate(W/2 - charOffset - (PLAYER_W * charScale)/2, 450);
+  ctx.scale(charScale, charScale);
   drawPlayerSpriteDirect(0, 0, 'shill');
   ctx.restore();
 
   ctx.save();
-  ctx.translate(W - 80 - 24, 450);
-  ctx.scale(2.5, 2.5);
+  ctx.translate(W/2 + charOffset - (PLAYER_W * charScale)/2, 450);
+  ctx.scale(charScale, charScale);
   drawPlayerSpriteDirect(0, 0, 'denialist');
   ctx.restore();
 
@@ -2016,95 +2049,79 @@ function drawResults() {
     // Normal results screen
     ctx.fillStyle = '#ffe60022';
     ctx.fillRect(0, 0, W, H);
-    const titleText = bossDefeated ? 'BOSS DEFEATED!' : "TIME'S UP!";
-    pixelText(titleText, W/2, 50, 16, '#ffe600', 'center');
-    if (bossDefeated) {
-      pixelText('"The LinkedIn Influencer', W/2, 80, 7, '#aaa', 'center');
-      pixelText('has been defeated."', W/2, 94, 7, '#aaa', 'center');
-      pixelText('He has launched a newsletter.', W/2, 110, 7, '#888', 'center');
-    }
+
+    // Ending title + flavor
+    const endTitle = getEndTitle();
+    pixelText(endTitle.title, W/2, 44, 9, '#ffe600', 'center');
+    pixelText(endTitle.desc,  W/2, 66, 7, '#aaa',    'center');
 
     // Stats box
-    const sy = 130;
+    const sy = 90;
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(20, sy, W-40, 200);
+    ctx.fillRect(20, sy, W-40, 210);
     ctx.strokeStyle = faction === 'shill' ? '#0088ff' : '#ff8800';
     ctx.lineWidth = 2;
-    ctx.strokeRect(20, sy, W-40, 200);
+    ctx.strokeRect(20, sy, W-40, 210);
 
     const statCol = '#fff', valCol = '#ffe600';
     let ry = sy + 14;
     const row = (label, val) => {
       pixelText(label, 34, ry, 8, statCol);
       pixelText(String(val), W-34, ry, 8, valCol, 'right');
-      ry += 22;
+      ry += 26;
     };
-    row('FACTION', faction === 'shill' ? 'CORP SHILL' : 'DENIALIST');
-    row('MONEY EARNED', `$${money.toLocaleString()}`);
-    row('GOOD ITEMS', goodCollected);
+    row('FACTION',       faction === 'shill' ? 'CORP SHILL' : 'DENIALIST');
+    row('MONEY EARNED',  `$${money.toLocaleString()}`);
+    row('GOOD ITEMS',    goodCollected);
     row('BAD ITEMS HIT', badCollected);
-    row('ITEMS DESTROYED', itemsDestroyed);
-    row('HIGHEST COMBO', maxCombo);
-    row('BOSS DEFEATED', bossDefeated ? 'YES' : 'NO');
-
-    // End title
-    ry += 6;
-    const endTitle = getEndTitle();
-    ctx.fillStyle = '#ffe60033';
-    ctx.fillRect(20, ry, W-40, 50);
-    pixelText(endTitle.title, W/2, ry + 8, 8, '#ffe600', 'center');
-    pixelText(endTitle.desc, W/2, ry + 28, 7, '#aaa', 'center');
+    row('DESTROYED',     itemsDestroyed);
+    row('BEST COMBO',    maxCombo);
+    row('BOSS',          bossDefeated ? 'DEFEATED ✓' : 'NOT DEFEATED');
 
     // Buttons
     const pulse = Math.sin(Date.now() / 400) * 0.3 + 0.7;
     ctx.globalAlpha = pulse;
     ctx.fillStyle = '#00ff88';
-    ctx.fillRect(W/2 - 90, 430, 180, 44);
+    ctx.fillRect(W/2 - 90, 330, 180, 44);
     ctx.globalAlpha = 1;
     ctx.save();
     ctx.font = `10px 'Press Start 2P', monospace`;
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('> PLAY AGAIN', W/2, 452);
+    ctx.fillText('> PLAY AGAIN', W/2, 352);
     ctx.restore();
 
     ctx.fillStyle = '#222';
-    ctx.fillRect(W/2 - 70, 488, 140, 36);
+    ctx.fillRect(W/2 - 70, 388, 140, 36);
     ctx.save();
     ctx.font = `8px 'Press Start 2P', monospace`;
     ctx.fillStyle = '#888';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('TITLE SCREEN', W/2, 506);
+    ctx.fillText('TITLE SCREEN', W/2, 406);
     ctx.restore();
   }
 }
 
 function getEndTitle() {
-  const isRadicalModerate = money >= 3000 && badCollected <= 2 && bossDefeated;
-  if (isRadicalModerate) return {
-    title: '★ RADICAL MODERATE ★',
-    desc: 'Nobody invited you onto a podcast.'
-  };
-
   if (faction === 'shill') {
-    if (money >= 5000 && bossDefeated) return { title: 'PROMPT ENGINEER BILLIONAIRE', desc: 'You automated everything. Including yourself.' };
-    if (money >= 3000) return { title: 'AI THOUGHT LEADER', desc: 'Your LinkedIn is unreadable.' };
-    if (money >= 1000) return { title: 'SAAS INFLUENCER', desc: 'You have a course for that.' };
-    return { title: 'LAID OFF BY YOUR OWN BOT', desc: 'The irony was not lost on you.' };
+    if (bossDefeated)        return { title: 'PROMPT ENGINEER BILLIONAIRE', desc: 'You automated everything!' };
+    if (money >= 2000)       return { title: 'AI THOUGHT LEADER',           desc: 'Almost! Post what it taught you about B2B Sales.' };
+    if (money >= 500)        return { title: 'SAAS FOUNDER',                desc: 'Pivot. Raise. Repeat.' };
+    return                          { title: 'LAID OFF BY YOUR OWN BOT',    desc: "You still can't figure out how this happened." };
   } else {
-    if (money >= 5000 && bossDefeated) return { title: 'DEFENDER OF HUMANITY', desc: 'You made the machines blink.' };
-    if (money >= 3000) return { title: 'LABOR HERO', desc: 'They will write folk songs.' };
-    if (money >= 1000) return { title: 'COMMUNITY ORGANIZER', desc: 'Progress is slow. Keep going.' };
-    return { title: 'REPLACED BY SPREADSHEET', desc: 'Not even a good one.' };
+    if (bossDefeated)        return { title: 'DEFENDER OF HUMANITY',        desc: 'Sales has to actually call their customers!' };
+    if (money >= 2000)       return { title: 'LABOR HERO',                  desc: 'Form a Union and come back for round 2.' };
+    if (money >= 500)        return { title: 'COMMUNITY ORGANIZER',         desc: 'Complain about how unfair it is on TikTok.' };
+    return                          { title: 'REPLACED BY AN LLM',          desc: 'You trained it.' };
   }
 }
 
 function handleResultsClick(mx, my) {
   const isOver = gameState === STATE.GAMEOVER;
-  const playY  = isOver ? 400 : 430;
-  const titleY = isOver ? 458 : 488;
+  const playY  = isOver ? 400 : 330;
+  const titleY = isOver ? 458 : 388;
 
   if (my >= playY && my <= playY + 44 && mx >= W/2 - 90 && mx <= W/2 + 90) {
     bossStarted = false;
