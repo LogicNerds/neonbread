@@ -636,6 +636,7 @@ const ITEM_KEYS_SPECIAL = ['linkedin','vc','strike','bubble'];
 
 let items = [];
 let spawnTimer = 0;
+let spawnCount = 0;
 let bubbleActive = false;
 let bubbleTimer = 0;
 
@@ -646,19 +647,26 @@ function addFloaty(text, x, y, color) {
   floaties.push({ text, x, y, vy: -1.2, life: 1.4, color });
 }
 
-function spawnItem() {
+function spawnItem(forceX) {
   // Cap total items on screen
   if (items.length >= 6) return;
 
-  // Pick type
+  // Pick type — first 3 spawns of a round are guaranteed bad-for-faction
   let key;
-  const rand = Math.random();
-  if (rand < 0.04) {
-    key = ITEM_KEYS_SPECIAL[Math.floor(Math.random() * ITEM_KEYS_SPECIAL.length)];
-  } else if (rand < 0.52) {
-    key = ITEM_KEYS_AI[Math.floor(Math.random() * ITEM_KEYS_AI.length)];
+  const forcedBad = spawnCount < 3;
+  const badPool = faction === 'shill' ? ITEM_KEYS_LABOR : ITEM_KEYS_AI;
+
+  if (forcedBad) {
+    key = badPool[Math.floor(Math.random() * badPool.length)];
   } else {
-    key = ITEM_KEYS_LABOR[Math.floor(Math.random() * ITEM_KEYS_LABOR.length)];
+    const rand = Math.random();
+    if (rand < 0.04) {
+      key = ITEM_KEYS_SPECIAL[Math.floor(Math.random() * ITEM_KEYS_SPECIAL.length)];
+    } else if (rand < 0.52) {
+      key = ITEM_KEYS_AI[Math.floor(Math.random() * ITEM_KEYS_AI.length)];
+    } else {
+      key = ITEM_KEYS_LABOR[Math.floor(Math.random() * ITEM_KEYS_LABOR.length)];
+    }
   }
 
   const def = ITEM_DEFS[key];
@@ -670,13 +678,14 @@ function spawnItem() {
     GROUND_Y - 32 - 200, // high platform
   ];
   const yPos = heights[Math.floor(Math.random() * heights.length)];
-  const spawnX = W + 40;
+  const spawnX = forceX !== undefined ? forceX : W + 40;
 
   // Enforce minimum horizontal gap of 80px from any existing item
   for (const existing of items) {
     if (Math.abs(existing.x - spawnX) < 80) return;
   }
 
+  spawnCount++;
   items.push({
     key, def,
     x: spawnX,
@@ -1864,7 +1873,8 @@ function startGame() {
   money = 0;
   timer = 60;
   scrollSpeed = 0.5;
-  spawnRate = 0.02;
+  spawnRate = 0.05;
+  spawnCount = 0;
   combo = 0; maxCombo = 0;
   goodCollected = 0; badCollected = 0; itemsDestroyed = 0;
   bossDefeated = false;
@@ -1878,6 +1888,12 @@ function startGame() {
   gameState = STATE.PLAYING;
   lastTime = performance.now();
   if (frameId) cancelAnimationFrame(frameId);
+
+  // Immediately seed the screen with items so the round doesn't open empty
+  spawnItem(220);
+  spawnItem(300);
+  spawnItem(W - 20);
+
   requestAnimationFrame(loop);
 }
 
