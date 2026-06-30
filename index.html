@@ -324,7 +324,7 @@ function sfxDestroy() {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const W = 375, H = 667;
-const IS_TOUCH_DEVICE = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+const IS_TOUCH_DEVICE = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 const CONTROLLER_H = 155;
 const PLAY_H = H - CONTROLLER_H; // play area above controller
 const GROUND_Y = PLAY_H - 20; // ground strip sits 20px above bottom of play area
@@ -1899,12 +1899,12 @@ function drawSelect() {
 
   // Controls hint — device-specific, given its own clear space below the cards
   if (IS_TOUCH_DEVICE) {
-    pixelText('◀ ▶  MOVE', W/2, 396, 8, '#888', 'center');
+    pixelText('<  >  MOVE', W/2, 396, 8, '#888', 'center');
     pixelText('A  JUMP', W/2, 414, 8, '#888', 'center');
     pixelText('B  SHOOT', W/2, 432, 8, '#888', 'center');
   } else {
-    pixelText('← D   MOVE LEFT', W/2, 392, 7, '#888', 'center');
-    pixelText('→ F   MOVE RIGHT', W/2, 406, 7, '#888', 'center');
+    pixelText('<- D   MOVE LEFT', W/2, 392, 7, '#888', 'center');
+    pixelText('-> F   MOVE RIGHT', W/2, 406, 7, '#888', 'center');
     pixelText('↑ SPACE or   JUMP', W/2, 420, 7, '#888', 'center');
     pixelText('↓   SHOOT', W/2, 434, 7, '#888', 'center');
   }
