@@ -42,7 +42,7 @@
     position: absolute;
     bottom: 0; left: 0;
     width: 375px;
-    height: 155px;
+    height: 190px;
     background: #1a1a2e;
     border-top: 3px solid #16213e;
     display: flex;
@@ -54,8 +54,8 @@
   }
   .dpad {
     position: relative;
-    width: 90px;
-    height: 90px;
+    width: 120px;
+    height: 120px;
   }
   .dpad-h, .dpad-v {
     position: absolute;
@@ -63,18 +63,18 @@
     border-radius: 4px;
   }
   .dpad-h {
-    width: 90px; height: 30px;
+    width: 120px; height: 40px;
     top: 50%; left: 0;
     transform: translateY(-50%);
   }
   .dpad-v {
-    width: 30px; height: 90px;
+    width: 40px; height: 120px;
     left: 50%; top: 0;
     transform: translateX(-50%);
   }
   .dpad-center {
     position: absolute;
-    width: 30px; height: 30px;
+    width: 40px; height: 40px;
     background: #3d3d6e;
     top: 50%; left: 50%;
     transform: translate(-50%,-50%);
@@ -88,11 +88,11 @@
     cursor: pointer;
     z-index: 3;
     color: #888;
-    font-size: 14px;
+    font-size: 18px;
     font-weight: bold;
   }
-  .dpad-left  { width:30px;height:30px; left:0;   top:50%;transform:translateY(-50%); }
-  .dpad-right { width:30px;height:30px; right:0;  top:50%;transform:translateY(-50%); }
+  .dpad-left  { width:40px;height:40px; left:0;   top:50%;transform:translateY(-50%); }
+  .dpad-right { width:40px;height:40px; right:0;  top:50%;transform:translateY(-50%); }
 
   .nes-center {
     display: flex;
@@ -101,33 +101,33 @@
     gap: 8px;
   }
   .pause-btn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
     background: #3d3d6e;
     border: 2px solid #6060a0;
-    border-radius: 20px;
     color: #aaa;
-    font-size: 7px;
-    font-family: 'Press Start 2P', monospace;
-    letter-spacing: 1px;
-    padding: 5px 12px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    text-transform: uppercase;
     pointer-events: all;
   }
   .pause-btn:active { background: #5050a0; }
 
   .ab-buttons {
     display: flex;
-    gap: 16px;
+    gap: 18px;
     align-items: center;
   }
   .nes-btn {
-    width: 44px; height: 44px;
+    width: 65px; height: 65px;
     border-radius: 50%;
     border: none;
     cursor: pointer;
     font-family: 'Press Start 2P', monospace;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -184,16 +184,16 @@
 
     <!-- Center -->
     <div class="nes-center">
-      <button class="pause-btn" id="btnPause">⏸ PAUSE</button>
+      <button class="pause-btn" id="btnPause">⏸</button>
     </div>
 
     <!-- A / B -->
     <div class="ab-buttons">
-      <div style="position:relative; margin-bottom:18px;">
+      <div style="position:relative; margin-bottom:22px;">
         <button class="nes-btn btn-b" id="btnB">B</button>
         <span class="btn-label">SHOOT</span>
       </div>
-      <div style="position:relative; margin-bottom:18px;">
+      <div style="position:relative; margin-bottom:22px;">
         <button class="nes-btn btn-a" id="btnA">A</button>
         <span class="btn-label">JUMP</span>
       </div>
@@ -367,9 +367,9 @@ function sfxDestroy() {
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const W = 375, H = 667;
-const GROUND_Y = H - 155 - 20; // controller height + ground strip
-const CONTROLLER_H = 155;
-const PLAY_H = H - CONTROLLER_H; // 512px play area
+const CONTROLLER_H = 190;
+const PLAY_H = H - CONTROLLER_H; // play area above controller
+const GROUND_Y = PLAY_H - 20; // ground strip sits 20px above bottom of play area
 
 // ============================================================
 // GAME STATE
