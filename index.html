@@ -362,16 +362,16 @@ const justPressed = { jump: false, shoot: false };
 
 // Keyboard (desktop)
 document.addEventListener('keydown', e => {
-  if (e.code === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left = true;
-  if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.code === 'ArrowLeft'  || e.key === 'd' || e.key === 'D') keys.left = true;
+  if (e.code === 'ArrowRight' || e.key === 'f' || e.key === 'F') keys.right = true;
   if (e.code === 'Space' || e.code === 'ArrowUp') { if (!keys.jump) justPressed.jump = true; keys.jump = true; }
-  if (e.code === 'KeyF') { if (!keys.shoot) justPressed.shoot = true; keys.shoot = true; }
+  if (e.code === 'ArrowDown') { if (!keys.shoot) justPressed.shoot = true; keys.shoot = true; }
 });
 document.addEventListener('keyup', e => {
-  if (e.code === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left = false;
-  if (e.code === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  if (e.code === 'ArrowLeft'  || e.key === 'd' || e.key === 'D') keys.left = false;
+  if (e.code === 'ArrowRight' || e.key === 'f' || e.key === 'F') keys.right = false;
   if (e.code === 'Space' || e.code === 'ArrowUp') keys.jump = false;
-  if (e.code === 'KeyF') keys.shoot = false;
+  if (e.code === 'ArrowDown') keys.shoot = false;
 });
 
 // Canvas touch/click routing for UI screens
