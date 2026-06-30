@@ -875,7 +875,7 @@ function updateItems(dt) {
 // ============================================================
 const boss = {
   x: W + 80, y: 60,
-  w: 110, h: 130,
+  w: 110, h: 135,
   hp: 100, maxHP: 100,
   phase: 1, // 1,2,3,4
   pivoted: false,
@@ -1502,13 +1502,15 @@ function drawBoss() {
   ctx.fillStyle = '#f5c5a0';
   ctx.fillRect(x+W2-14, y+78 - armWave, 14, 10);
 
-  // Hover glow
-  ctx.globalAlpha = 0.15;
-  ctx.fillStyle = '#00ffff';
-  ctx.beginPath();
-  ctx.ellipse(x+W2/2, y+H2+10, W2*0.6, 12, 0, 0, Math.PI*2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  // LEGS (khaki chinos, standing on ground)
+  const legW = 16, legH = 35;
+  ctx.fillStyle = '#c8b890';
+  ctx.fillRect(x + W2/2 - legW - 4, y + 100, legW, legH);
+  ctx.fillRect(x + W2/2 + 4, y + 100, legW, legH);
+  // Shoes
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(x + W2/2 - legW - 8, y + 100 + legH - 6, legW + 8, 8);
+  ctx.fillRect(x + W2/2 + 2, y + 100 + legH - 6, legW + 8, 8);
 
   // HP Bar
   const hpW = 120;
@@ -1524,23 +1526,44 @@ function drawBoss() {
   pixelText('THE LINKEDIN INFLUENCER', hpX + hpW/2, hpY - 14, 8, '#fff', 'center');
   pixelText(`${boss.hp} HP`, hpX + hpW/2, hpY + 1, 7, '#fff', 'center');
 
-  // Dialogue bubble
+  // Dialogue bubble — above the boss's head, clearly visible
   if (boss.dialogueTimer > 0 && boss.dialogue) {
-    const bx = x - 20, by = y + H2 + 10;
+    const bubbleW = 170;
+    const bx = Math.max(8, Math.min(W - bubbleW - 8, x + W2/2 - bubbleW/2));
+    const by = hpY - 56;
     ctx.fillStyle = '#fff';
-    ctx.fillRect(bx, by, 160, 30);
-    ctx.fillStyle = '#333'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, 160, 30);
-    ctx.fillStyle = '#333';
-    ctx.font = `7px 'Press Start 2P', monospace`;
+    ctx.fillRect(bx, by, bubbleW, 48);
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, bubbleW, 48);
+    // Little pointer triangle toward boss head
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(x + W2/2 - 8, by + 48);
+    ctx.lineTo(x + W2/2 + 8, by + 48);
+    ctx.lineTo(x + W2/2, by + 58);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.stroke();
+
+    ctx.fillStyle = '#222';
+    ctx.font = `8px 'Press Start 2P', monospace`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    // wrap text roughly
+    // Word wrap
     const words2 = boss.dialogue.split(' ');
-    let line = '', ly = by + 4;
+    let line = '', ly = by + 6;
+    const maxLineWidth = bubbleW - 14;
     for (const w of words2) {
-      if (ctx.measureText(line + w).width > 150) { ctx.fillText(line, bx+5, ly); line = w+' '; ly += 10; }
-      else line += w+' ';
+      const test = line + w + ' ';
+      if (ctx.measureText(test).width > maxLineWidth && line !== '') {
+        ctx.fillText(line, bx + 7, ly);
+        line = w + ' ';
+        ly += 13;
+      } else {
+        line = test;
+      }
     }
-    ctx.fillText(line, bx+5, ly);
+    ctx.fillText(line, bx + 7, ly);
   }
 }
 
