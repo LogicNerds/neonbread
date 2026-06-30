@@ -915,13 +915,14 @@ function initBoss() {
   boss.defeated = false;
   boss.explodeTimer = 0;
   boss.groundY = bossGroundY;
+  boss.chatterTimer = 6.5; // delay first random chatter line until after intro sequence
 
   // Dialogue
   const intro = faction === 'shill'
-    ? '"The future belongs to those\nwilling to automate."'
-    : '"The future belongs to those\nwilling to resist."';
+    ? '"The future belongs to those willing to automate."'
+    : '"The future belongs to those willing to resist."';
   showBossDialogue(intro, 3);
-  setTimeout(() => showBossDialogue('"Want to hear about my course?"', 2500), 3200);
+  setTimeout(() => showBossDialogue('"Want to hear about my course?"', 2.5), 3200);
   startBossMusic();
 }
 
@@ -958,6 +959,7 @@ function updateBoss(dt) {
     boss.pivoted = true;
     showBossDialogue('"I\'ve always believed this."', 3);
     boss.phase = 3;
+    boss.chatterTimer = 3; // reset chatter cycle so pivot line gets full display time
   }
   if (hpPct <= 0.2) boss.phase = 4;
 
@@ -965,6 +967,14 @@ function updateBoss(dt) {
   boss.attackTimer -= dt;
   if (boss.attackTimer <= 0) {
     doNextBossAttack();
+  }
+
+  // Independent dialogue chatter — cycles a new line every 3 seconds regardless of attacks
+  boss.chatterTimer -= dt;
+  if (boss.chatterTimer <= 0) {
+    const line = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
+    showBossDialogue(line, 2.8);
+    boss.chatterTimer = 3;
   }
 
   // Boss dialogue timer
@@ -1066,9 +1076,6 @@ function doNextBossAttack() {
 function spawnSpeechBubbles() {
   // Fire 2-3 speech bubble projectiles aimed at the player (no text on projectiles)
   const count = boss.phase >= 3 ? 3 : 2;
-  // Show one of the lines in the head bubble for this volley
-  const text = SPEECH_BUBBLES[Math.floor(Math.random() * SPEECH_BUBBLES.length)];
-  showBossDialogue(text, 2.5);
 
   for (let i = 0; i < count; i++) {
     setTimeout(() => {
@@ -1529,21 +1536,42 @@ function drawBoss() {
   pixelText('THE LINKEDIN INFLUENCER', hpX + hpW/2, hpY - 14, 8, '#fff', 'center');
   pixelText(`${boss.hp} HP`, hpX + hpW/2, hpY + 1, 7, '#fff', 'center');
 
-  // Dialogue bubble — above the boss's head, clearly visible
+  // Dialogue bubble — above the boss's head, sized to fit the text fully
   if (boss.dialogueTimer > 0 && boss.dialogue) {
-    const bubbleW = 170;
+    const bubbleW = 180;
+    const maxLineWidth = bubbleW - 14;
+    const lineHeight = 14;
+
+    // Pre-wrap text to determine how many lines are needed
+    ctx.font = `8px 'Press Start 2P', monospace`;
+    const words2 = boss.dialogue.split(' ');
+    const lines = [];
+    let line = '';
+    for (const w of words2) {
+      const test = line + w + ' ';
+      if (ctx.measureText(test).width > maxLineWidth && line !== '') {
+        lines.push(line.trim());
+        line = w + ' ';
+      } else {
+        line = test;
+      }
+    }
+    if (line.trim()) lines.push(line.trim());
+
+    const bubbleH = lines.length * lineHeight + 16;
     const bx = Math.max(8, Math.min(W - bubbleW - 8, x + W2/2 - bubbleW/2));
-    const by = hpY - 56;
+    const by = hpY - bubbleH - 14;
+
     ctx.fillStyle = '#fff';
-    ctx.fillRect(bx, by, bubbleW, 48);
+    ctx.fillRect(bx, by, bubbleW, bubbleH);
     ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-    ctx.strokeRect(bx, by, bubbleW, 48);
-    // Little pointer triangle toward boss head
+    ctx.strokeRect(bx, by, bubbleW, bubbleH);
+    // Pointer triangle toward boss head
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.moveTo(x + W2/2 - 8, by + 48);
-    ctx.lineTo(x + W2/2 + 8, by + 48);
-    ctx.lineTo(x + W2/2, by + 58);
+    ctx.moveTo(x + W2/2 - 8, by + bubbleH);
+    ctx.lineTo(x + W2/2 + 8, by + bubbleH);
+    ctx.lineTo(x + W2/2, by + bubbleH + 10);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#333';
@@ -1552,21 +1580,11 @@ function drawBoss() {
     ctx.fillStyle = '#222';
     ctx.font = `8px 'Press Start 2P', monospace`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    // Word wrap
-    const words2 = boss.dialogue.split(' ');
-    let line = '', ly = by + 6;
-    const maxLineWidth = bubbleW - 14;
-    for (const w of words2) {
-      const test = line + w + ' ';
-      if (ctx.measureText(test).width > maxLineWidth && line !== '') {
-        ctx.fillText(line, bx + 7, ly);
-        line = w + ' ';
-        ly += 13;
-      } else {
-        line = test;
-      }
+    let ly = by + 8;
+    for (const l of lines) {
+      ctx.fillText(l, bx + 7, ly);
+      ly += lineHeight;
     }
-    ctx.fillText(line, bx + 7, ly);
   }
 }
 
