@@ -18,6 +18,22 @@
   h1.title{font-size:1.3em;color:#ffd23f;letter-spacing:1px;margin-bottom:6px;line-height:1.4;}
   .controlsInfo{font-size:0.55em;color:#9fd8ff;margin-top:26px;line-height:1.9;max-width:280px;}
 
+  .titleGraphic{width:78%;max-width:260px;animation:jauntyBounce 1.8s ease-in-out infinite;}
+  @keyframes jauntyBounce{
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    25%     { transform: translateY(-10px) rotate(1deg); }
+    50%     { transform: translateY(0) rotate(2deg); }
+    75%     { transform: translateY(-6px) rotate(-1deg); }
+  }
+
+  #playNowBtn{animation:neonFlash 1.4s ease-in-out infinite;}
+  @keyframes neonFlash{
+    0%,100% { box-shadow: 0 0 6px #ffd23f, 0 0 12px rgba(255,210,63,0.4); }
+    50%     { box-shadow: 0 0 18px #ffe97a, 0 0 34px rgba(255,210,63,0.8), 0 0 50px rgba(255,210,63,0.35); }
+  }
+
+  .copyrightText{font-size:0.42em;color:#555;margin-top:22px;}
+
   #hud{position:absolute;top:8px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 10px;box-sizing:border-box;color:#fff;font-size:0.6em;pointer-events:none;}
   #hud div{background:rgba(0,0,0,0.45);padding:5px 8px;border-radius:4px;}
 
@@ -65,12 +81,13 @@
   <canvas id="gameCanvas" width="375" height="667"></canvas>
 
   <div id="menuScreen" class="overlay">
-    <h1 class="title">PIPELINE<br>RUNNER</h1>
+    <img src="assets/pipeline-runner-title-graphic.png" alt="Pipeline Runner" class="titleGraphic">
     <button class="big" id="playNowBtn" style="margin-top:14px;">PLAY NOW</button>
     <div class="controlsInfo">
       On mobile: use the D-pad and buttons.<br>
       On desktop: D/F to move, Space to jump, Down Arrow to shoot.
     </div>
+    <div class="copyrightText">Copyright Neon Bread Studios 2026</div>
   </div>
 
   <div id="endScreen" class="overlay hidden">
@@ -111,6 +128,81 @@
 <script>
 (function(){
 "use strict";
+
+// ============================================================
+// AUDIO (chiptune SFX — synthesized, no external files)
+// ============================================================
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+function unlockAudio(){
+  try{ getAudioCtx().resume(); } catch(e){}
+}
+
+function sfxJump(highPitch){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    const base = highPitch ? 520 : 420;
+    osc.frequency.setValueAtTime(base, now);
+    osc.frequency.exponentialRampToValueAtTime(base*1.7, now+0.09);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.11);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.13);
+  } catch(e){}
+}
+
+function sfxStomp(){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(85, now+0.11);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.13);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.15);
+  } catch(e){}
+}
+
+function sfxShoot(){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(420, now+0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.12);
+  } catch(e){}
+}
+
+// background music — plain HTML5 Audio (looping), separate from the
+// Web Audio SFX above. Starts on Play Now, stops when the end screen shows.
+const bgMusic = new Audio('assets/RunnerExtended.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.5;
+function startMusic(){
+  try{ bgMusic.currentTime = 0; bgMusic.play().catch(()=>{}); } catch(e){}
+}
+function stopMusic(){
+  try{ bgMusic.pause(); } catch(e){}
+}
 
 // ============================================================
 // CONSTANTS
@@ -378,6 +470,8 @@ bindHold(document.getElementById('btnShoot'),
 // MENU / END SCREEN WIRING
 // ============================================================
 document.getElementById('playNowBtn').addEventListener('click', ()=>{
+  unlockAudio();
+  startMusic();
   resetGame('revops');
   document.getElementById('menuScreen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
@@ -422,6 +516,7 @@ function resolveCombatCollision(eLeft,eTop,eW,eH){
   if(stomp){
     player.y = eTop - player.h;
     player.vy = JUMP_V2*0.7;
+    sfxStomp();
   } else {
     const pushDir = (player.x + player.w/2 < eLeft + eW/2) ? -1 : 1;
     player.vx = pushDir*4;
@@ -491,10 +586,11 @@ function update(){
 
   // ---- jump (edge-triggered) ----
   if(jumpPressedEdge){
-    if(player.grounded){ player.vy = JUMP_V1; player.grounded=false; player.jumpsUsed=1; }
+    if(player.grounded){ player.vy = JUMP_V1; player.grounded=false; player.jumpsUsed=1; sfxJump(false); }
     else if(player.jumpsUsed < 2){
       player.vy = JUMP_V2; player.jumpsUsed = 2;
       spawnParticle(player.x+player.w/2, player.y+player.h, '#fff');
+      sfxJump(true);
     }
     jumpPressedEdge = false;
   }
@@ -715,6 +811,7 @@ function fireProjectile(){
   player.ammo--;
   player.shootCooldown = 0.35;
   projectiles.push({ x: player.x + (player.dir===1?player.w:0), y: player.y+player.h/2, vx: 7*player.dir, life:2 });
+  sfxShoot();
 }
 
 // ============================================================
@@ -831,6 +928,7 @@ function doBossAttack(){
 // ============================================================
 function endGame(){
   state = ST.END;
+  stopMusic();
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('nesController').classList.add('hidden');
   document.getElementById('tutorial').classList.add('hidden');
@@ -864,13 +962,12 @@ function endGame(){
 // ============================================================
 // BACKGROUND (parallax office skyline)
 // ============================================================
-let bgBuildings = [];
+const bgImage = new Image();
+let bgImageLoaded = false;
+bgImage.onload = ()=>{ bgImageLoaded = true; };
+bgImage.src = 'assets/pipeline-runner-background.png';
 function initBG(){
-  bgBuildings = Array.from({length:16}, (_,i)=>({
-    x: i*70 - 40, w: 45+Math.random()*30, h: 90+Math.random()*140,
-    color: `hsl(${215+Math.random()*25},${20+Math.random()*15}%,${13+Math.random()*8}%)`,
-    windows: Math.floor(Math.random()*8)+4
-  }));
+  // kept as a no-op hook in case a procedural fallback is ever needed again
 }
 initBG();
 
@@ -881,25 +978,22 @@ function drawBG(){
   ctx.fillStyle = sky;
   ctx.fillRect(0,0,CW,PLAY_H);
 
-  ctx.save();
-  const parallax = camX*0.35;
-  bgBuildings.forEach(b=>{
-    let bx = b.x - (parallax % (CW+400));
-    while(bx < -100) bx += CW+400;
-    while(bx > CW+300) bx -= CW+400;
-    const by = PLAY_H - b.h;
-    ctx.fillStyle = b.color;
-    ctx.fillRect(bx, by, b.w, b.h);
-    ctx.fillStyle = 'rgba(255,222,90,0.12)';
-    for(let wy=0; wy<b.windows; wy++){
-      for(let wx=0; wx<3; wx++){
-        if((wx+wy+Math.floor(bx))%5===0) ctx.fillStyle='rgba(255,222,90,0.55)';
-        else ctx.fillStyle='rgba(255,222,90,0.12)';
-        ctx.fillRect(bx+5+wx*12, by+10+wy*13, 7,7);
-      }
+  if(bgImageLoaded){
+    const imgW = bgImage.naturalWidth, imgH = bgImage.naturalHeight;
+    const drawW = imgW * (PLAY_H / imgH); // scaled to fill the play height, aspect preserved
+    const parallax = camX * 0.35;
+    let startX = -(parallax % drawW);
+    if(startX > 0) startX -= drawW;
+    for(let x = startX; x < CW; x += drawW){
+      ctx.drawImage(bgImage, x, 0, drawW, PLAY_H);
     }
-  });
-  ctx.restore();
+    if(state===ST.BOSS){
+      ctx.fillStyle = 'rgba(60,20,90,0.35)';
+      ctx.fillRect(0,0,CW,PLAY_H);
+    }
+  }
+  // (if the image hasn't loaded yet, the gradient above just shows alone
+  // for those first few frames — no broken/blank background either way)
 
   // ground
   ctx.fillStyle = '#20232f';
