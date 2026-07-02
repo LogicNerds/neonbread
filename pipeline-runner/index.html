@@ -37,27 +37,26 @@
   #hud{position:absolute;top:8px;left:0;width:100%;display:flex;justify-content:space-between;padding:0 10px;box-sizing:border-box;color:#fff;font-size:0.6em;pointer-events:none;}
   #hud div{background:rgba(0,0,0,0.45);padding:5px 8px;border-radius:4px;}
 
-  #tutorial{position:absolute;top:56px;left:0;width:100%;text-align:center;color:#cfe;font-size:0.5em;line-height:1.7;pointer-events:none;transition:opacity 1s;padding:0 20px;box-sizing:border-box;opacity:1;}
-
   /* Controller */
   #nesController{
-    position:absolute;bottom:0;left:0;width:375px;height:150px;
+    position:absolute;bottom:0;left:50%;width:410px;height:150px;
+    transform-origin:center bottom;
     background:#12121f;border-top:3px solid #24243d;
     display:flex;align-items:center;justify-content:space-between;
     padding:10px 20px;pointer-events:all;user-select:none;
   }
   .rocker{display:flex;gap:6px;align-items:center;}
   .rocker-btn{
-    width:78px;height:78px;border-radius:16px;background:#22223a;border:3px solid #40406a;
-    color:#8888aa;font-size:26px;display:flex;align-items:center;justify-content:center;
+    width:88px;height:88px;border-radius:18px;background:#22223a;border:3px solid #40406a;
+    color:#8888aa;font-size:28px;display:flex;align-items:center;justify-content:center;
     box-shadow:0 4px 0 rgba(0,0,0,0.5);transition:transform .05s,box-shadow .05s,background .05s;
     -webkit-tap-highlight-color:transparent;
   }
   .rocker-btn:active,.rocker-btn.pressed{background:#3a3a66;border-color:#7a7ad0;transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,0.5);color:#fff;}
   .ab-buttons{display:flex;gap:16px;align-items:center;}
   .nes-btn{
-    width:64px;height:64px;border-radius:50%;border:none;cursor:pointer;
-    font-family:'Press Start 2P',monospace;font-size:16px;display:flex;align-items:center;justify-content:center;
+    width:74px;height:74px;border-radius:50%;border:none;cursor:pointer;
+    font-family:'Press Start 2P',monospace;font-size:18px;display:flex;align-items:center;justify-content:center;
     position:relative;box-shadow:0 4px 0 rgba(0,0,0,0.5);transition:transform .05s,box-shadow .05s;
     -webkit-tap-highlight-color:transparent;color:#fff;
   }
@@ -104,7 +103,6 @@
     <div id="hudAccuracy">Accuracy: 100%</div>
   </div>
 
-  <div id="tutorial" class="hidden">Jump ONTO reps to stomp, or grab the cannon and shoot them.<br>Climb platforms — jump INTO ghosts for bonus revenue.<br>Double-tap jump to double jump!</div>
 
   <div id="nesController" class="hidden">
     <div class="rocker">
@@ -247,8 +245,11 @@ function resize(){
   wrap.style.transform = "";
   canvas.style.width = (CW*scale)+"px";
   canvas.style.height = (CH*scale)+"px";
+  const controller = document.getElementById('nesController');
+  controller.style.transform = `translateX(-50%) scale(${scale})`;
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
 resize();
 
 // ============================================================
@@ -398,7 +399,7 @@ const ST = { MENU:'menu', PLAYING:'playing', BOSS:'boss', END:'end' };
 let state = ST.MENU;
 let role = null;
 let level = null;
-let player, camX, poppedCount, revenue, particles, tutorialTimer, frameCount = 0;
+let player, camX, poppedCount, revenue, particles, frameCount = 0;
 let projectiles, boss, hitPenaltyPct, hitFlashScreen, ammoBag, cannonPickup, levelAmmoPickups;
 
 function resetGame(selectedRole){
@@ -413,7 +414,6 @@ function resetGame(selectedRole){
   revenue = 0;
   particles = [];
   projectiles = [];
-  tutorialTimer = 260;
   boss = null;
   hitPenaltyPct = 0;
   hitFlashScreen = 0;
@@ -424,7 +424,6 @@ function resetGame(selectedRole){
 
   keys.left=false; keys.right=false; keys.jump=false; keys.shoot=false;
   jumpPressedEdge=false; shootPressedEdge=false;
-  document.getElementById('tutorial').style.opacity = 1;
 }
 
 // ============================================================
@@ -476,7 +475,6 @@ document.getElementById('playNowBtn').addEventListener('click', ()=>{
   document.getElementById('menuScreen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('nesController').classList.remove('hidden');
-  document.getElementById('tutorial').classList.remove('hidden');
   state = ST.PLAYING;
 });
 document.getElementById('restartBtn').addEventListener('click', ()=>{
@@ -792,12 +790,6 @@ function update(){
   particles.forEach(p=>{ p.y+=p.vy; p.vy+=0.15; p.life--; p.x+=p.vx; });
   particles = particles.filter(p=>p.life>0);
 
-  // ---- tutorial fade ----
-  if(tutorialTimer>0){
-    tutorialTimer--;
-    if(tutorialTimer===0) document.getElementById('tutorial').style.opacity=0;
-  }
-
   // ---- HUD ----
   document.getElementById('hudRevenue').textContent = 'Revenue: $'+Math.round(revenue).toLocaleString();
   const rawAcc = (poppedCount/level.totalGhosts)*100*ROLES[role].accMult;
@@ -931,7 +923,6 @@ function endGame(){
   stopMusic();
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('nesController').classList.add('hidden');
-  document.getElementById('tutorial').classList.add('hidden');
 
   const rawAcc = (poppedCount/level.totalGhosts)*100*ROLES[role].accMult;
   const accuracy = Math.max(0, Math.min(100, Math.round(rawAcc - hitPenaltyPct)));
@@ -991,6 +982,8 @@ function drawBG(){
       ctx.fillStyle = 'rgba(60,20,90,0.35)';
       ctx.fillRect(0,0,CW,PLAY_H);
     }
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(0,0,CW,PLAY_H);
   }
   // (if the image hasn't loaded yet, the gradient above just shows alone
   // for those first few frames — no broken/blank background either way)
