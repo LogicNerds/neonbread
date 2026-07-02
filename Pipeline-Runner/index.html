@@ -113,6 +113,69 @@
 "use strict";
 
 // ============================================================
+// AUDIO (chiptune SFX — synthesized, no external files)
+// ============================================================
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+function unlockAudio(){
+  try{ getAudioCtx().resume(); } catch(e){}
+}
+
+function sfxJump(highPitch){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    const base = highPitch ? 520 : 420;
+    osc.frequency.setValueAtTime(base, now);
+    osc.frequency.exponentialRampToValueAtTime(base*1.7, now+0.09);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.11);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.13);
+  } catch(e){}
+}
+
+function sfxStomp(){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(85, now+0.11);
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.13);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.15);
+  } catch(e){}
+}
+
+function sfxShoot(){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(420, now+0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now+0.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now+0.12);
+  } catch(e){}
+}
+
+// ============================================================
 // CONSTANTS
 // ============================================================
 const CW = 375, CH = 667;
@@ -378,6 +441,7 @@ bindHold(document.getElementById('btnShoot'),
 // MENU / END SCREEN WIRING
 // ============================================================
 document.getElementById('playNowBtn').addEventListener('click', ()=>{
+  unlockAudio();
   resetGame('revops');
   document.getElementById('menuScreen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
@@ -422,6 +486,7 @@ function resolveCombatCollision(eLeft,eTop,eW,eH){
   if(stomp){
     player.y = eTop - player.h;
     player.vy = JUMP_V2*0.7;
+    sfxStomp();
   } else {
     const pushDir = (player.x + player.w/2 < eLeft + eW/2) ? -1 : 1;
     player.vx = pushDir*4;
@@ -491,10 +556,11 @@ function update(){
 
   // ---- jump (edge-triggered) ----
   if(jumpPressedEdge){
-    if(player.grounded){ player.vy = JUMP_V1; player.grounded=false; player.jumpsUsed=1; }
+    if(player.grounded){ player.vy = JUMP_V1; player.grounded=false; player.jumpsUsed=1; sfxJump(false); }
     else if(player.jumpsUsed < 2){
       player.vy = JUMP_V2; player.jumpsUsed = 2;
       spawnParticle(player.x+player.w/2, player.y+player.h, '#fff');
+      sfxJump(true);
     }
     jumpPressedEdge = false;
   }
@@ -715,6 +781,7 @@ function fireProjectile(){
   player.ammo--;
   player.shootCooldown = 0.35;
   projectiles.push({ x: player.x + (player.dir===1?player.w:0), y: player.y+player.h/2, vx: 7*player.dir, life:2 });
+  sfxShoot();
 }
 
 // ============================================================
