@@ -979,10 +979,10 @@ function drawBG(){
       ctx.drawImage(bgImage, x, 0, drawW, PLAY_H);
     }
     if(state===ST.BOSS){
-      ctx.fillStyle = 'rgba(60,20,90,0.35)';
+      ctx.fillStyle = 'rgba(60,20,90,0.0)';
       ctx.fillRect(0,0,CW,PLAY_H);
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.fillRect(0,0,CW,PLAY_H);
   }
   // (if the image hasn't loaded yet, the gradient above just shows alone
