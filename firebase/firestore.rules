@@ -1,0 +1,35 @@
+rules_version = '2';
+// Neon Bread Arcade — global leaderboards. Anyone can read. Anyone can add a score,
+// but only a well-formed one. Nobody can edit or delete through the API.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{id} {
+      allow read: if true;
+      allow create: if validScore(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    function maxScore(game) {
+      return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : 10000000;
+    }
+    function okName(n) {
+      return n is string && n.matches('^[A-Z0-9]{1,6}$')
+        && !n.lower().matches('.*(nigg|nigr|niga|fagot|faggot|faggt|kike|kyke|trann|trany|retard|wetbac|beaner|raghea|chink).*')
+        && !(n.lower() in ['nig', 'fag', 'fags', 'spic', 'spics', 'spick', 'coon', 'coons', 'gook', 'gooks', 'dyke', 'dykes', 'jap', 'japs', 'paki', 'pakis', 'wop', 'wops', 'kkk']);
+    }
+    function okWeek(w) {
+      return w is string && w.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.time > timestamp.date(int(w[0:4]), int(w[5:7]), int(w[8:10])) - duration.value(1, 'd')
+        && request.time < timestamp.date(int(w[0:4]), int(w[5:7]), int(w[8:10])) + duration.value(8, 'd');
+    }
+    function validScore(d) {
+      return d.keys().hasOnly(['game', 'name', 'score', 'week', 'ts'])
+        && d.keys().hasAll(['game', 'name', 'score', 'week', 'ts'])
+        && d.game in ['chonx', 'yeet', 'gta']
+        && okName(d.name)
+        && d.score is int && d.score >= 0 && d.score <= maxScore(d.game)
+        && okWeek(d.week)
+        && d.ts == request.time;
+    }
+  }
+}
