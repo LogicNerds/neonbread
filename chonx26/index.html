@@ -1500,7 +1500,7 @@ function updatePlayer() {
   P.aim = aimAngle(P.cx, P.y + 9, P.facing);
   if (P.fireCd > 0) P.fireCd--;
   const held = fireHeld();
-  const canCharge = G.jetUnlocked && P.fuel > 0;
+  const canCharge = false;   // charge shot removed: holding fire is always rapid fire
   if (Input.edge.fire) { firePlayerShot(P.aim, 1); P.fireCd = 10; P.charge = 0; }
   else if (held) {
     if (canCharge) {
@@ -1886,8 +1886,9 @@ class RatSpawner {
   constructor(x, y, o = {}) { this.x = x; this.y = y; this.done = false; this.count = o.count || (Math.random() < 0.5 ? 6 : 7); this.queue = 0; this.t = 0; }
   update() {
     if (!this.done && P && P.cx > this.x - 140) { this.done = true; this.queue = this.count; floatText(P.cx + 60, P.y - 20, this.count === 6 ? 'SIX...' : 'SEVEN...', '#7dff4a', 60); }
+    if (Cam.locked) { this.queue = 0; return; }   // never spawn once a boss arena has locked the camera
     if (this.queue > 0 && ++this.t % 14 === 0) {
-      const r = new Rat(Cam.x + VW + 16, this.y); r.active = true; enemies.push(r); this.queue--;
+      const r = new Rat(Math.min(Cam.x + VW + 16, L.w * TILE - 24), this.y); r.active = true; enemies.push(r); this.queue--;
     }
   }
   draw() { }
@@ -1933,6 +1934,28 @@ class AltAccount {
     c.strokeStyle = this.t % 20 < 10 ? '#ffe14d' : '#39ff6a'; c.lineWidth = 1; c.strokeRect(Math.round(x - 9) + 0.5, Math.round(y - 9) + 0.5, 17, 17);
     drawSprite(c, S.chonx.idle, x, y + 7, { scale: 0.62 });
     c.fillStyle = '#ffe14d'; c.fillRect(Math.round(x + 4), Math.round(y - 9), 6, 4); c.fillStyle = '#0b1a0e'; c.fillRect(Math.round(x + 6), Math.round(y - 8), 2, 2);
+  }
+}
+// POWER BANK — refills half the jetpack's fuel
+class PowerBank {
+  constructor(x, y) { this.x = x; this.y = y; this.dead = false; this.t = 0; }
+  update() {
+    this.t++;
+    if (P && !P.dead && Math.abs(P.cx - this.x) < 11 && P.y < this.y && P.y + P.h > this.y - 16) {
+      this.dead = true; if (this.key) L.taken[this.key] = 1;
+      P.fuel = Math.min(100, P.fuel + 50); Audio2.sfx('checkpoint');
+      floatText(P.cx, P.y - 8, 'POWER BANK +50% FUEL', '#00e5ff', 70);
+      burst(this.x, this.y - 8, 14, ['#00e5ff', '#fff', '#39ff6a'], 2, 25);
+    }
+  }
+  draw(c) {
+    const x = Math.round(this.x - Cam.x), y = Math.round(this.y - CAM_Y + (this.t % 60 < 30 ? 0 : -1));
+    c.globalAlpha = 0.3 + Math.sin(this.t * 0.15) * 0.15; c.fillStyle = '#00e5ff'; c.fillRect(x - 8, y - 18, 16, 18); c.globalAlpha = 1;
+    c.fillStyle = '#0b1620'; c.fillRect(x - 6, y - 15, 12, 15); c.fillRect(x - 2, y - 17, 4, 2);
+    c.fillStyle = '#1d2a36'; c.fillRect(x - 5, y - 14, 10, 13);
+    const lvl = 2 + Math.floor((this.t / 10) % 3);
+    c.fillStyle = '#39ff6a'; for (let i = 0; i < lvl; i++) c.fillRect(x - 4, y - 3 - i * 3, 8, 2);
+    c.fillStyle = '#ffe14d'; c.fillRect(x, y - 13, 2, 4); c.fillRect(x - 1, y - 10, 3, 1); c.fillRect(x - 1, y - 9, 2, 3);
   }
 }
 class Grass {
@@ -2117,10 +2140,10 @@ class Tendril {
 }
 // Brayn's brain-rot puddle
 class Puddle {
-  constructor(x, y) { this.x = x - 14; this.y = y - 4; this.w = 28; this.h = 4; this.life = 260; this.dead = false; }
+  constructor(x, y) { this.x = x - 14; this.y = y - 4; this.w = 28; this.h = 4; this.life = 90; this.dead = false; }   // 1.5s
   update() { if (--this.life <= 0) this.dead = true; if (P && !P.dead && P.onGround && overlap(this, P)) hurtPlayer(12, this.x + 14); }
   draw(c) {
-    const a = this.life < 60 ? this.life / 60 : 1; c.globalAlpha = a;
+    const a = this.life < 30 ? this.life / 30 : 1; c.globalAlpha = a;
     const x = Math.round(this.x - Cam.x), y = Math.round(this.y - CAM_Y);
     c.fillStyle = '#3fae1f'; c.fillRect(x, y + 1, 28, 3); c.fillStyle = '#7dff4a'; c.fillRect(x + 2, y, 24, 2);
     if ((L.t + x) % 20 < 10) { c.fillStyle = '#c8ff9a'; c.fillRect(x + 6 + (L.t % 14), y - 1, 2, 2); }
@@ -2459,7 +2482,12 @@ class Brayn extends Boss {
     this.phase = 1; this.contact = 16; this.hopCd = 90; this.spitCd = 60; this.spitAnim = 0;
     this.summonCd = 200; this.laserCd = 160; this.ratioCd = 200; this.resetCd = 300; this.trans = 0;
     this.colors = ['#e85a8a', '#7dff4a', '#c8384a', '#fff', '#efe6c8'];
-    this.decoys = []; this.grassCd = 1800;
+    this.decoys = []; this.grassCd = 1800; this.powerCd = 1200;
+  }
+  dropPowerBank() {
+    if (props.some(p => p instanceof PowerBank && !p.dead && p.x > arenaL() && p.x < arenaR())) return;   // max one in the arena
+    const x = rand(arenaL() + 30, arenaR() - 30);
+    props.push(new PowerBank(x, GROUND_Y)); burst(x, GROUND_Y - 8, 14, ['#00e5ff', '#fff'], 2, 25);
   }
   sproutGrass() {
     if (props.some(p => p instanceof Grass && !p.dead && p.x > arenaL() && p.x < arenaR())) return;   // max one in the arena
@@ -2488,6 +2516,7 @@ class Brayn extends Boss {
     if (this.wake > 0) { this.wake--; this.vy = Math.min(this.vy + GRAV, MAXFALL); physY(this, this.vy); return; }
     if (this.trans > 0) { this.trans--; this.vx = 0; this.vy = Math.min(this.vy + GRAV, MAXFALL); physY(this, this.vy); return; }
     if (--this.grassCd <= 0) { this.grassCd = 1800; this.sproutGrass(); }
+    if (--this.powerCd <= 0) { this.powerCd = 1200; this.dropPowerBank(); }
     if (this.phase === 1 && this.hp <= 100) { this.setPhase(2); return; }
     if (this.phase === 2 && this.hp <= 50) { this.setPhase(3); return; }
     if (P) this.facing = sign(P.cx - this.cx) || this.facing;
@@ -2509,14 +2538,15 @@ class Brayn extends Boss {
     if (this.phase >= 2) {
       if (--this.summonCd <= 0) {
         this.summonCd = this.phase === 2 ? 340 : 480;
-        const alive = enemies.filter(e => !e.dead && !e.isBoss && !(e instanceof BraynDecoy)).length;
-        if (alive < 4) {
+        const alive = enemies.filter(e => !e.dead && e.active && !e.isBoss && !(e instanceof BraynDecoy) && e.x + e.w > arenaL() && e.x < arenaR()).length;   // only what's in the arena
+        const MAX_SUMMONS = 2;   // never more than 2 summoned enemies alive at once (fake Brayns don't count)
+        if (alive < MAX_SUMMONS) {
           floatText(this.cx, this.y - 10, 'RECOMMENDED FOR YOU', '#ff4bd8', 60);
-          const pool = ['npc', 'crash', 'clanker', 'aura', 'rat'];
-          for (let i = 0; i < 2; i++) {
+          const pool = ['npc', 'crash', 'clanker', 'rat'];
+          for (let i = 0; i < MAX_SUMMONS - alive; i++) {
             const t = pool[randi(0, pool.length - 1)];
             const x = i === 0 ? arenaL() + 18 : arenaR() - 18;
-            const e = t === 'clanker' ? new Clanker(x, 90, { size: 16 }) : new ENEMY_TYPES[t](x, GROUND_Y - 1);
+            const e = t === 'clanker' ? new Clanker(x, 90, { size: 16, gen: 2 }) : new ENEMY_TYPES[t](x, GROUND_Y - 1);
             if (t === 'rat') e.vx = i === 0 ? 1.4 : -1.4;
             e.grassChance = 0.25;
             e.active = true; enemies.push(e); burst(x, GROUND_Y - 14, 12, ['#ff4bd8', '#fff'], 2, 18);
@@ -2814,7 +2844,7 @@ const LEVELS = [
     b.ground(175, 200); b.e('clanker', 182, 6); b.e('clanker', 188, 5); b.e('clanker', 194, 7); b.block(197, 198, 9, 11);
     b.liquid(201, 203);
     b.ground(204, 271); b.conv(208, 220, '>'); b.e('npc', 214, 11); b.e('baiter', 224, 3, { line: 60 }); b.e('crusher', 232, 11, { delay: 60 }); b.e('grass', 240, 11);
-    b.e('alt', 135, 4);
+    b.e('alt', 135, 4); b.e('power', 38, 11); b.e('power', 110, 11); b.e('power', 185, 11);
     b.arena = 248; b.e('boss', 262, 11);
     return b;
   } },
@@ -2831,7 +2861,7 @@ const LEVELS = [
     b.ground(174, 231); b.e('aura', 180, 11); b.e('crash', 186, 11); b.e('aura', 192, 11); b.e('grass', 200, 11); b.cells(176, 182, 9);
     b.e('aura', 44, 11); b.e('crash', 57, 11); b.e('aura', 88, 11); b.e('crash', 130, 11); b.e('aura', 157, 11);
     b.e('spot', 25, 0); b.e('spot', 78, 0, { ph: 0.6 }); b.e('spot', 140, 0, { ph: 1.2 }); b.e('spot', 170, 0, { ph: 0.3 }); b.e('spot', 201, 0, { ph: 0.9 });
-    b.e('alt', 128, 5);
+    b.e('alt', 128, 5); b.e('power', 60, 11); b.e('power', 116, 11); b.e('power', 178, 11);
     b.arena = 208; b.e('boss', 222, 11);
     return b;
   } },
@@ -2853,7 +2883,7 @@ const LEVELS = [
     b.ground(179, 205); b.e('ratspawn', 184, 11); b.e('clanker', 190, 6); b.e('baiter', 196, 3, { line: 56 }); b.cells(186, 194, 9);
     b.liquid(206, 208);
     b.ground(209, 261); b.e('grass', 220, 11); b.e('ratspawn', 222, 11);
-    b.e('alt', 143, 6);
+    b.e('alt', 143, 6); b.e('power', 44, 11); b.e('power', 118, 11); b.e('power', 187, 11);
     b.arena = 238; b.e('boss', 252, 11);
     return b;
   } },
@@ -2892,8 +2922,8 @@ const STORY = {
   unlock: { title: 'THE SLOP FACTORY', lines: [
     ['Somebody left a jetpack on the slop line.'],
     ['AI finally made something useful.'],
-    ['JETPACK + CHARGE SHOT UNLOCKED', 'unlock'],
-    ['Hold JET to fly. Hold FIRE to charge. Kills refuel.', 'em'],
+    ['JETPACK UNLOCKED', 'unlock'],
+    ['Hold JET to fly. Kills and power banks refuel.', 'em'],
   ] },
   after2: { title: 'THE SLOP FACTORY: CLEARED', lines: [
     ['Mega Clanker: reduced to slop.'],
@@ -2956,6 +2986,7 @@ function spawnLevel(fromCheckpoint) {
     const key = 'e' + idx;
     if (e.type === 'cell') { if (!L.taken[key]) { const c = new Cell(e.x, e.y); c.key = key; props.push(c); } }
     else if (e.type === 'grass') { if (!L.taken[key]) { const g = new Grass(e.x, e.y, false); g.key = key; props.push(g); } }
+    else if (e.type === 'power') { if (!L.taken[key]) { const pb = new PowerBank(e.x, e.y); pb.key = key; props.push(pb); } }
     else if (e.type === 'alt') { if (!L.taken[key]) { const a = new AltAccount(e.x, e.y); a.key = key; props.push(a); } }
     else if (e.type === 'spring') props.push(new Spring(e.x, e.y));
     else if (e.type === 'cp') { props.push(new Checkpoint(e.x, e.y)); cpX = e.x; cpY = e.y; }
@@ -3401,7 +3432,7 @@ function showStats(victory) {
   $('statsTitle').innerHTML = victory ? 'MAIN CHARACTER<br>ENERGY!' : 'YOU FAILED! &#128580;';
   const s = G.stats;
   $('statsBody').innerHTML =
-    `SCORE: ${(s.score || 0).toLocaleString('en-US')}<br>ENEMIES NEUTRALIZED: ${s.kills}<br>BRAIN CELLS RECOVERED: ${s.cells}<br>CHARGE SHOTS USED: ${s.charge}<br>JET PACK ACTIVATIONS: ${s.jet}<br>TIMES COOKED: ${s.deaths}<br>SECONDS OF ATTENTION BURNED: ${Math.floor(s.time)}`;
+    `SCORE: ${(s.score || 0).toLocaleString('en-US')}<br>ENEMIES NEUTRALIZED: ${s.kills}<br>BRAIN CELLS RECOVERED: ${s.cells}<br>JET PACK ACTIVATIONS: ${s.jet}<br>TIMES COOKED: ${s.deaths}<br>SECONDS OF ATTENTION BURNED: ${Math.floor(s.time)}`;
   showMenu('stats', 'statsMenu', [
     { label: 'BACK TO TITLE', action: showTitle },
     { label: 'MEET THE CAST', action: () => showCast(true), cls: 'pink' },
