@@ -2821,15 +2821,15 @@ const LEVELS = [
   { name: 'AURA DISTRICT', theme: 'aura', boss: 'peak', autoscroll: 0.55, build() {
     const b = new LB(232);
     b.ground(0, 26); b.e('aura', 16, 11); b.cells(10, 14, 9);
-    b.ground(30, 52); b.e('crash', 38, 11); b.plat(42, 46, 8); b.cells(42, 46, 7); b.e('aura', 49, 11);
-    b.ground(56, 80); b.e('crash', 62, 11); b.plat(67, 71, 8); b.e('aura', 69, 7); b.block(74, 75, 10, 11);
+    b.ground(30, 52); b.e('crash', 38, 11); b.plat(42, 46, 8); b.cells(42, 46, 7);
+    b.ground(56, 80); b.plat(67, 71, 8); b.e('aura', 69, 7); b.block(74, 75, 10, 11);
     b.plat(82, 83, 9);
-    b.ground(85, 110); b.e('grass', 90, 11); b.e('cp', 96, 11); b.e('crash', 100, 11); b.e('crash', 106, 11);
-    b.ground(114, 140); b.e('aura', 120, 11); b.plat(124, 128, 8); b.e('aura', 126, 7); b.e('clanker', 132, 5); b.cells(124, 128, 6);
+    b.ground(85, 110); b.e('grass', 90, 11); b.e('cp', 96, 11); b.e('crash', 100, 11);
+    b.ground(114, 140); b.e('aura', 120, 11); b.plat(124, 128, 8); b.e('aura', 126, 7); b.cells(124, 128, 6);
     b.plat(142, 143, 10);
-    b.ground(145, 170); b.e('crash', 150, 11); b.e('npc', 155, 11); b.e('crash', 160, 11); b.block(163, 164, 10, 11);
+    b.ground(145, 170); b.e('crash', 150, 11); b.e('grass', 153, 11); b.block(163, 164, 10, 11);
     b.ground(174, 231); b.e('aura', 180, 11); b.e('crash', 186, 11); b.e('aura', 192, 11); b.e('grass', 200, 11); b.cells(176, 182, 9);
-    b.e('aura', 44, 11); b.e('crash', 57, 11); b.e('aura', 88, 11); b.e('clanker', 115, 6); b.e('crash', 130, 11); b.e('aura', 157, 11);
+    b.e('aura', 44, 11); b.e('crash', 57, 11); b.e('aura', 88, 11); b.e('crash', 130, 11); b.e('aura', 157, 11);
     b.e('spot', 25, 0); b.e('spot', 78, 0, { ph: 0.6 }); b.e('spot', 140, 0, { ph: 1.2 }); b.e('spot', 170, 0, { ph: 0.3 }); b.e('spot', 201, 0, { ph: 0.9 });
     b.e('alt', 128, 5);
     b.arena = 208; b.e('boss', 222, 11);
