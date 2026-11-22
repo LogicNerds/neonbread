@@ -53,9 +53,6 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 .tb.down{background:rgba(255,107,157,.6);color:#000}
 #tPause{top:max(10px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));width:calc(var(--cw) - 16px);height:52px;font-size:14px}
 #tRestart{top:calc(max(10px,env(safe-area-inset-top)) + 64px);left:max(8px,env(safe-area-inset-left));width:calc(var(--cw) - 16px);height:52px;font-size:10px;border-color:rgba(78,205,196,.9);color:#4ecdc4;background:rgba(78,205,196,.08)}
-#tSurvL,#tSurvR{bottom:max(14px,env(safe-area-inset-bottom));width:calc((var(--cw) - 22px) / 2);height:min(120px,calc(var(--cw) * .85));font-size:22px;border-color:rgba(255,215,0,.9);color:#ffd700;background:rgba(255,215,0,.08)}
-#tSurvL{left:max(8px,env(safe-area-inset-left))}
-#tSurvR{left:calc(max(8px,env(safe-area-inset-left)) + (var(--cw) - 22px) / 2 + 6px)}
 .tb.off{opacity:.25}
 #tYeet{right:max(6px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));width:calc(var(--cw) - 12px);height:min(62vh,320px);font-size:18px;border-width:4px;background:rgba(255,107,157,.18)}
 /* rotate overlay (phones in portrait only) */
@@ -484,8 +481,6 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 <div id="touch">
   <div class="tb" id="tPause">II</div>
   <div class="tb" id="tRestart">RESTART</div>
-  <div class="tb" id="tSurvL">&#9664;</div>
-  <div class="tb" id="tSurvR">&#9654;</div>
   <div class="tb" id="tYeet">YEET!</div>
 </div>
 <div id="stage">
@@ -910,6 +905,46 @@ function karenPX(f) {
   return p;
 }
 
+
+// ---------- distance-mode bouncers ----------
+function diaperPX() {      // Diaper Detonation: a diaper bomb with a lit fuse
+  const p = new PX(20, 18);
+  p.ell(10, 11, 8.5, 6, '#ffffff'); p.rect(2, 9, 17, 2, '#dfe7ef');
+  p.rect(2, 7, 4, 3, '#8ec9ff'); p.rect(15, 7, 4, 3, '#8ec9ff');           // tabs
+  p.rect(7, 12, 6, 2, '#ffd23a'); p.set(9, 13, '#ff8a00');                  // hazard stripe
+  p.line(13, 6, 15, 2, '#5a3418'); p.set(16, 1, '#ffd23a'); p.set(16, 0, '#ff8a00');   // fuse + spark
+  p.outline(OL);
+  return p;
+}
+function diaperBlownPX() { // scorch mark left behind
+  const p = new PX(20, 4);
+  p.ell(10, 2.5, 9, 1.8, '#2b2b2b'); p.set(5, 2, '#555'); p.set(14, 2, '#555');
+  return p;
+}
+function slidePX() {       // Slip 'N Slide: long yellow mat with blue stripes
+  const w = 74, p = new PX(w, 5);
+  p.rect(0, 1, w, 3, '#ffd23a');
+  for (let x = 2; x < w - 2; x += 8) p.rect(x, 1, 4, 3, '#4aa3ff');
+  p.rect(0, 1, w, 1, '#fff3a0'); p.ell(w - 4, 2.5, 4, 2.5, '#4aa3ff');      // splash pool at the end
+  p.outline(OL);
+  return p;
+}
+function rampPX() {        // kiddie ramp: plastic wedge
+  const p = new PX(34, 16);
+  for (let i = 0; i < 32; i++) { const h = Math.round(14 * i / 31); p.rect(1 + i, 15 - h, 1, h + 1, i % 6 < 3 ? '#ff5f5f' : '#ff8f6b'); }
+  p.rect(1, 14, 32, 2, '#c94040');
+  p.outline(OL);
+  return p;
+}
+function rocketPX() {      // bottle rocket on its stick
+  const p = new PX(8, 22);
+  p.rect(2, 4, 4, 9, '#ff3b3b'); p.rect(2, 7, 4, 2, '#ffffff');
+  p.rect(3, 1, 2, 3, '#ffd23a'); p.set(3, 0, '#ffd23a');
+  p.rect(1, 12, 6, 2, '#888'); p.rect(3, 13, 1, 9, '#c98a3a');
+  p.outline(OL);
+  return p;
+}
+
 const S = {};
 function buildSprites() {
   S.baby = { held: mkSprite(babyPX('held')), fly: mkSprite(babyPX('fly')), cry: mkSprite(babyPX('cry')) };
@@ -929,6 +964,8 @@ function buildSprites() {
   S.goose = [mkSprite(goosePX(0)), mkSprite(goosePX(1))];
   S.drone = [mkSprite(dronePX(0)), mkSprite(dronePX(1))];
   S.karen = [mkSprite(karenPX(0)), mkSprite(karenPX(1))];
+  S.diaper = mkSprite(diaperPX()); S.diaperBlown = mkSprite(diaperBlownPX());
+  S.slide = mkSprite(slidePX()); S.ramp = mkSprite(rampPX()); S.rocket = mkSprite(rocketPX());
   buildBackdrops();
 }
 
@@ -983,7 +1020,6 @@ const Input = {
   edge: { yeet: false, pause: false },
   menu: { up: false, down: false, ok: false, back: false },
   touch: { left: false, right: false },
-  wheel: 0, dragWorld: 0, mdown: null,    // survey: mouse wheel / click-drag (world px)
 };
 window.addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.code)) e.preventDefault();
@@ -999,38 +1035,14 @@ window.addEventListener('keydown', e => {
   Audio2.unlock();
 });
 window.addEventListener('keyup', e => { Input.keys[e.code] = false; });
-window.addEventListener('blur', () => { Input.keys = {}; Input.mdown = null; releaseAllTouch(); });
+window.addEventListener('blur', () => { Input.keys = {}; releaseAllTouch(); });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 // Only a real mouse click yeets on the game area. Taps there are ignored, so a thumb
 // that slips off the YEET button can never fire an extra throw.
-// Before the first tap a click-drag surveys the field, so there a click counts on release
-// (only if the mouse didn't drag); everywhere else it counts the moment you press.
-const screenToWorld = px => px / canvas.getBoundingClientRect().width * VW;
 canvas.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'mouse' || e.button !== 0) return;
-  Audio2.unlock();
-  if (G.state === 'playing' && G.phase === 'power') {
-    Input.mdown = { x0: e.clientX, last: e.clientX, dragged: false };
-    try { canvas.setPointerCapture(e.pointerId); } catch (err) { }
-  } else Input.edge.yeet = true;
+  Input.edge.yeet = true; Audio2.unlock();
 });
-canvas.addEventListener('pointermove', e => {
-  const m = Input.mdown; if (!m || e.pointerType !== 'mouse') return;
-  if (Math.abs(e.clientX - m.x0) > 8) m.dragged = true;
-  if (m.dragged) Input.dragWorld -= screenToWorld(e.clientX - m.last);
-  m.last = e.clientX;
-});
-window.addEventListener('pointerup', e => {
-  const m = Input.mdown; if (!m || e.pointerType !== 'mouse') return;
-  Input.mdown = null;
-  if (!m.dragged && G.state === 'playing') Input.edge.yeet = true;
-});
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (G.state !== 'playing' || G.phase !== 'power') return;
-  const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-  Input.wheel += clamp(d, -120, 120) * (e.deltaMode === 1 ? 12 : 0.3);
-}, { passive: false });
 
 const DEAD = 0.5;
 function pollGamepad() {
@@ -1071,8 +1083,6 @@ function setupTouch() {
   bindTouch('tYeet', () => { Input.edge.yeet = true; });
   bindTouch('tPause', () => { Input.edge.pause = true; });
   bindTouch('tRestart', () => { if (G.state === 'playing') restartGame(); });
-  bindTouch('tSurvL', () => { Input.touch.left = true; }, () => { Input.touch.left = false; });
-  bindTouch('tSurvR', () => { Input.touch.right = true; }, () => { Input.touch.right = false; });
   $('cPause').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') pauseGame(); });
   $('cRestart').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') restartGame(); });
 }
@@ -1178,6 +1188,9 @@ const Audio2 = {
       case 'round': [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, 0.12, 'square', 0.14, i * 0.09)); break;
       case 'siren': for (let i = 0; i < 6; i++) this.tone(i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.24, 'square', 0.12, i * 0.25); break;
       case 'wind': this.noise(1.2, 0.15, 700, 0, 'bandpass'); break;
+      case 'boom': this.noise(0.8, 0.5, 600); this.tone(120, 40, 0.6, 'square', 0.25); break;
+      case 'rocket': this.noise(0.9, 0.2, 3000, 0, 'bandpass'); this.tone(400, 1600, 0.8, 'square', 0.08); break;
+      case 'thump': this.noise(0.12, 0.25, 300); this.tone(120, 70, 0.12, 'square', 0.12); break;
       case 'boing2': this.tone(250, 900, 0.14, 'square', 0.15); this.tone(900, 1300, 0.08, 'triangle', 0.1, 0.12); break;
       case 'bark': this.tone(500, 260, 0.08, 'sawtooth', 0.18); this.tone(560, 280, 0.08, 'sawtooth', 0.16, 0.12); break;
       case 'rustle': this.noise(0.3, 0.2, 3500, 0, 'highpass'); break;
@@ -1209,7 +1222,7 @@ const G = {
   panT: 0, resT: 0, result: null, event: null, banner: null, caption: null,
 };
 const Cam = { x: AIM_CAM_X, y: 0, shake: 0, sx: 0, sy: 0 };
-let baby = null, targets = [], bear = null, yardEnd = 600, parentFrame = 'ready';
+let baby = null, yardEnd = Infinity, parentFrame = 'ready';
 const particles = [], floaters = [];
 
 function shake(n) { Cam.shake = Math.max(Cam.shake, n); }
@@ -1222,105 +1235,59 @@ function burst(x, y, n, colors, spd = 2, life = 30, grav = 0.08, size = 2) {
 function floatText(x, y, text, color = '#ffd700', life = 90) { floaters.push({ x, y, text, color, life, max: life }); }
 function showCaption(text) { G.caption = { text, t: 108, max: 108 }; }   // 1.8s, same as the original pop
 
-// ---- round layout: targets move farther (~11 ft/round) and shrink, bear moves into the gap ----
-// Unlocks: one new bouncer + one new peril per round (round 1 stays clean)
-const UNLOCKS = {
-  2: ['trampoline', 'grill'],
-  3: ['castle', 'mower'],
-  4: ['dog', 'tree'],
-  5: ['blower', 'geese'],
-  6: ['clothes', 'roambear'],
-  7: ['flamingo', 'drone'],
-  8: ['movetarget'],
-  9: ['karen'],
-};
-const BOUNCERS = ['trampoline', 'castle', 'dog', 'blower', 'clothes', 'flamingo'];
-const GROUND_PERILS = ['grill', 'mower', 'tree'];
+// ---- DISTANCE MODE: 5 throws, endless yard, a random mix of items each round ----
+const ROUNDS = 5;
+const BOUNCERS = ['trampoline', 'castle', 'dog', 'blower', 'clothes', 'flamingo', 'diaper', 'slide', 'ramp', 'rocket'];
+const PERILS = ['grill', 'mower', 'tree', 'bear', 'karen'];
 const ITEM_NAMES = {
-  trampoline: 'TRAMPOLINE', castle: 'BOUNCY CASTLE', dog: 'GOLDEN RETRIEVER', blower: 'LEAF BLOWER DAD', clothes: 'CLOTHESLINE', flamingo: 'INFLATABLE FLAMINGO',
-  grill: 'BBQ GRILL', mower: 'ROBOT LAWNMOWER', tree: 'TREE', geese: 'ANGRY GEESE', roambear: 'ROAMING BEAR', drone: 'DELIVERY DRONE', movetarget: 'MOVING TARGETS', karen: 'HOA KAREN',
+  trampoline: 'TRAMPOLINE', castle: 'BOUNCY CASTLE', dog: 'GOLDEN RETRIEVER', blower: 'LEAF BLOWER DAD', clothes: 'CLOTHESLINE', flamingo: 'FLAMINGO',
+  diaper: 'DIAPER DETONATION', slide: "SLIP 'N SLIDE", ramp: 'KIDDIE RAMP', rocket: 'BOTTLE ROCKET',
+  grill: 'BBQ GRILL', mower: 'ROBOT MOWER', tree: 'TREE', bear: 'BEAR', karen: 'HOA KAREN',
 };
-// half-width used for placement (blower's air stream and the mower's patrol are included)
-const ITEM_HALF = { trampoline: 17, castle: 22, dog: 13, blower: 12, clothes: 21, flamingo: 12, grill: 11, mower: 34, tree: 28 };
-function unlockedBy(r) { const u = []; for (const k in UNLOCKS) if (+k <= r) u.push(...UNLOCKS[k]); return u; }
+// half-width used for spacing (blower's air stream and the mower's patrol are included)
+const ITEM_HALF = { trampoline: 17, castle: 22, dog: 13, blower: 12, clothes: 21, flamingo: 12, diaper: 9, slide: 36, ramp: 17, rocket: 6, grill: 11, mower: 34, tree: 28, bear: 16, karen: 10 };
+const PTS_PER_FT = 10, PTS_PER_BOUNCE = 100;
+const PERIL_CHANCE = 0.12;         // share of yard items that are peril
+const AIR_DRAG = 0.996, MAX_VX = 8; // so bounce chains always wind down
+const TIRED_STEPS = 60 * 18;        // after 18s of one throw, bouncers stop working
 
-let items = [], flock = null, grabber = null;
+let items = [], flock = null, grabber = null, genX = 0;
 
-function buildRound(r) {
-  const R = r - 1, k = Math.min(R, 9);
-  const poolW = Math.max(44, 64 - R * 3), cribW = Math.max(32, 44 - R * 2);
-  const poolX = Math.round(150 + k * 44 + (R ? rand(-10, 10) : 0));     // 44px = 11 ft per round
-  const gap = R === 0 ? 36 : Math.round(50 + k * 12);
-  const cribX = Math.round(poolX + poolW / 2 + gap + cribW / 2);
-  targets = [
-    { type: 'pool', name: 'POOL', mult: 2, x: poolX, baseX: poolX, w: poolW, wallH: 10, wallT: 4, floor: GY - 4, s: mkSprite(poolPX(poolW)), amp: 0 },
-    { type: 'crib', name: 'CRIB', mult: 5, x: cribX, baseX: cribX, w: cribW, wallH: 25, wallT: 4, floor: GY - 11, s: mkSprite(cribPX(cribW)), amp: 0 },
-  ];
-  const gapL = poolX + poolW / 2, gapR = cribX - cribW / 2;
-  const bx = R === 0 ? cribX + cribW / 2 + 38 : Math.round((gapL + gapR) / 2);
-  bear = { x: bx, w: 22, h: 34, roam: false, dir: 1, minX: gapL + 14, maxX: gapR - 14 };
-  yardEnd = cribX + cribW / 2 + 200;
-
-  // ---- what's in play this round ----
-  const unl = unlockedBy(r), fresh = UNLOCKS[r] || [];
-  const wantB = Math.min(unl.filter(u => BOUNCERS.includes(u)).length, 1 + Math.floor((r - 2) / 3));
-  const wantP = Math.min(unl.filter(u => GROUND_PERILS.includes(u)).length, 1 + Math.floor((r - 2) / 3));
-  const chooseFrom = (pool, want) => {
-    const out = pool.filter(p => fresh.includes(p));
-    const rest = pool.filter(p => !out.includes(p)).sort(() => Math.random() - 0.5);
-    while (out.length < want && rest.length) out.push(rest.pop());
-    return out;
-  };
-  const bouncers = r >= 2 ? chooseFrom(BOUNCERS.filter(b => unl.includes(b)), wantB) : [];
-  const perils = r >= 2 ? chooseFrom(GROUND_PERILS.filter(p => unl.includes(p)), wantP) : [];
-  const special = k2 => unl.includes(k2) && (fresh.includes(k2) || r >= 9 && Math.random() < 0.5 || r < 9);
-  bear.roam = special('roambear');
-  if (special('movetarget')) { const t = pick(targets); t.amp = 16; t.phase = Math.random() * 6.28; }
-  G.eventsUnlocked = { geese: unl.includes('geese'), drone: unl.includes('drone') };
-
-  // ---- placement: nothing overlaps ----
-  const taken = [[poolX - poolW / 2 - 6, poolX + poolW / 2 + 6], [cribX - cribW / 2 - 6, cribX + cribW / 2 + 6],
-    bear.roam ? [bear.minX - 14, bear.maxX + 14] : [bx - 16, bx + 16], [P_X - 20, P_X + 40]];
-  const free = (a, b) => taken.every(([l, h]) => b < l || a > h);
-  const place = (kind, lo, hi) => {
+// pick this round's mix: 5 of the 10 bouncers + 3 of the 5 perils
+function buildRound() {
+  const shuf = a => a.slice().sort(() => Math.random() - 0.5);
+  G.mixB = shuf(BOUNCERS).slice(0, 5);
+  G.mixP = shuf(PERILS).slice(0, 3);
+  items = []; genX = P_X + 90;
+  generateItems(P_X + 900);
+}
+function generateItems(toX) {
+  while (genX < toX) {
+    const peril = genX > P_X + 160 && Math.random() < PERIL_CHANCE;
+    const kind = pick(peril ? G.mixP : G.mixB);
     const hw = ITEM_HALF[kind];
-    for (let i = 0; i < 60; i++) {
-      const x = Math.round(rand(lo + hw, hi - hw));
-      if (hi - lo < hw * 2) break;
-      if (free(x - hw, x + hw)) { taken.push([x - hw, x + hw]); return x; }
-    }
-    return null;
-  };
-  items = [];
-  if (r >= 9 && unl.includes('karen') && (fresh.includes('karen') || Math.random() < 0.6)) {
-    const kx = cribX + cribW / 2 + 26; items.push(makeItem('karen', kx)); taken.push([kx - 10, kx + 10]);
+    const x = Math.round(genX + hw);
+    items.push(makeItem(kind, x));
+    genX = x + hw + rand(36, 105);
   }
-  for (const b of bouncers) {   // bouncers go between you and the targets
-    const x = place(b, P_X + 50, poolX - poolW / 2 - 6); if (x !== null) items.push(makeItem(b, x));
-  }
-  for (const p of perils) {     // perils go near the targets
-    const x = place(p, poolX - poolW / 2 - 110, cribX + cribW / 2 + 110); if (x !== null) items.push(makeItem(p, x));
-  }
-  G.newThisRound = fresh.map(f => ITEM_NAMES[f]);
 }
 function makeItem(kind, x) {
   const it = { kind, x, cd: 0, anim: 0, used: false, inStream: false };
-  if (kind === 'mower') { it.x0 = x - 26; it.x1 = x + 26; it.dir = 1; }
+  if (kind === 'mower') { it.x0 = x - 26; it.x1 = x + 26; it.dir = 1; it.mx = x; }
+  if (kind === 'bear') { it.dir = Math.random() < 0.5 ? 1 : -1; }
   return it;
 }
-function farthestTargetX() { return Math.max(bear.roam ? bear.maxX + 14 : bear.x + 20, ...targets.map(t => t.baseX + t.w / 2 + t.amp), ...items.map(i => i.x + 14)); }
 
 function resetBaby() {
-  baby = { x: P_X + 1, y: GY - 40, vx: 0, vy: 0, rot: 0, spin: 0, r: 4, state: 'held', flash: 0, trail: 0 };
+  baby = { x: P_X + 1, y: GY - 40, vx: 0, vy: 0, rot: 0, spin: 0, r: 4, state: 'held', flash: 0, trail: 0, onGround: false, ride: 0, steps: 0 };
   parentFrame = 'ready';
-  G.event = null; grabber = null; flock = null; G.bounces = 0; G.stuck = null;
-  for (const it of items) { it.used = false; it.inStream = false; it.cd = 0; }
-  for (const t of targets) t.frozen = false;
+  G.event = null; grabber = null; flock = null; G.bounces = 0; G.liveFt = 0;
 }
 
 function newGame() {
   hideScreens();
-  G.state = 'playing'; G.round = 1; G.strikes = 0; G.nextRound = false; G.flashScreen = 0; G.score = 0; G.distance = 0; G.best = Best.get();
+  G.state = 'playing'; G.round = 1; G.throws = []; G.totalBounces = 0; G.nextRound = false; G.flashScreen = 0;
+  G.score = 0; G.distance = 0; G.best = Best.get();
   particles.length = 0; floaters.length = 0; G.caption = null; G.banner = null;
   Audio2.unlock(); Audio2.startMusic(); Audio2.setMusicVol(0.5);
   startRound(true);
@@ -1329,24 +1296,19 @@ function newGame() {
 function restartGame() { Audio2.sfx('select'); newGame(); }
 
 function startRound(first) {
-  buildRound(G.round); resetBaby();
-  G.strikes = 0;                          // strikes reset every round
+  buildRound(); resetBaby();
   Cam.x = AIM_CAM_X; Cam.y = 0;
-  const sub = G.round === 1 ? 'LAND IN THE POOL OR THE CRIB'
-    : G.newThisRound.length ? 'NEW: ' + G.newThisRound.join(' + ') : 'FARTHER. SMALLER. BEAR-IER.';
-  G.banner = { title: 'ROUND ' + G.round, sub, t: 150, max: 150 };
+  G.banner = { title: 'THROW ' + G.round + ' OF ' + ROUNDS, sub: 'GO AS FAR AS YOU CAN', list: 'IN THE YARD: ' + G.mixB.concat(G.mixP).map(k => ITEM_NAMES[k]).join(' · '), t: 150, max: 150 };
   if (!first) Audio2.sfx('round');
-  // preview pan only if anything is off-screen
-  if (farthestTargetX() > AIM_CAM_X + VW - 10) { G.phase = 'pan'; G.panT = 0; }
-  else startAim();
+  startAim();
 }
 function startAim() {
-  G.phase = 'power'; G.powerPos = 0; G.powerDir = 1; parentFrame = 'ready'; G.surveyT = 0;
+  G.phase = 'power'; G.powerPos = 0; G.powerDir = 1; parentFrame = 'ready';
   baby.state = 'held';
 }
 
-// power -> distance on a gentle curve: soft tosses get more room on the meter, full power still reaches late rounds
-const RANGE_MIN = 20, RANGE_MAX = 720, POWER_CURVE = 1.35;
+// power -> distance on a gentle curve (soft tosses get more room on the meter); full power ~2.5 screens before bouncing
+const RANGE_MIN = 40, RANGE_MAX = 960, POWER_CURVE = 1.35;
 function launch() {
   const v = Math.sqrt(GRAV * (RANGE_MIN + (RANGE_MAX - RANGE_MIN) * Math.pow(G.powerValue / 100, POWER_CURVE)));
   const deg = 5 + G.angleValue * 0.8;                 // 5° (flat) .. 85° (steep)
@@ -1357,21 +1319,21 @@ function launch() {
   G.phase = 'flying'; G.bounces = 0;
   Audio2.sfx('yeet');
   showCaption(pick(launchCaptions));
-  // random events (rolled at launch, like the original) — one per throw at most
-  const pDrone = G.eventsUnlocked.drone ? 1 / 12 : 0, pGeese = G.eventsUnlocked.geese ? 1 / 6 : 0;
+  // random events (rolled at launch) — one per throw at most
   const roll = Math.random();
-  const apex = Math.min(220, (baby.vy * baby.vy) / (2 * GRAV) + 40);   // how high this throw will go
+  const apex = Math.min(220, (baby.vy * baby.vy) / (2 * GRAV) + 40);
   const skyY = () => GY - rand(55, Math.max(60, apex * 0.85));
+  const P_DRONE = 1 / 12, P_GEESE = 1 / 6;
   if (roll < CHANCE_HELI) {
     G.event = { type: 'heli', name: 'HELICOPTER MOM', emoji: '🚁', t: 120 };
-    grabber = { kind: 'heli', x: baby.x + rand(140, 320), y: skyY(), vx: -rand(0.8, 1.3), t: 0, grabbed: false };
-  } else if (roll < CHANCE_HELI + pDrone) {
+    grabber = { kind: 'heli', x: baby.x + rand(160, 360), y: skyY(), vx: -rand(0.8, 1.3), t: 0, grabbed: false };
+  } else if (roll < CHANCE_HELI + P_DRONE) {
     G.event = { type: 'drone', name: 'DELIVERY DRONE', emoji: '📦', t: 120 };
-    grabber = { kind: 'drone', x: baby.x + rand(140, 320), y: skyY(), vx: -rand(1.0, 1.5), t: 0, grabbed: false };
-  } else if (roll < CHANCE_HELI + pDrone + pGeese) {
+    grabber = { kind: 'drone', x: baby.x + rand(160, 360), y: skyY(), vx: -rand(1.0, 1.5), t: 0, grabbed: false };
+  } else if (roll < CHANCE_HELI + P_DRONE + P_GEESE) {
     G.event = { type: 'geese', name: 'ANGRY GEESE', emoji: '🪿', t: 120 };
-    flock = { x: baby.x + rand(180, 340), y: skyY(), vx: -1.5, t: 0, birds: [[0, 0], [9, -6], [9, 6], [18, -12], [18, 12]].map(([dx, dy]) => ({ dx, dy, hit: false })) };
-  } else if (roll < CHANCE_HELI + pDrone + pGeese + CHANCE_WIND) {
+    flock = { x: baby.x + rand(180, 360), y: skyY(), vx: -1.5, t: 0, birds: [[0, 0], [9, -6], [9, 6], [18, -12], [18, 12]].map(([dx, dy]) => ({ dx, dy, hit: false })) };
+  } else if (roll < CHANCE_HELI + P_DRONE + P_GEESE + CHANCE_WIND) {
     const f = (Math.random() < 0.5 ? -1 : 1) * rand(0.01, 0.025);
     G.event = { type: 'wind', name: 'GUSTY WIND', emoji: '🌪️', t: 120, force: f };
     Audio2.sfx('wind');
@@ -1384,7 +1346,7 @@ function collideBox(bx, by, bw, bh) {
   let dx = baby.x - cx, dy = baby.y - cy, d2 = dx * dx + dy * dy;
   if (d2 >= baby.r * baby.r) return false;
   let d = Math.sqrt(d2);
-  if (d < 0.0001) { // center inside the box: push out the shortest way
+  if (d < 0.0001) {
     const l = baby.x - bx, r = bx + bw - baby.x, t = baby.y - by;
     if (t <= l && t <= r) { dx = 0; dy = -1; } else if (l < r) { dx = -1; dy = 0; } else { dx = 1; dy = 0; }
     d = 0;
@@ -1392,41 +1354,44 @@ function collideBox(bx, by, bw, bh) {
   baby.x += dx * (baby.r - d); baby.y += dy * (baby.r - d);
   const vn = baby.vx * dx + baby.vy * dy;
   if (vn < 0) { baby.vx -= 1.55 * vn * dx; baby.vy -= 1.55 * vn * dy; baby.vx *= 0.9; }
-  baby.spin = -baby.spin * 0.8; baby.flash = 6;
+  baby.spin = -baby.spin * 0.8; baby.flash = 6; baby.onGround = false;
   if (Math.abs(vn) > 0.6) { Audio2.sfx('bonk'); burst(baby.x, baby.y, 6, ['#ffffff', '#ffe14d'], 1.4, 18); }
   return true;
 }
 const inBox = (x0, y0, x1, y1) => baby.x + baby.r > x0 && baby.x - baby.r < x1 && baby.y + baby.r > y0 && baby.y - baby.r < y1;
 
-// a bouncer hit: +100 at landing, chained callouts
+// a bouncer hit: +100 each, chained callouts
 function bounced(it, label) {
-  G.bounces++; it.anim = 24; baby.flash = 6;
+  G.bounces++; it.anim = 24; baby.flash = 6; baby.onGround = false;
   floatText(baby.x, baby.y - 14, G.bounces > 1 ? G.bounces + 'X BOUNCE!' : label, '#ffe14d', 70);
   Audio2.sfx('boing2'); shake(2);
   burst(baby.x, baby.y + 3, 10, ['#ffffff', '#ffe14d', '#ff6b9d'], 1.8, 22);
+}
+// pop the baby upward off a bouncy surface (works whether it drops in from above or skids in along the grass)
+function popUp(top, minUp, keep) {
+  minUp *= Math.pow(0.93, G.bounces);        // each bounce in a chain gives a little less, so chains wind down
+  baby.y = top - baby.r;
+  baby.vy = -Math.max(Math.abs(baby.vy) * keep, minUp, Math.abs(baby.vx) * 0.6);
 }
 
 // returns true if the throw ended
 function itemHit(it, py) {
   const x = it.x;
   if (it.cd > 0) return false;
+  if (baby.steps > TIRED_STEPS && BOUNCERS.includes(it.kind)) return false;   // very long throws: let it come down
   switch (it.kind) {
     case 'trampoline': {
       const top = GY - 9;
-      if (baby.vy > 0 && Math.abs(baby.x - x) < 15 && py + baby.r <= top + 2 && baby.y + baby.r >= top) {
-        baby.y = top - baby.r; baby.vy = -Math.max(Math.abs(baby.vy) * 1.05, 5.5); it.cd = 8; bounced(it, 'BOING!');
-      } else collideBox(x - 16, top + 2, 32, 7);
+      if (Math.abs(baby.x - x) < 15 && baby.y + baby.r >= top && (baby.vy >= 0 || baby.onGround)) { popUp(top, 4.6, 0.85); it.cd = 8; bounced(it, 'BOING!'); }
       return false;
     }
     case 'castle': {
       const top = GY - 22;
-      if (baby.vy > 0 && Math.abs(baby.x - x) < 20 && py + baby.r <= top + 2 && baby.y + baby.r >= top) {
-        baby.y = top - baby.r; baby.vy = -Math.max(Math.abs(baby.vy) * 0.8, 3.5); baby.vx *= 0.92; it.cd = 8; bounced(it, 'BOUNCE!');
-      } else if (collideBox(x - 20, GY - 18, 40, 18)) { it.cd = 4; }
+      if (Math.abs(baby.x - x) < 20 && baby.y + baby.r >= top && (baby.vy >= 0 || baby.onGround)) { popUp(top, 3.8, 0.8); baby.vx *= 0.95; it.cd = 8; bounced(it, 'BOUNCE!'); }
       return false;
     }
     case 'dog':
-      if (!it.used && baby.vy > 0 && Math.abs(baby.x - x) < 16 && baby.y > GY - 34) {
+      if (!it.used && baby.vy >= 0 && Math.abs(baby.x - x) < 16 && baby.y > GY - 34) {
         it.used = true; baby.vy = -4.8; baby.vx = Math.max(baby.vx, 0) + 4; bounced(it, 'FETCH!'); Audio2.sfx('bark');
       }
       return false;
@@ -1452,22 +1417,50 @@ function itemHit(it, py) {
       }
       return false;
     }
+    case 'diaper':
+      if (!it.used && Math.hypot(baby.x - x, baby.y - (GY - 7)) < 9 + baby.r) {
+        it.used = true; baby.vy = -7.5; baby.vx = Math.max(baby.vx, 0) + 4.5;
+        bounced(it, 'KABOOM!'); Audio2.sfx('boom'); shake(7); G.flashScreen = 6;
+        burst(x, GY - 8, 40, ['#ffd23a', '#ff8a00', '#8b5a2b', '#ffffff'], 3.4, 40);
+      }
+      return false;
+    case 'slide':     // handled on ground contact in updateFlight
+      return false;
+    case 'ramp': {
+      const x0 = x - 16, surf = GY - 14 * clamp((baby.x - x0) / 32, 0, 1);
+      if (baby.x > x0 && baby.x < x + 16 && baby.y + baby.r >= surf) {
+        if (baby.vx > 0) {
+          const sp = Math.max(Math.hypot(baby.vx, baby.vy), 3);
+          baby.y = surf - baby.r; baby.vx = sp * 0.8; baby.vy = -sp * 0.6;
+          it.cd = 15; bounced(it, 'RAMP!');
+        } else collideBox(x + 14, GY - 14, 2, 14);
+      }
+      return false;
+    }
+    case 'rocket':
+      if (!it.used && inBox(x - 4, GY - 20, x + 4, GY)) {
+        it.used = true; baby.ride = 50; baby.state = 'fly'; bounced(it, 'BOTTLE ROCKET!'); Audio2.sfx('rocket');
+      }
+      return false;
     case 'grill':
-      if (inBox(x - 8, GY - 19, x + 8, GY)) { strike('grill', it); return true; }
+      if (inBox(x - 8, GY - 19, x + 8, GY)) { endThrow('grill', it); return true; }
       return false;
     case 'mower':
-      if (inBox(it.mx - 10, GY - 9, it.mx + 10, GY)) { strike('mower', it); return true; }
+      if (inBox(it.mx - 10, GY - 9, it.mx + 10, GY)) { endThrow('mower', it); return true; }
       return false;
     case 'karen':
-      if (inBox(x - 6, GY - 31, x + 6, GY)) { strike('karen', it); return true; }
+      if (inBox(x - 6, GY - 31, x + 6, GY)) { endThrow('karen', it); return true; }
+      return false;
+    case 'bear':
+      if (inBox(x - 10, GY - 30, x + 10, GY)) { endThrow('bear', it); return true; }
       return false;
     case 'tree': {
-      collideBox(x - 4, GY - 46, 8, 46);
+      collideBox(x - 4, GY - 42, 8, 42);
       const cx = x, cy = GY - 66, R = 24 + baby.r;
       let dx = baby.x - cx, dy = baby.y - cy; const d = Math.hypot(dx, dy);
-      if (d < R) {
+      if (d < R && baby.y < cy) {                 // lower half of the leaves lets the baby fall through
         dx /= d || 1; dy /= d || 1;
-        if (dy < -0.55 && baby.vy > 0) { strike('tree', it); return true; }   // came down into the leaves
+        if (dy < -0.55 && baby.vy > 0) { endThrow('tree', it); return true; }   // came down into the leaves
         baby.x = cx + dx * R; baby.y = cy + dy * R;
         const vn = baby.vx * dx + baby.vy * dy;
         if (vn < 0) { baby.vx -= 1.6 * vn * dx; baby.vy -= 1.6 * vn * dy; }
@@ -1480,100 +1473,112 @@ function itemHit(it, py) {
   return false;
 }
 
+function onSlide() { for (const it of items) if (it.kind === 'slide' && Math.abs(baby.x - it.x) < 36) return it; return null; }
+
 function updateFlight() {
-  baby.vy += GRAV;
+  baby.steps++;
+  generateItems(baby.x + 700);
+  if (baby.ride > 0) {                     // riding a bottle rocket
+    baby.ride--; baby.vx = 6.5; baby.vy = -0.7;
+    particles.push({ x: baby.x - 5, y: baby.y + 2, vx: -1.5, vy: rand(-0.4, 0.4), life: 20, max: 20, c: pick(['#ffd23a', '#ff8a00', '#ffffff']), g: 0, s: 2 });
+  } else baby.vy += GRAV;
   if (G.event && G.event.type === 'wind') baby.vx += G.event.force;
-  // leaf blower stream: push forward + a little lift
+  if (!baby.onGround && baby.ride <= 0) baby.vx *= baby.steps > TIRED_STEPS ? 0.985 : AIR_DRAG;
+  baby.vx = clamp(baby.vx, -MAX_VX, MAX_VX);
   for (const it of items) if (it.kind === 'blower') {
     const inside = baby.x > it.x + 8 && baby.x < it.x + 100 && baby.y > GY - 46 && baby.y < GY - 2;
-    if (inside) { baby.vx += 0.3; baby.vy -= 0.2; if (!it.inStream) { it.inStream = true; bounced(it, 'BLOWN!'); } }
+    if (inside && (it.blowT = (it.blowT || 0) + 1) < 70) { baby.vx += 0.3; baby.vy -= 0.2; baby.onGround = false; if (!it.inStream) { it.inStream = true; bounced(it, 'BLOWN!'); } }
   }
   const n = Math.max(1, Math.ceil(Math.max(Math.abs(baby.vx), Math.abs(baby.vy)) / 1.5));
   for (let i = 0; i < n; i++) {
     const py = baby.y;
     baby.x += baby.vx / n; baby.y += baby.vy / n;
-    for (const t of targets) {
-      const x0 = t.x - t.w / 2;
-      collideBox(x0, GY - t.wallH, t.wallT, t.wallH);
-      collideBox(x0 + t.w - t.wallT, GY - t.wallH, t.wallT, t.wallH);
-      // inside the walls and below the rim = clean landing (it then settles onto the water / mattress)
-      if (baby.x > x0 + t.wallT && baby.x < x0 + t.w - t.wallT && baby.y >= GY - t.wallH + baby.r && baby.vy > 0) { landed(t); return; }
-    }
-    for (const it of items) if (itemHit(it, py)) return;
-    // bear: touching it at all ends the throw
-    if (Math.abs(baby.x - bear.x) < bear.w / 2 + baby.r && baby.y + baby.r > GY - bear.h && baby.y - baby.r < GY) { strike('bear'); return; }
-    if (grabber && !grabber.grabbed && Math.hypot(baby.x - (grabber.x - 4), baby.y - (grabber.y + 8)) < 12) { strike(grabber.kind); return; }
+    for (const it of items) if (Math.abs(it.x - baby.x) < 70 && itemHit(it, py)) return;
+    if (grabber && !grabber.grabbed && Math.hypot(baby.x - (grabber.x - 4), baby.y - (grabber.y + 8)) < 12) { endThrow(grabber.kind); return; }
     if (flock) for (const b of flock.birds) {
       if (!b.hit && Math.hypot(baby.x - (flock.x + b.dx), baby.y - (flock.y + b.dy)) < 9) {
-        b.hit = true; baby.vx = baby.vx * 0.5 - 1.5; baby.vy = Math.min(baby.vy, 0) - 2.2; baby.flash = 6;
+        b.hit = true; baby.vx = baby.vx * 0.5 - 1.5; baby.vy = Math.min(baby.vy, 0) - 2.2; baby.flash = 6; baby.ride = 0;
         floatText(baby.x, baby.y - 12, 'HONK!', '#ffffff', 60); Audio2.sfx('honk'); shake(2);
         burst(baby.x, baby.y, 12, ['#ffffff', '#cfcfcf', '#8a7a66'], 1.8, 26);
       }
     }
-    if (baby.y + baby.r >= GY) { baby.y = GY - baby.r; strike('ground'); return; }
-    if (baby.x > yardEnd || baby.x < -170) { strike('out'); return; }
+    // the grass: bounce, then skid to a stop
+    if (baby.y + baby.r >= GY && baby.vy < 0) baby.y = GY - baby.r;   // just launched off the grass: don't cancel it
+    else if (baby.y + baby.r >= GY) {
+      baby.y = GY - baby.r;
+      const slide = onSlide();
+      if (baby.vy > 1.5 && !slide) {
+        baby.vy = -baby.vy * 0.45; baby.vx *= 0.82; baby.spin = rand(-0.2, 0.2);
+        Audio2.sfx('thump'); burst(baby.x, GY, 8, ['#8b5a2b', '#6fd36f'], 1.2, 20);
+        if (Math.abs(baby.vy) > 2.5) shake(2);
+      } else {
+        baby.vy = 0; baby.onGround = true;
+        if (slide && !slide.used) { slide.used = true; bounced(slide, "SLIP 'N SLIDE!"); baby.onGround = true; }
+      }
+    }
+    if (baby.x < -170) { endThrow('rest'); return; }
   }
+  if (baby.onGround) {
+    const slide = onSlide();
+    if (slide) {                             // speeds up instead of slowing down
+      baby.vx = Math.min(baby.vx + 0.14, 9);
+      if (G.t % 2 === 0) particles.push({ x: baby.x, y: GY - 1, vx: rand(-0.5, 0.2), vy: -rand(0.5, 1.4), life: 22, max: 22, c: '#9fe3ff', g: 0.08, s: 2 });
+    } else {
+      baby.vx *= 0.975; baby.vx -= Math.sign(baby.vx) * 0.015;
+      if (G.t % 4 === 0 && Math.abs(baby.vx) > 0.6) particles.push({ x: baby.x, y: GY - 1, vx: -baby.vx * 0.2, vy: -0.4, life: 16, max: 16, c: '#6fd36f', g: 0.05, s: 2 });
+    }
+    baby.rot = lerp(baby.rot, 0, 0.1);
+    if (Math.abs(baby.vx) < 0.1) { endThrow('rest'); return; }
+  } else baby.rot += baby.spin;
+  baby.still = (Math.abs(baby.vx) < 0.35 && baby.ride <= 0) ? (baby.still || 0) + 1 : 0;   // not getting anywhere
+  if (baby.still > 150 || baby.steps > 60 * 30) { endThrow('rest'); return; }   // wedged somewhere / failsafe
   for (const it of items) if (it.cd > 0) it.cd--;
-  baby.rot += baby.spin;
   if (baby.flash > 0) baby.flash--;
-  if (++baby.trail % 3 === 0) particles.push({ x: baby.x, y: baby.y, vx: 0, vy: 0, life: 18, max: 18, c: '#ffffff', g: 0, s: 2 });
+  G.liveFt = Math.max(0, Math.round((baby.x - P_X) / PX_PER_FT));
+  if (!baby.onGround && ++baby.trail % 3 === 0) particles.push({ x: baby.x, y: baby.y, vx: 0, vy: 0, life: 18, max: 18, c: '#ffffff', g: 0, s: 2 });
 }
 
-function landed(t) {
-  t.frozen = true;
-  baby.y = t.floor - baby.r; baby.vx = baby.vy = 0; baby.state = 'held'; baby.rot = 0;
-  baby.x = clamp(baby.x, t.x - t.w / 2 + t.wallT + 3, t.x + t.w / 2 - t.wallT - 3);
-  const ft = Math.max(0, Math.round((baby.x - P_X) / PX_PER_FT));
-  let pts = ft * t.mult;
-  const bonus = G.event ? 500 : 0, bounceBonus = G.bounces * 100;
-  pts += bonus + bounceBonus;
-  G.score += pts; G.distance += ft;
-  floatText(baby.x, baby.y - 18, '+' + pts, '#ffd700');
-  if (bonus) floatText(baby.x, baby.y - 30, G.event.name + ' +500', '#4ecdc4');
-  if (bounceBonus) floatText(baby.x, baby.y - (bonus ? 42 : 30), G.bounces + 'X BOUNCE +' + bounceBonus, '#ffe14d');
-  floatText(baby.x, baby.y - 8, ft + ' FT x' + t.mult, '#ffffff');
-  if (t.type === 'pool') { Audio2.sfx('splash'); burst(baby.x, t.floor, 40, ['#9fe3ff', '#ffffff', '#64b4ff'], 2.6, 40, 0.12, 2); }
-  else { Audio2.sfx('boing'); burst(baby.x, t.floor, 26, ['#ffe14d', '#ffffff', '#ff6b9d'], 2.2, 40, 0.06, 2); }
-  Audio2.sfx('win');
-  shake(2);
-  showCaption(pick(landingCaptions));
-  G.phase = 'result'; G.result = 'win'; G.resT = 120;
-}
-
-function strike(kind, it) {
-  G.strikes++;
-  baby.state = 'cry'; baby.vx = baby.vy = 0; baby.spin = 0;
-  parentFrame = 'panic';
-  if (kind === 'bear') {
-    showCaption('🐻 BEAR DELETED BABY! 🐻'); Audio2.sfx('roar'); shake(7);
-    baby.x = bear.x; baby.y = GY - bear.h + 10; baby.hidden = true;
-    burst(bear.x, GY - bear.h + 10, 30, ['#ffffff', '#c99a6b', '#8b5a2b'], 2.6, 36);
-    G.flashScreen = 10;
-  } else if (kind === 'heli' || kind === 'drone') {
-    showCaption(kind === 'heli' ? '🚁 HELICOPTER MOM INTERCEPTED! 🚁' : '📦 PACKAGE DELIVERED 📦'); Audio2.sfx('grab'); shake(3);
-    grabber.grabbed = true; grabber.vx = -0.6; baby.state = 'held';
-  } else if (kind === 'grill') {
-    showCaption('WELL DONE 🔥'); Audio2.sfx('sizzle'); shake(4);
-    baby.x = it.x; baby.y = GY - 22; it.anim = 90;
-    burst(it.x, GY - 22, 24, ['#ff8a00', '#ffd23a', '#888888'], 2, 40, -0.02);
-  } else if (kind === 'mower') {
-    showCaption('MULCHED 🌱'); Audio2.sfx('mulch'); shake(6); baby.hidden = true;
-    burst(it.mx, GY - 6, 40, ['#6fd36f', '#4caf50', '#ffffff', '#8b5a2b'], 3, 40);
-  } else if (kind === 'tree') {
-    showCaption('STUCK IN A TREE 🌳'); Audio2.sfx('rustle'); it.anim = 30;
-    baby.y = Math.min(baby.y, GY - 70); baby.x = clamp(baby.x, it.x - 14, it.x + 14);
-    burst(baby.x, baby.y, 20, ['#3f9a4a', '#56b55e', '#2f7a35'], 2, 30);
-  } else if (kind === 'karen') {
-    showCaption('SHE WANTS TO SPEAK TO YOUR MANAGER'); Audio2.sfx('karen'); shake(4); it.anim = 120;
-    baby.x = it.x - 10; baby.y = GY - baby.r;
-  } else if (kind === 'out') {
-    showCaption(pick(failCaptions)); Audio2.sfx('thud'); baby.hidden = true;
+// the throw is over: at rest, or stopped by peril. Distance counts wherever the baby is.
+function endThrow(kind, it) {
+  baby.vx = baby.vy = 0; baby.spin = 0; baby.ride = 0; baby.onGround = false;
+  if (kind === 'rest') {
+    baby.state = 'held'; baby.rot = 0;
+    showCaption(pick(landingCaptions));
   } else {
-    showCaption(pick(failCaptions)); Audio2.sfx('thud'); shake(5);
-    burst(baby.x, GY, 22, ['#8b5a2b', '#6fd36f', '#4caf50'], 2, 30);
+    baby.state = 'cry'; parentFrame = 'panic';
+    if (kind === 'bear') {
+      showCaption('🐻 BEAR DELETED BABY! 🐻'); Audio2.sfx('roar'); shake(7);
+      baby.x = it.x; baby.y = GY - 24; baby.hidden = true; it.anim = 60;
+      burst(it.x, GY - 24, 30, ['#ffffff', '#c99a6b', '#8b5a2b'], 2.6, 36);
+      G.flashScreen = 10;
+    } else if (kind === 'heli' || kind === 'drone') {
+      showCaption(kind === 'heli' ? '🚁 HELICOPTER MOM INTERCEPTED! 🚁' : '📦 PACKAGE DELIVERED 📦'); Audio2.sfx('grab'); shake(3);
+      grabber.grabbed = true; grabber.vx = -0.6; baby.state = 'held';
+    } else if (kind === 'grill') {
+      showCaption('WELL DONE 🔥'); Audio2.sfx('sizzle'); shake(4);
+      baby.x = it.x; baby.y = GY - 22; it.anim = 90;
+      burst(it.x, GY - 22, 24, ['#ff8a00', '#ffd23a', '#888888'], 2, 40, -0.02);
+    } else if (kind === 'mower') {
+      showCaption('MULCHED 🌱'); Audio2.sfx('mulch'); shake(6); baby.hidden = true;
+      burst(it.mx, GY - 6, 40, ['#6fd36f', '#4caf50', '#ffffff', '#8b5a2b'], 3, 40);
+    } else if (kind === 'tree') {
+      showCaption('STUCK IN A TREE 🌳'); Audio2.sfx('rustle'); it.anim = 30;
+      baby.y = Math.min(baby.y, GY - 70); baby.x = clamp(baby.x, it.x - 14, it.x + 14);
+      burst(baby.x, baby.y, 20, ['#3f9a4a', '#56b55e', '#2f7a35'], 2, 30);
+    } else if (kind === 'karen') {
+      showCaption('SHE WANTS TO SPEAK TO YOUR MANAGER'); Audio2.sfx('karen'); shake(4); it.anim = 120;
+      baby.x = it.x - 10; baby.y = GY - baby.r;
+    }
   }
-  Audio2.sfx('strike');
-  G.phase = 'result'; G.result = 'strike'; G.resT = G.strikes >= MAX_STRIKES ? 130 : 120;
+  const ft = Math.max(0, Math.round((baby.x - P_X) / PX_PER_FT));
+  const pts = ft * PTS_PER_FT + G.bounces * PTS_PER_BOUNCE;
+  G.throws.push(ft); G.distance += ft; G.totalBounces += G.bounces; G.score += pts; G.liveFt = ft;
+  floatText(baby.x, baby.y - 22, ft + ' FT', '#ffffff', 110);
+  floatText(baby.x, baby.y - 34, '+' + pts, '#ffd700', 110);
+  if (G.bounces) floatText(baby.x, baby.y - 46, G.bounces + 'X BOUNCE +' + G.bounces * PTS_PER_BOUNCE, '#ffe14d', 110);
+  if (kind === 'rest') { Audio2.sfx('win'); burst(baby.x, baby.y, 18, ['#ffe14d', '#ffffff', '#ff6b9d'], 2, 36, 0.06); }
+  Audio2.sfx(kind === 'rest' ? 'thud' : 'strike');
+  G.phase = 'result'; G.result = kind; G.resT = 150;
 }
 
 function updateSky() {
@@ -1590,93 +1595,52 @@ function updateSky() {
     if (flock.x < Cam.x - 80) flock = null;
   }
 }
-// things that move on the ground (bear, mower, sliding targets)
+// things that move on the ground (mowers patrol, bears pace)
 function updateGround() {
-  if (bear.roam && !(G.result === 'strike' && baby.hidden && G.phase === 'result')) {
-    bear.x += bear.dir * 0.35;
-    if (bear.x > bear.maxX) { bear.x = bear.maxX; bear.dir = -1; }
-    if (bear.x < bear.minX) { bear.x = bear.minX; bear.dir = 1; }
-  }
+  const frozen = G.phase === 'result' && baby.hidden;
   for (const it of items) {
-    if (it.kind === 'mower') {
-      if (it.mx === undefined) it.mx = it.x;
-      if (!(G.phase === 'result' && G.result === 'strike' && baby.hidden)) {
-        it.mx += it.dir * 0.4;
-        if (it.mx > it.x1) { it.mx = it.x1; it.dir = -1; } if (it.mx < it.x0) { it.mx = it.x0; it.dir = 1; }
-      }
+    if (!frozen && it.kind === 'mower') {
+      it.mx += it.dir * 0.4;
+      if (it.mx > it.x1) { it.mx = it.x1; it.dir = -1; } if (it.mx < it.x0) { it.mx = it.x0; it.dir = 1; }
+    }
+    if (!frozen && it.kind === 'bear' && G.phase !== 'result') {
+      if (it.home === undefined) it.home = it.x;
+      it.x += it.dir * 0.25;
+      if (Math.abs(it.x - it.home) > 8) it.dir *= -1;
     }
     if (it.anim > 0) it.anim--;
   }
-  for (const t of targets) if (t.amp && !t.frozen) t.x = Math.round(t.baseX + Math.sin(G.t * 0.025 + t.phase) * t.amp);
 }
-
-// ---- survey the field (only before the first tap; the meter freezes while you look) ----
-function surveyInput() {
-  let d = 0;
-  if (Input.keys.ArrowLeft || Input.keys.KeyA) d -= 1;
-  if (Input.keys.ArrowRight || Input.keys.KeyD) d += 1;
-  const P = Input.pad;
-  if (P.on) {
-    if (P.left || P.lb) d -= 1;
-    if (P.right || P.rb) d += 1;
-    if (Math.abs(P.lx) > Math.abs(d)) d = P.lx;
-  }
-  if (Input.touch.left) d -= 1;
-  if (Input.touch.right) d += 1;
-  return clamp(d, -1, 1);
-}
-const camMaxX = () => Math.max(AIM_CAM_X, yardEnd + 60 - VW);
-function updateSurvey() {
-  const d = surveyInput();
-  let move = d * 5 + Input.wheel + Input.dragWorld;
-  Input.wheel = 0; Input.dragWorld = 0;
-  if (move !== 0 || d !== 0 || (Input.mdown && Input.mdown.dragged)) G.surveyT = 30;
-  if (move !== 0) Cam.x = clamp(Cam.x + move, AIM_CAM_X, camMaxX());
-  if (G.surveyT > 0) G.surveyT--;
-}
-const surveying = () => G.phase === 'power' && (G.surveyT > 0 || Cam.x > AIM_CAM_X + 1.5);
 
 function updateCamera() {
   let tx = AIM_CAM_X, ty = 0, kx = 0.08, ky = 0.08;
-  if (G.phase === 'pan') {
-    const far = clamp(farthestTargetX() - VW + 40, AIM_CAM_X, 99999);
-    const T = G.panT;
-    tx = T < 60 ? lerp(AIM_CAM_X, far, ease(T / 60)) : T < 110 ? far : lerp(far, AIM_CAM_X, ease((T - 110) / 50));
-    kx = 1;
-  } else if (G.phase === 'power') {
-    if (G.surveyT > 0) tx = Cam.x; else kx = 0.15;        // hold while surveying, glide home after
-    if (Math.abs(Cam.x - AIM_CAM_X) < 0.5 && G.surveyT <= 0) Cam.x = AIM_CAM_X;
-  } else if (G.phase === 'flying' || G.phase === 'result') {
-    if (!(G.phase === 'result' && baby.hidden && G.result === 'strike')) {
+  if (G.phase === 'flying' || G.phase === 'result') {
+    if (!(G.phase === 'result' && baby.hidden)) {
       tx = baby.x - 150; ty = Math.min(0, baby.y - 110);   // keeps the baby below the caption/banner area
     } else { tx = Cam.x; ty = Cam.y; }
-    tx = clamp(tx, AIM_CAM_X, camMaxX());
+    tx = Math.max(tx, AIM_CAM_X);
     kx = 0.12; ky = 0.22;
   } else if (G.phase === 'return') { kx = 0.1; ky = 0.12; }
+  else if (G.phase === 'power') kx = 0.15;
   Cam.x = lerp(Cam.x, tx, kx); Cam.y = lerp(Cam.y, ty, ky);
   if (Cam.y > 0) Cam.y = 0;
   if (Cam.shake > 0) { Cam.sx = rand(-Cam.shake, Cam.shake); Cam.sy = rand(-Cam.shake, Cam.shake); Cam.shake *= 0.85; if (Cam.shake < 0.3) Cam.shake = 0; }
   else { Cam.sx = Cam.sy = 0; }
 }
-const ease = t => { t = clamp(t, 0, 1); return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; };
 
 function updatePlaying() {
   G.t++;
   if (Input.edge.pause) { pauseGame(); return; }
   switch (G.phase) {
-    case 'pan':
-      G.panT++;
-      if (Input.edge.yeet || G.panT >= 160) { G.phase = 'return'; }
-      break;
     case 'return':
+      // fast glide home after a long throw (distance can be thousands of px)
+      if (Cam.x - AIM_CAM_X > 300) Cam.x -= (Cam.x - AIM_CAM_X) * 0.12;
       if (Math.abs(Cam.x - AIM_CAM_X) < 1.5 && Math.abs(Cam.y) < 1.5) {
         Cam.x = AIM_CAM_X; Cam.y = 0;
-        if (G.nextRound) { G.nextRound = false; startRound(false); } else startAim();
+        startRound(false);
       }
       break;
     case 'power':
-      updateSurvey();
-      if (surveying()) break;            // meter frozen, YEET ignored while you look around
       G.powerPos += G.powerDir * METER_SPEED;
       if (G.powerPos >= 100) { G.powerPos = 100; G.powerDir = -1; }
       if (G.powerPos <= 0) { G.powerPos = 0; G.powerDir = 1; }
@@ -1693,20 +1657,22 @@ function updatePlaying() {
       break;
     case 'result':
       if (--G.resT <= 0) {
-        if (G.strikes >= MAX_STRIKES) { showCPS(); return; }
-        if (G.result === 'win') { G.round++; G.nextRound = true; }
-        resetBaby(); G.phase = 'return';
+        if (G.round >= ROUNDS) { showCPS(); return; }
+        G.round++; resetBaby(); items = []; G.phase = 'return';
       }
       break;
   }
-  if (G.phase !== 'power') { Input.wheel = 0; Input.dragWorld = 0; }
   if (G.event && G.event.t > 0) G.event.t--;
   if (G.event && G.event.type === 'wind' && G.phase === 'flying' && G.t % 2 === 0)
     particles.push({ x: Cam.x + (G.event.force > 0 ? -4 : VW + 4), y: Cam.y + rand(20, VH - 30), vx: G.event.force > 0 ? 5 : -5, vy: 0, life: 90, max: 90, c: 'rgba(255,255,255,0.7)', g: 0, s: 1, streak: true });
   for (const it of items) {
+    if (Math.abs(it.x - Cam.x - VW / 2) > VW) continue;
     if (it.kind === 'grill' && G.t % 9 === 0) particles.push({ x: it.x + rand(-4, 4), y: GY - 20, vx: rand(-0.1, 0.1), vy: -0.35, life: 60, max: 60, c: 'rgba(200,200,200,0.6)', g: 0, s: 3 });
     if (it.kind === 'blower' && G.t % 3 === 0) particles.push({ x: it.x + 12, y: GY - rand(8, 42), vx: 2.4, vy: rand(-0.2, 0.2), life: 38, max: 38, c: 'rgba(255,255,255,0.55)', g: 0, s: 1, streak: true });
+    if (it.kind === 'diaper' && !it.used && G.t % 5 === 0) particles.push({ x: it.x + 4, y: GY - 17, vx: rand(-0.3, 0.3), vy: -rand(0.3, 0.8), life: 14, max: 14, c: pick(['#ffd23a', '#ff8a00']), g: 0, s: 1 });
   }
+  // forget items far behind the camera
+  if (G.phase === 'flying' && items.length > 80) items = items.filter(it => it.x > Cam.x - 300);
   updateSky(); updateGround();
   updateParticles(); updateFloaters();
   if (G.banner && --G.banner.t <= 0) G.banner = null;
@@ -1714,6 +1680,7 @@ function updatePlaying() {
   if (G.flashScreen > 0) G.flashScreen--;
   updateCamera();
 }
+
 function updateParticles() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += p.g; if (!p.streak) p.vx *= 0.98;
@@ -1728,7 +1695,7 @@ function showCPS() {
   Audio2.sfx('siren'); Audio2.setMusicVol(0.15);
   const newBest = G.score > G.best;
   if (newBest) { G.best = G.score; Best.set(G.score); }
-  $('cpsStats').innerHTML = `Final Score: ${G.score}<br>Total Distance: ${G.distance} ft<br>Rounds Cleared: ${G.round - 1}` +
+  $('cpsStats').innerHTML = `Throws: ${G.throws.map(f => f + ' ft').join(' &middot; ')}<br>Total Distance: ${G.distance} ft<br>Bounces: ${G.totalBounces}<br>Final Score: ${G.score}` +
     (newBest && G.score > 0 ? `<br><span id="cpsBest">NEW BEST!</span>` : `<br>Best: ${G.best}`);
   showMenu('cps', 'cpsMenu', [
     { label: 'TRY AGAIN (LEGALLY)', action: newGame },
@@ -1785,7 +1752,8 @@ function drawWorld(c, camX, camY, t) {
     const go = -Math.floor(((camX % 32) + 32) % 32);
     for (let x = go; x < VW; x += 32) for (let y = gy; y < VH; y += 40) c.drawImage(BG.ground, x, y);
     // distance stakes every 50 ft
-    for (let ft = 50; ft * PX_PER_FT + P_X < yardEnd; ft += 50) {
+    const ft0 = Math.max(50, Math.floor((camX - P_X) / PX_PER_FT / 50) * 50);
+    for (let ft = ft0; ft <= ft0 + 150; ft += 50) {
       const sx = Math.round(P_X + ft * PX_PER_FT - camX);
       if (sx < -4 || sx > VW + 4) continue;
       c.fillStyle = OL; c.fillRect(sx - 1, gy - 7, 3, 9); c.fillStyle = '#ffffff'; c.fillRect(sx, gy - 6, 1, 7);
@@ -1819,6 +1787,11 @@ function drawItem(c, it, camX, gy) {
     case 'mower': drawSprite(c, S.mower[Math.floor(G.t / 15) % 2], (it.mx === undefined ? it.x : it.mx) - camX, gy + 1, { flip: it.dir < 0 }); break;
     case 'tree': drawSprite(c, S.tree, x + (it.anim > 0 ? (it.anim % 4 < 2 ? 1 : -1) : 0), gy + 1); break;
     case 'karen': drawSprite(c, S.karen[it.anim > 0 && Math.floor(G.t / 6) % 2 ? 1 : 0], x, gy + 1, { flip: true }); break;
+    case 'bear': drawSprite(c, S.bear[Math.floor(G.t / 16) % 2], x, gy + 1, { flip: it.dir < 0 }); break;
+    case 'diaper': drawSprite(c, it.used ? S.diaperBlown : S.diaper, x, gy + 1); break;
+    case 'slide': drawSprite(c, S.slide, x, gy + 2); break;
+    case 'ramp': drawSprite(c, S.ramp, x, gy + 1); break;
+    case 'rocket': if (!it.used) drawSprite(c, S.rocket, x, gy + 1); break;
   }
 }
 
@@ -1829,12 +1802,9 @@ function render() {
   const camX = Math.round(Cam.x), camY = Math.round(Cam.y);
   drawWorld(c, camX, camY, G.t);
   const gy = GY - camY;
-  // items behind everything else (trees), then targets, then the rest
-  for (const it of items) if (it.kind === 'tree') drawItem(c, it, camX, gy);
-  for (const t of targets) drawSprite(c, t.s, t.x - camX, gy);
-  for (const it of items) if (it.kind !== 'tree') drawItem(c, it, camX, gy);
-  // bear
-  drawSprite(c, S.bear[Math.floor(G.t / (bear.roam ? 12 : 20)) % 2], bear.x - camX, gy + 1, { flip: bear.roam && bear.dir < 0 });
+  // trees and slides behind everything else, then the rest
+  for (const it of items) if (it.kind === 'tree' || it.kind === 'slide') drawItem(c, it, camX, gy);
+  for (const it of items) if (it.kind !== 'tree' && it.kind !== 'slide') drawItem(c, it, camX, gy);
   // parent
   drawSprite(c, S.parent[parentFrame], P_X - camX, gy + 1);
   // baby
@@ -1842,10 +1812,8 @@ function render() {
     const s = S.baby[baby.state] || S.baby.held;
     drawCentered(c, s, baby.x - camX, baby.y - camY, baby.state === 'fly' ? baby.rot : 0, baby.flash > 0 && baby.flash % 2 === 0);
   }
-  // pool water lip drawn over the baby so it sits "in" the pool
-  for (const t of targets) if (t.type === 'pool' && baby && G.result === 'win' && G.phase === 'result') {
-    c.fillStyle = '#64b4ff'; c.fillRect(Math.round(t.x - t.w / 2 + 2 - camX), Math.round(t.floor - camY), t.w - 4, 2);
-  }
+  // bottle rocket the baby is riding
+  if (baby && baby.ride > 0) drawSprite(c, S.rocket, baby.x - camX - 2, baby.y - camY + 12, { rot: Math.PI / 2 });
   // sky events: helicopter mom / delivery drone / geese
   if (grabber) {
     if (grabber.kind === 'heli') drawSprite(c, S.heli[Math.floor(grabber.t / 3) % 2], grabber.x - camX, grabber.y - camY + 13);
@@ -1870,9 +1838,6 @@ function render() {
   drawEventBanner();
   drawBanner();
   drawCaption();
-  const survOn = G.phase === 'power';
-  if (survOn !== G.survBtnOn) { G.survBtnOn = survOn; $('tSurvL').classList.toggle('off', !survOn); $('tSurvR').classList.toggle('off', !survOn); }
-  if (G.phase === 'result' && G.result === 'strike') txt('STRIKE ' + G.strikes + '!', 960, 456, 48, '#ff3b3b', 'center');
 }
 
 function txt(s, x, y, size, color, align = 'left', outline = true) {
@@ -1882,15 +1847,12 @@ function txt(s, x, y, size, color, align = 'left', outline = true) {
   ctx.textAlign = 'left';
 }
 function drawWorldLabels(camX, camY) {
-  for (const t of targets) {
-    const sx = (t.x - camX) * SCALE, top = (GY - camY - t.s.h) * SCALE;
-    if (sx < -200 || sx > 2120) continue;
-    txt(t.name, sx, top - 24, 24, '#ffffff', 'center');
-    txt('x' + t.mult, sx, (GY - camY) * SCALE + 56, 24, t.type === 'crib' ? '#ffd700' : '#9fe3ff', 'center');
+  for (const it of items) if (it.kind === 'bear') {
+    const bx = (it.x - camX) * SCALE;
+    if (bx > -200 && bx < 2120) txt('🚨 BEAR 🚨', bx, (GY - camY - 40) * SCALE - 16, 20, '#ff3b3b', 'center');
   }
-  const bx = (bear.x - camX) * SCALE;
-  if (bx > -200 && bx < 2120) txt('🚨 BEAR 🚨', bx, (GY - camY - 40) * SCALE - 16, 20, '#ff3b3b', 'center');
-  for (let ft = 50; ft * PX_PER_FT + P_X < yardEnd; ft += 50) {
+  const ft0 = Math.max(50, Math.floor((camX - P_X) / PX_PER_FT / 50) * 50);
+  for (let ft = ft0; ft <= ft0 + 150; ft += 50) {
     const sx = (P_X + ft * PX_PER_FT - camX) * SCALE;
     if (sx > -100 && sx < 2020) txt(ft + 'FT', sx, (GY - camY) * SCALE + 110, 16, 'rgba(255,255,255,.75)', 'center');
   }
@@ -1915,15 +1877,15 @@ function drawHUD() {
   ctx.fillStyle = '#ff6b9d'; ctx.fillRect(0, 100, 1920, 3);
   txt('YEET SCORE', 34, 44, 18, '#ff6b9d');
   txt(String(G.score), 34, 84, 30, '#ffffff');
-  txt('DISTANCE', 420, 44, 18, '#4ecdc4');
-  txt(G.distance + ' FT', 420, 84, 30, '#ffffff');
-  txt('ROUND ' + G.round, 960, 72, 36, '#ffd700', 'center');
-  txt('STRIKES', 1290, 44, 18, '#ff3b3b');
-  for (let i = 0; i < MAX_STRIKES; i++) {
-    const x = 1290 + i * 52, y = 54, used = i < G.strikes;
-    ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 3, 42, 42);
-    ctx.fillStyle = used ? '#ff3b3b' : 'rgba(255,255,255,.15)'; ctx.fillRect(x, y, 36, 36);
-    if (used) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x + 8, y + 8); ctx.lineTo(x + 28, y + 28); ctx.moveTo(x + 28, y + 8); ctx.lineTo(x + 8, y + 28); ctx.stroke(); }
+  txt('THIS THROW', 380, 44, 18, '#4ecdc4');
+  txt((G.liveFt || 0) + ' FT', 380, 84, 30, '#ffffff');
+  txt('THROW ' + G.round + '/' + ROUNDS, 900, 72, 32, '#ffd700', 'center');
+  txt('THROWS', 1150, 44, 18, '#ff6b9d');
+  for (let i = 0; i < ROUNDS; i++) {
+    const x = 1150 + i * 64, y = 54, v = G.throws[i];
+    ctx.fillStyle = '#000'; ctx.fillRect(x - 3, y - 3, 60, 40);
+    ctx.fillStyle = v !== undefined ? 'rgba(255,107,157,.85)' : i === G.round - 1 ? 'rgba(255,215,0,.35)' : 'rgba(255,255,255,.15)'; ctx.fillRect(x, y, 54, 34);
+    if (v !== undefined) txt(String(v), x + 27, y + 26, 14, '#fff', 'center');
   }
   const chipsOn = $('chips').classList.contains('on');
   txt('BEST ' + Math.max(G.best, G.score), chipsOn ? 1500 : 1886, 84, 22, '#9fe3ff', chipsOn ? 'left' : 'right');
@@ -1951,12 +1913,7 @@ function drawMeter() {
   ctx.fillStyle = '#000'; ctx.fillRect(ix - 3, by - 10, 20, bh + 20);
   ctx.fillStyle = '#fff'; ctx.fillRect(ix, by - 7, 14, bh + 14);
   const hint = isCoarse() && !Input.pad.on ? 'TAP YEET!' : Input.pad.on ? 'PRESS A TO LOCK IT IN' : 'SPACE / ENTER / CLICK TO LOCK IT IN';
-  const surv = power && surveying();
-  txt(surv ? 'SURVEYING THE FIELD... METER PAUSED' : power ? '⬆️ Time your clicks carefully! ⬆️' : hint, x + w / 2, y + 178, 16, surv ? '#c08a00' : '#555', 'center', false);
-  if (power) {
-    const sh = isCoarse() && !Input.pad.on ? '◀ ▶  SURVEY THE FIELD' : Input.pad.on ? 'STICK / D-PAD / LB RB:  SURVEY THE FIELD' : '← → / A D / WHEEL / DRAG:  SURVEY THE FIELD';
-    txt(sh, 960, y + h + 44, 18, '#ffffff', 'center');
-  }
+  txt(power ? '⬆️ Time your clicks carefully! ⬆️' : hint, x + w / 2, y + 178, 16, '#555', 'center', false);
 }
 function drawEventBanner() {
   const e = G.event; if (!e || e.t <= 0) return;
@@ -1974,8 +1931,8 @@ function drawBanner() {
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 380, 1920, 220);
   ctx.fillStyle = '#ff6b9d'; ctx.fillRect(0, 380, 1920, 5); ctx.fillRect(0, 595, 1920, 5);
   txt(b.title, 960, 484, 68, '#ffd700', 'center');
-  txt(b.sub, 960, 554, 28, '#ffffff', 'center');
-  if (G.phase === 'pan') txt('PRESS YEET TO SKIP', 960, 660, 18, 'rgba(255,255,255,.8)', 'center');
+  txt(b.sub, 960, 548, 28, '#ffffff', 'center');
+  if (b.list) txt(b.list, 960, 584, 15, '#9fe3ff', 'center');
   ctx.globalAlpha = 1;
 }
 function drawCaption() {
@@ -1999,7 +1956,6 @@ function renderTitleBg() {
   if (!S.baby) return;
   G.titleT++;
   const t = G.titleT;
-  yardEnd = 9999;
   drawWorld(wctx, AIM_CAM_X, 0, t);
   const bounce = Math.abs(Math.sin(t * 0.05));
   drawSprite(wctx, S.parent[bounce > 0.6 ? 'ready' : 'idle'], P_X - AIM_CAM_X, GY + 1);
@@ -2049,8 +2005,8 @@ function showTitle() {
   ]);
   $('titleBest').textContent = G.best ? 'BEST: ' + G.best : '';
   $('titleHint').innerHTML = isCoarse()
-    ? 'TAP YEET ONCE TO LOCK POWER, AGAIN TO LOCK ANGLE &middot; &#9664; &#9654; SURVEY THE FIELD<br>LAND IN THE POOL (x2) OR CRIB (x5). BOUNCES +100. 3 STRIKES = CPS.'
-    : 'SPACE / ENTER / CLICK = YEET &middot; &larr; &rarr; / A D / WHEEL / DRAG = SURVEY &middot; ESC = PAUSE &middot; F = FULLSCREEN<br>CONTROLLER: A = YEET &middot; STICK / D-PAD / LB RB = SURVEY &middot; START = PAUSE<br>LAND IN THE POOL (x2) OR CRIB (x5). BOUNCES +100. 3 STRIKES = CPS.';
+    ? 'TAP YEET ONCE TO LOCK POWER, AGAIN TO LOCK ANGLE<br>5 THROWS. GET THE BABY AS FAR AS YOU CAN. BOUNCERS +100, PERIL STOPS YOU.'
+    : 'SPACE / ENTER / CLICK = YEET &middot; ESC = PAUSE &middot; F = FULLSCREEN<br>CONTROLLER: A = YEET &middot; START = PAUSE<br>5 THROWS. GET THE BABY AS FAR AS YOU CAN. BOUNCERS +100, PERIL STOPS YOU.';
 }
 function pauseGame() {
   G.state = 'paused'; Audio2.setMusicVol(0.2); releaseAllTouch();
