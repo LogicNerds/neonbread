@@ -4,13 +4,15 @@ The site behind **www.neonbreadent.com**: a neon 80s arcade floor with Chonx '26
 
 ## Layout
 - `index.html`: the arcade. One self-contained page, with the cabinet art drawn in code.
-- `chonx26/`, `yeet/`, `gta/`: copies of each game. **Don't edit these here.** Change the game in its own repo and the hourly sync copies it over.
-- `shared/nb-scores.js`: global leaderboards (name entry, posting, boards). Every game and the arcade inline a copy of it. After editing it, run `python3 tools/inject-nb-scores.py <each game's index.html>` in each game repo.
+- `chonx26/`, `yeet/`, `gta/`: the games. **This repo is the source of truth.** Edit them here directly.
+- `shared/nb-scores.js`: global leaderboards (name entry, posting, boards). Every game and the arcade inline a copy of it. After editing it, run `python3 tools/inject-nb-scores.py <each game's index.html>` on each game folder here.
 - `firebase/`: Firestore rules and indexes for the `neon-bread-arcade` project. Deploy with `firebase deploy --only firestore` from that folder.
-- `.github/workflows/sync-games.yml`: runs every hour, or by hand from the Actions tab. It runs `tools/sync-games.py`, which pulls each game's `index.html` and the audio/images it references.
+- `tools/sync-games.py`: **retired, don't run it.** It used to copy each game from its own repo every hour; that sync was turned off on Nov 21 2026 and running it now would overwrite the games here with older copies.
 
-## Game repos
-| Folder | Repo |
+## Old game repos (no longer updated)
+The games started in their own repos. Since the sync was turned off, they're frozen and their GitHub Pages copies don't get changes.
+
+| Folder | Old repo |
 |---|---|
 | `chonx26/` | LogicNerds/chonx2025 |
 | `yeet/` | LogicNerds/YeetTheBaby |

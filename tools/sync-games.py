@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# RETIRED Nov 21 2026: the games now live in this repo. Running this would overwrite them with the old game repos.
+import sys; sys.exit("sync-games.py is retired: edit the games in this repo directly.")
 """Copy the latest build of each game from its own repo into this site.
 Downloads index.html plus every local file it references (audio, images).
 Run by .github/workflows/sync-games.yml every hour; safe to run by hand too."""
