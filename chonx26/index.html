@@ -2064,26 +2064,55 @@ class Spotlight {
     c.fillStyle = this.on ? '#ffe14d' : this.warn ? (L.t % 8 < 4 ? '#ff5a3c' : '#5a2a1a') : '#3a3050'; c.fillRect(Math.round(x - 3), Math.round(y), 6, 3);
   }
 }
-// firebar (Soshelmeedya)
-class Firebar {
-  constructor(x, y, o = {}) { this.x = x; this.y = y - 8; this.n = o.n || 6; this.speed = o.speed || 0.035; this.a = o.ph || 0; this.dead = false; }
+// brain-rot tendril (Soshelmeedya) — lashes out of a castle block, then pulls back
+class Tendril {
+  constructor(x, y, o = {}) {
+    this.bx = x; this.by = y - 8;                 // anchor block center
+    this.dir = o.dir || 'down'; this.len = o.len || 32;
+    this.state = 'idle'; this.st = 40 + Math.floor((o.ph || 0) * 40); this.ext = 0; this.dead = false; this.t = 0;
+    this.x = x;                                    // for proximity updates
+  }
+  // where the tendril starts (edge of the block) and its direction
+  base() {
+    const d = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[this.dir];
+    return { x: this.bx + d[0] * 8, y: this.by + d[1] * 8, dx: d[0], dy: d[1] };
+  }
   update() {
-    this.a += this.speed;
-    if (P && !P.dead) for (let i = 1; i <= this.n; i++) {
-      const bx = this.x + Math.cos(this.a) * i * 7, by = this.y + Math.sin(this.a) * i * 7;
-      const nx = clamp(bx, P.x, P.x + P.w), ny = clamp(by, P.y, P.y + P.h);
-      if (dist2(bx, by, nx, ny) < 12) { hurtPlayer(15, bx); break; }
+    this.t++;
+    switch (this.state) {
+      case 'idle': if (--this.st <= 0) { this.state = 'warn'; this.st = 36; } break;
+      case 'warn': this.ext = 5; if (--this.st <= 0) { this.state = 'lash'; Audio2.sfx('pull'); } break;
+      case 'lash': this.ext = Math.min(this.len, this.ext + this.len / 7); if (this.ext >= this.len) { this.state = 'hold'; this.st = 26; } break;
+      case 'hold': if (--this.st <= 0) this.state = 'back'; break;
+      case 'back': this.ext = Math.max(0, this.ext - this.len / 22); if (this.ext <= 0) { this.state = 'idle'; this.st = 80; } break;
+    }
+    if (P && !P.dead && (this.state === 'lash' || this.state === 'hold' || this.state === 'back') && this.ext > 6) {
+      const b = this.base(), w = 6;
+      const r = b.dx ? { x: b.dx > 0 ? b.x : b.x - this.ext, y: b.y - w / 2, w: this.ext, h: w }
+                     : { x: b.x - w / 2, y: b.dy > 0 ? b.y : b.y - this.ext, w, h: this.ext };
+      if (overlap(r, P)) hurtPlayer(15, this.bx);
     }
   }
   draw(c) {
-    const x = this.x - Cam.x, y = this.y - CAM_Y;
-    c.fillStyle = '#2a0610'; c.fillRect(Math.round(x - 6), Math.round(y - 6), 12, 12);
-    c.fillStyle = '#6a1a2a'; c.fillRect(Math.round(x - 5), Math.round(y - 5), 10, 10);
-    for (let i = 1; i <= this.n; i++) {
-      const bx = Math.round(x + Math.cos(this.a) * i * 7), by = Math.round(y + Math.sin(this.a) * i * 7);
-      c.fillStyle = (L.t + i) % 6 < 3 ? '#7dff4a' : '#ff3d8a'; c.fillRect(bx - 3, by - 3, 6, 6);
-      c.fillStyle = '#fff'; c.fillRect(bx - 1, by - 1, 2, 2);
+    const b = this.base();
+    const ox = -Cam.x, oy = -CAM_Y;
+    if (this.ext > 0) {
+      const n = Math.max(2, Math.ceil(this.ext / 3));
+      for (let i = 0; i <= n; i++) {
+        const k = i / n, along = k * this.ext;
+        const wob = Math.sin(this.t * (this.state === 'warn' ? 0.6 : 0.25) + k * 5) * (2 + k * 2) * (this.state === 'hold' ? 0.5 : 1);
+        const px = b.x + b.dx * along + (b.dy ? wob : 0), py = b.y + b.dy * along + (b.dx ? wob : 0);
+        const r = 3.2 - k * 1.2;
+        c.fillStyle = '#2f8f1f'; c.fillRect(Math.round(px + ox - r - 1), Math.round(py + oy - r - 1), Math.round(r * 2 + 2), Math.round(r * 2 + 2));
+        c.fillStyle = i % 3 === 0 ? '#ff6aa0' : '#7dff4a'; c.fillRect(Math.round(px + ox - r), Math.round(py + oy - r), Math.round(r * 2), Math.round(r * 2));
+        if (i === n) { // tip
+          c.fillStyle = '#c8ff9a'; c.fillRect(Math.round(px + ox - 2), Math.round(py + oy - 2), 4, 4);
+          c.fillStyle = '#140608'; c.fillRect(Math.round(px + ox - 1), Math.round(py + oy - 1), 2, 2);
+        }
+      }
     }
+    // the block it lives in pulses before a lash
+    if (this.state === 'warn' && this.t % 6 < 3) { c.fillStyle = 'rgba(125,255,74,.45)'; c.fillRect(Math.round(this.bx - 8 + ox), Math.round(this.by - 8 + oy), 16, 16); }
   }
 }
 // Brayn's brain-rot puddle
@@ -2107,7 +2136,7 @@ function tinyText(c, str, x, y) {
     for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j][i] === '1') c.fillRect(x + k * 4 + i, y + j, 1, 1);
   }
 }
-const HAZARD_TYPES = { ratio: RatioBlock, crusher: Crusher, spot: Spotlight, firebar: Firebar, ratspawn: RatSpawner };
+const HAZARD_TYPES = { ratio: RatioBlock, crusher: Crusher, spot: Spotlight, tendril: Tendril, ratspawn: RatSpawner };
 
 // =====================================================================
 // MINI-BOSSES + BRAYN WRAUGHT
@@ -2811,15 +2840,15 @@ const LEVELS = [
     b.ceil(0, 261, 2);
     b.ground(0, 22); b.cells(6, 10, 9); b.e('rat', 18, 11);
     b.liquid(23, 25); b.cells(23, 25, 8);
-    b.ground(26, 50); b.block(34, 34, 9, 9); b.e('firebar', 34, 9, { n: 5 }); b.e('ratspawn', 40, 11); b.e('crash', 46, 11);
+    b.ground(26, 50); b.block(34, 34, 9, 9); b.e('tendril', 34, 9, { dir: 'down', len: 32 }); b.e('ratspawn', 40, 11); b.e('crash', 46, 11);
     b.liquid(51, 53);
-    b.ground(54, 80); b.block(60, 61, 10, 11); b.block(68, 68, 7, 7); b.e('firebar', 68, 7, { n: 6, speed: 0.03 }); b.e('ratspawn', 70, 11); b.e('aura', 75, 11);
+    b.ground(54, 80); b.block(60, 61, 10, 11); b.block(68, 68, 7, 7); b.e('tendril', 68, 7, { dir: 'down', len: 64, ph: 1 }); b.e('ratspawn', 70, 11); b.e('aura', 75, 11);
     b.liquid(81, 87); b.plat(83, 85, 9); b.cells(83, 85, 8);
     b.ground(88, 112); b.e('grass', 92, 11); b.e('cp', 98, 11); b.e('clanker', 104, 6); b.e('ratspawn', 106, 11); b.block(109, 110, 10, 11);
     b.liquid(113, 115);
-    b.ground(116, 140); b.block(124, 124, 9, 9); b.e('firebar', 124, 9, { ph: 1 }); b.block(132, 132, 9, 9); b.e('firebar', 132, 9, { ph: 3, speed: -0.035 }); b.e('npc', 128, 11); b.e('crash', 137, 11); b.e('ratspawn', 130, 11);
-    b.liquid(141, 148); b.plat(143, 144, 9); b.plat(146, 147, 8); b.block(145, 145, 4, 4); b.e('firebar', 145, 4, { n: 3, speed: 0.025 });
-    b.ground(149, 175); b.e('aura', 154, 11); b.e('ratspawn', 158, 11); b.block(162, 162, 11, 11); b.e('firebar', 162, 11, { n: 4, speed: 0.04 }); b.e('crash', 168, 11); b.block(171, 172, 10, 11);
+    b.ground(116, 140); b.block(124, 124, 9, 9); b.e('tendril', 124, 9, { dir: 'down', len: 32, ph: 0.5 }); b.block(132, 132, 9, 9); b.e('tendril', 132, 9, { dir: 'down', len: 32, ph: 2 }); b.e('npc', 128, 11); b.e('crash', 137, 11); b.e('ratspawn', 130, 11);
+    b.liquid(141, 148); b.plat(143, 144, 9); b.plat(146, 147, 8); b.block(145, 145, 4, 4); b.e('tendril', 145, 4, { dir: 'down', len: 56, ph: 1.5 });
+    b.ground(149, 175); b.e('aura', 154, 11); b.e('ratspawn', 158, 11); b.block(162, 162, 11, 11); b.e('tendril', 162, 11, { dir: 'left', len: 44, ph: 0.8 }); b.e('crash', 168, 11); b.block(171, 172, 10, 11);
     b.liquid(176, 178);
     b.ground(179, 205); b.e('ratspawn', 184, 11); b.e('clanker', 190, 6); b.e('baiter', 196, 3, { line: 56 }); b.cells(186, 194, 9);
     b.liquid(206, 208);

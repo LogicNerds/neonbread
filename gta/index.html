@@ -513,7 +513,9 @@ body.touch #touch{display:flex}
 .keys{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:21px;line-height:1.1}
 .keys dt{font-family:var(--display);font-size:10px;color:var(--sun);padding-top:4px}
 .keys dd{margin:0;min-width:0}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+/* menu buttons stack in one centered column, so up/down always moves to the next one */
+.row{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center}
+.row .btn{width:min(100%,340px)}
 .btn{touch-action:manipulation;font-family:var(--display);font-size:12px;padding:12px 16px;background:var(--sun);color:var(--night);border:3px solid var(--black);box-shadow:4px 4px 0 var(--black);cursor:pointer}
 .btn:hover{background:#ffe08a}
 .btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--black)}
@@ -617,7 +619,7 @@ body.touch #topbtns{display:flex}
     <canvas class="marq" id="marq" width="220" height="34"></canvas>
     <p>Thanksgiving is Thursday and your table has 100 empty chairs. You have four days to borrow every grandma in town before Big Bertha's Bingo Hall gets them all.</p>
     <div class="rotatetip">TIP: TURN YOUR PHONE SIDEWAYS FOR A WIDER VIEW</div>
-    <div class="row"><button class="btn" id="startbtn">START THE WEEK</button><button class="btn alt" id="contbtn" hidden>CONTINUE</button><button class="btn alt" id="helpbtn">HOW TO PLAY</button><button class="btn alt" id="fsbtn" hidden>FULL SCREEN</button><button class="btn alt" id="arcadebtn">EXIT TO ARCADE</button></div>
+    <div class="row"><button class="btn" id="startbtn">START THE WEEK</button><button class="btn alt" id="contbtn" hidden>CONTINUE</button><button class="btn alt" id="helpbtn">HOW TO PLAY</button><button class="btn alt" id="fsbtn" hidden>FULL SCREEN</button><button class="btn alt" id="arcadebtn" hidden>EXIT TO ARCADE</button></div>
     <span class="muted" id="best" style="font-size:20px" hidden></span>
   </div>
 </div>
@@ -668,7 +670,7 @@ body.touch #topbtns{display:flex}
   <div class="card">
     <h2>PAUSED</h2>
     <p class="muted">Grandma is waiting in the van.</p>
-    <div class="row"><button class="btn" id="resumebtn">RESUME</button><button class="btn alt" id="mutebtn">SOUND: ON</button><button class="btn alt" id="musicbtn">MUSIC: ON</button><button class="btn alt" id="gorebtn">GORE: ON</button><button class="btn alt" id="testbtn">TEST SOUND</button><button class="btn alt" id="helpbtn2">HOW TO PLAY</button><button class="btn alt" id="arcadebtn2">EXIT TO ARCADE</button></div>
+    <div class="row"><button class="btn" id="resumebtn">RESUME</button><button class="btn alt" id="mutebtn">SOUND: ON</button><button class="btn alt" id="musicbtn">MUSIC: ON</button><button class="btn alt" id="gorebtn">GORE: ON</button><button class="btn alt" id="testbtn">TEST SOUND</button><button class="btn alt" id="helpbtn2">HOW TO PLAY</button><button class="btn alt" id="arcadebtn2" hidden>EXIT TO ARCADE</button></div>
     <p class="muted" id="audiostatus" style="font-size:19px"></p>
   </div>
 </div>
@@ -1028,8 +1030,8 @@ function pollPad(){
   }
   if (state === 'play') { if (hit(3)) honk(); if (hit(2) || hit(5)) throwCake(); return; }
   // menus: D-pad or stick moves between buttons, A presses, B backs out
-  if (hit(12) || hit(14)) moveFocus(-1);
-  if (hit(13) || hit(15)) moveFocus(1);
+  if (hit(12)) moveFocus(-1);
+  if (hit(13)) moveFocus(1);
   if (!stickHeld && Math.abs(ay) > .6) { moveFocus(ay > 0 ? 1 : -1); stickHeld = true; }
   else if (Math.abs(ay) < .3) stickHeld = false;
   if (hit(0)) {
@@ -1045,7 +1047,8 @@ function pollPad(){
 function moveFocus(d){
   const ov = [...document.querySelectorAll('.overlay')].find(o => !o.hidden);
   if (!ov) return;
-  const bs = [...ov.querySelectorAll('button:not([disabled])')];
+  // only buttons you can actually see (skips hidden ones like CONTINUE with no saved week)
+  const bs = [...ov.querySelectorAll('button:not([disabled])')].filter(b => b.getClientRects().length);
   if (!bs.length) return;
   const i = bs.indexOf(document.activeElement);
   focusBtn(bs[i < 0 ? 0 : (i + d + bs.length) % bs.length]);
@@ -2107,7 +2110,7 @@ function endDay(){
   $('stats').innerHTML = rows.map(r => '<span>' + r[0] + '</span><span>' + r[1] + '</span>').join('');
   drawTable();
   $('end').hidden = false; setTimeout(() => focusBtn($('againbtn')), 30);
-  // end of the week: post the week's score to the global leaderboard
+  // end of the week: post the week's score to the Neon Bread Arcade leaderboard (GitHub build only)
   if (final && window.NBScores) NBScores.submit({ game: 'gta', score, onClose: () => focusBtn($('againbtn')) });
 }
 // the full 100-seat Thanksgiving table: two long tables, 25 chairs per side (heads and shoulders only)
@@ -2273,6 +2276,8 @@ const KMAP = { ArrowUp:'up', KeyW:'up', ArrowDown:'down', KeyS:'down', ArrowLeft
 addEventListener('keydown', e => {
   const k = KMAP[e.code];
   if (k) { keys[k] = 1; if (state === 'play') e.preventDefault(); }
+  // menus: up/down arrows move between the stacked buttons
+  if (state !== 'play' && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) { e.preventDefault(); moveFocus(e.code === 'ArrowUp' ? -1 : 1); }
   if (e.repeat) return;
   if (e.code === 'KeyP' || e.code === 'Escape') { if (state === 'shop') closeShop(); else if (state === 'help') closeHelp(); else togglePause(); }
   if (e.code === 'KeyM') setMute(!muted);
@@ -2354,7 +2359,11 @@ async function boot(){
   setMute(muted); setMusic(musicOn); setGore(goreOn);
   $('gorebtn').onclick = () => setGore(!goreOn);
   $('musicbtn').onclick = () => setMusic(!musicOn);
-  $('arcadebtn').onclick = $('arcadebtn2').onclick = () => { location.href = 'https://www.neonbreadent.com/'; };
+  // EXIT TO ARCADE only where the arcade leaderboard script is loaded (the GitHub build, not the Claude artifact)
+  if (window.NBScores) {
+    $('arcadebtn').hidden = $('arcadebtn2').hidden = false;
+    $('arcadebtn').onclick = $('arcadebtn2').onclick = () => NBScores.exitToArcade();
+  }
   try { const b = +localStorage.getItem('gta-bestweek') || 0; if (b) { $('best').textContent = 'Best week: ' + b + ' seats'; $('best').hidden = false; } } catch (e) {}
   const saved = loadWeek();
   if (saved && saved.dayIdx > 0) { $('contbtn').hidden = false; $('contbtn').textContent = 'CONTINUE ' + DAYS[saved.dayIdx].name; }
