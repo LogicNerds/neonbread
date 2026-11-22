@@ -1303,8 +1303,8 @@ function updateSling() {
   const held = k.Space || k.Enter || k.NumpadEnter || P.a;
   if (Input.edge.fire && canPull()) { G.kbPulling = true; G.kbPull = 0; G.aimMode = 'kb'; Audio2.sfx('stretch'); }
   else if (G.kbPulling) {
-    if (held) G.kbPull = Math.min(1, G.kbPull + 1 / 60);
-    else { if (G.kbPull >= 0.08) fire(pullState()); G.kbPulling = false; G.kbPull = 0; }
+    if (held) G.kbPull = Math.min(1, G.kbPull + 1 / 30);   // full power in 0.5s
+    else { if (G.kbPull >= 0.16) fire(pullState()); G.kbPulling = false; G.kbPull = 0; }   // a tap under ~80ms cancels
   }
   // mouse / touch release
   if (Input.dragRelease) {
