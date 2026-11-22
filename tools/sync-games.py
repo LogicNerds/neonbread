@@ -5,7 +5,7 @@ Run by .github/workflows/sync-games.yml every hour; safe to run by hand too."""
 import pathlib, re, sys, urllib.request, urllib.parse
 
 GAMES = {  # site folder: repo
-    'chonx': 'chonx2025',
+    'chonx26': 'chonx2025',
     'yeet': 'YeetTheBaby',
     'gta': 'grandma-theft-automatic',
 }
