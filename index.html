@@ -121,6 +121,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     chonx: { title: "CHONX '26", color: '#39ff6a' },
     yeet: { title: 'YEET THE BABY', color: '#ff6b9d' },
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
+    karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
@@ -545,7 +546,7 @@ const GAMES = [
   { id: 'chonx', url: 'chonx26/', title: "CHONX '26", c: '#39ff6a', b1: '#b04bff', b2: '#39ff6a', tag: "THE INTERNET IS COOKED. CHONX ISN'T." },
   { id: 'yeet', url: 'yeet/', title: 'YEET THE BABY', c: '#ff6b9d', b1: '#4ecdc4', b2: '#ffd700', tag: '"FLIGHT SCHOOL STARTS EARLY"' },
   { id: 'gta', url: 'gta/', title: 'GRANDMA THEFT AUTOMATIC', c: '#ffcc4d', b1: '#5fe0b7', b2: '#ff7a6b', tag: 'BORROW EVERY GRANDMA IN TOWN BEFORE THANKSGIVING DINNER.' },
-  { id: 'karen', url: null, title: 'BODY THE KAREN', c: '#00e5ff', b1: '#ff2bd6', b2: '#ffe14d', tag: 'BEFORE SHE FINDS THE MANAGER!', soon: true },
+  { id: 'karen', url: 'karen/', title: 'BODY THE KAREN', c: '#00e5ff', b1: '#ff2bd6', b2: '#ffe14d', tag: 'BEFORE SHE FINDS THE MANAGER!' },
 ];
 let sel = 0;
 const SCORES = {};   // game -> { week: [...], all: [...] }
@@ -789,7 +790,6 @@ function karenScene(x, t) {
   for (let i = 0; i < 260; i++) { const v = (Math.random() * 60) | 0; x.fillStyle = `rgb(${v},${v},${v + 20})`; x.fillRect((Math.random() * SW) | 0, (Math.random() * SH) | 0, 2, 2); }
   x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, 0, SW, SH);
   x.save(); x.translate(59, 30); x.scale(2, 2); x.drawImage(S.karen, -5, 0); x.restore();
-  if (Math.floor(t * 2) % 2) { const w = textW('COMING SOON', 1); pixText(x, 'COMING SOON', Math.round((SW - w) / 2), 12, '#00e5ff', 1, '#000'); }
   pixText(x, 'LET ME SPEAK', 30, 66, '#ffe14d', 1, '#000'); pixText(x, 'TO YOUR MANAGER', 23, 74, '#ffe14d', 1, '#000');
 }
 const SCENES = { chonx: chonxScene, yeet: yeetScene, gta: gtaScene, karen: karenScene };

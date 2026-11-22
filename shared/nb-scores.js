@@ -11,6 +11,7 @@
     chonx: { title: "CHONX '26", color: '#39ff6a' },
     yeet: { title: 'YEET THE BABY', color: '#ff6b9d' },
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
+    karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
