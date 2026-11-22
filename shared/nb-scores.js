@@ -12,6 +12,7 @@
     yeet: { title: 'YEET THE BABY', color: '#ff6b9d' },
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
+    cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;

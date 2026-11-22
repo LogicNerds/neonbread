@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#06010d">
-<meta name="description" content="Neon Bread Studios arcade: Chonx '26, Yeet The Baby and Grandma Theft Automatic. Free browser games with global high scores.">
+<meta name="description" content="Neon Bread Studios arcade: Chonx '26, Chonx: Cheeky Ops, Yeet The Baby, Grandma Theft Automatic and Body The Karen. Free browser games with global high scores.">
 <title>Neon Bread Studios — Arcade</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2306010d'/%3E%3Crect x='3' y='4' width='10' height='9' rx='2' fill='%23ff2bd6'/%3E%3Crect x='5' y='6' width='6' height='5' fill='%2300e5ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -49,9 +49,16 @@ body.port #horizon,body.port #floor{position:fixed}
 #tag.on{opacity:1}
 
 /* ---------- cabinets ---------- */
-#row{position:relative;z-index:3;flex:1;display:flex;align-items:center;justify-content:center;gap:calc(var(--cw) * .16);padding:clamp(10px,2vh,28px) 20px 0}
-body.port #row{flex-direction:column;gap:46px;padding:30px 0 20px}
-.unit{display:flex;flex-direction:column;align-items:center;gap:calc(var(--cw) * .05);outline:none}
+/* 3D ring of cabinets: the selected one sits front and centre */
+#ring{position:relative;z-index:3;flex:1;width:100%;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2vh,28px) 0 0;touch-action:pan-y}
+#row{position:relative;width:calc(var(--cw) * 1.2);height:calc(var(--cw) * 2.62);perspective:calc(var(--cw) * 6);perspective-origin:50% 40%}
+.unit{position:absolute;left:0;top:0;width:calc(var(--cw) * 1.2);display:flex;flex-direction:column;align-items:center;gap:calc(var(--cw) * .05);outline:none;transform-origin:50% 50%;will-change:transform,opacity}
+.unit:not(.sel) .tagline,.unit:not(.sel) .hs{opacity:0;pointer-events:none}
+.arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:20;font-family:inherit;font-size:calc(var(--cw) * .14);width:calc(var(--cw) * .34);height:calc(var(--cw) * .5);background:rgba(6,1,13,.7);color:var(--cyan);border:calc(var(--cw) * .014) solid var(--cyan);cursor:pointer;box-shadow:0 0 16px rgba(0,229,255,.5);display:flex;align-items:center;justify-content:center;padding:0}
+.arrow:hover,.arrow:active{background:var(--cyan);color:#06010d}
+#arL{left:max(10px,calc(50% - var(--cw) * 2.25))}
+#arR{right:max(10px,calc(50% - var(--cw) * 2.25))}
+body.port #ring{padding:24px 0 10px}
 .cab{position:relative;width:var(--cw);cursor:pointer;transition:transform .18s;filter:drop-shadow(0 18px 18px rgba(0,0,0,.6))}
 .unit.sel .cab{transform:translateY(calc(var(--cw) * -.04)) scale(1.04)}
 .cab-top{position:relative;height:calc(var(--cw) * .26);margin:0 calc(var(--cw) * .03);background:#120626;border:calc(var(--cw) * .018) solid var(--c);border-bottom:none;
@@ -100,6 +107,8 @@ body.port #row{flex-direction:column;gap:46px;padding:30px 0 20px}
 #help{position:relative;z-index:3;font-size:clamp(8px,.75vw,11px);color:#8f82c9;line-height:2;text-align:center;padding:0 16px;margin-top:clamp(8px,2vh,20px)}
 footer{position:relative;z-index:3;font-size:clamp(8px,.75vw,11px);color:#6b5fa3;padding:clamp(10px,2vh,22px) 0 max(14px,env(safe-area-inset-bottom));letter-spacing:.1em}
 body.port #help{display:none}
+body.port #arL{left:max(6px,env(safe-area-inset-left))}
+body.port #arR{right:max(6px,env(safe-area-inset-right))}
 body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
 .tagline span,#help span,footer span{background:rgba(6,1,13,.82);box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:2px 6px}
 #flash{position:fixed;inset:0;z-index:70;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
@@ -122,6 +131,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     yeet: { title: 'YEET THE BABY', color: '#ff6b9d' },
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
+    cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
@@ -529,7 +539,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     <h1><span class="tube a" id="tubeA">NEON BREAD STUDIOS</span><span class="tube b" id="tubeB">ARCADE</span></h1>
     <div id="tag">FREE PLAY &middot; GLOBAL HIGH SCORES</div>
   </header>
-  <main id="row"></main>
+  <main id="ring"><button class="arrow" id="arL" aria-label="Previous game">&#9664;</button><div id="row"></div><button class="arrow" id="arR" aria-label="Next game">&#9654;</button></main>
   <div id="help"><span>&#9664; &#9654; PICK A GAME &middot; ENTER / A: INSERT COIN &middot; H / Y: HIGH SCORES &middot; M: SOUND</span></div>
   <footer><span>NEON BREAD STUDIOS &copy; 2026</span></footer>
 </div>
@@ -544,6 +554,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
 const $ = id => document.getElementById(id);
 const GAMES = [
   { id: 'chonx', url: 'chonx26/', title: "CHONX '26", c: '#39ff6a', b1: '#b04bff', b2: '#39ff6a', tag: "THE INTERNET IS COOKED. CHONX ISN'T." },
+  { id: 'cheekyops', url: 'cheekyops/', title: 'CHONX: CHEEKY OPS', c: '#ff2a3d', b1: '#00e5ff', b2: '#ffd23a', tag: 'ONE SHOT. ONE CHEEK.' },
   { id: 'yeet', url: 'yeet/', title: 'YEET THE BABY', c: '#ff6b9d', b1: '#4ecdc4', b2: '#ffd700', tag: '"FLIGHT SCHOOL STARTS EARLY"' },
   { id: 'gta', url: 'gta/', title: 'GRANDMA THEFT AUTOMATIC', c: '#ffcc4d', b1: '#5fe0b7', b2: '#ff7a6b', tag: 'BORROW EVERY GRANDMA IN TOWN BEFORE THANKSGIVING DINNER.' },
   { id: 'karen', url: 'karen/', title: 'BODY THE KAREN', c: '#00e5ff', b1: '#ff2bd6', b2: '#ffe14d', tag: 'BEFORE SHE FINDS THE MANAGER!' },
@@ -685,7 +696,7 @@ const FONT = {
   T: ['11111', '00100', '00100', '00100', '00100'], U: ['10001', '10001', '10001', '10001', '01110'], X: ['10001', '01010', '00100', '01010', '10001'],
   Y: ['10001', '01010', '00100', '00100', '00100'], S: ['01111', '10000', '01110', '00001', '11110'], P: ['11110', '10001', '11110', '10000', '10000'],
   W: ['10001', '10001', '10101', '11011', '10001'], "'": ['1', '1', '0', '0', '0'], '2': ['01110', '10001', '00110', '01000', '11111'],
-  '6': ['01110', '10000', '11110', '10001', '01110'], ' ': ['00', '00', '00', '00', '00'], '?': ['01110', '10001', '00110', '00000', '00100'],
+  '6': ['01110', '10000', '11110', '10001', '01110'], ' ': ['00', '00', '00', '00', '00'], '?': ['01110', '10001', '00110', '00000', '00100'], ':': ['0', '1', '0', '1', '0'],
 };
 function pixText(x, str, px, py, col, sc = 1, shadow) {
   let cx = px;
@@ -705,6 +716,15 @@ function drawMarquee(cv, g) {
   const W = cv.width, H = cv.height;
   const lines = g.id === 'chonx' ? [["CHONX", 2, g.b1], ["'26", 2, g.c]] : g.id === 'yeet' ? [['YEET THE', 1, '#fff'], ['BABY', 2, g.c]]
     : g.id === 'gta' ? [['GRANDMA THEFT', 1, g.c], ['AUTOMATIC', 1, '#ff7a6b']] : [['BODY THE', 1, '#fff'], ['KAREN', 2, g.c]];
+  if (g.id === 'cheekyops') {
+    const a = 'CHONX:', b = 'CHEEKY OPS';
+    pixText(x, a, Math.round((W - textW(a)) / 2), 6, g.b1, 1, '#000');
+    pixText(x, b, Math.round((W - textW(b)) / 2), 15, g.b2, 1, '#000');
+    // little crosshairs either side
+    x.strokeStyle = g.c; x.lineWidth = 1;
+    for (const cx of [9, W - 10]) { x.beginPath(); x.arc(cx + .5, 13.5, 5, 0, 7); x.stroke(); x.fillStyle = g.c; x.fillRect(cx - 6, 13, 13, 1); x.fillRect(cx, 7, 1, 13); }
+    return;
+  }
   if (g.id === 'chonx') {
     const w1 = textW("CHONX", 2), w2 = textW("'26", 2), tot = w1 + 6 + w2, sx = Math.round((W - tot) / 2);
     pixText(x, 'CHONX', sx, 8, g.b1, 2, '#000'); pixText(x, "'26", sx + w1 + 6, 8, g.c, 2, '#000');
@@ -792,7 +812,33 @@ function karenScene(x, t) {
   x.save(); x.translate(59, 30); x.scale(2, 2); x.drawImage(S.karen, -5, 0); x.restore();
   pixText(x, 'LET ME SPEAK', 30, 66, '#ffe14d', 1, '#000'); pixText(x, 'TO YOUR MANAGER', 23, 74, '#ffe14d', 1, '#000');
 }
-const SCENES = { chonx: chonxScene, yeet: yeetScene, gta: gtaScene, karen: karenScene };
+function cheekyScene(x, t) {
+  x.fillStyle = '#0a0614'; x.fillRect(0, 0, SW, SH);
+  // night skyline with lit windows
+  for (let k = 0; k < 9; k++) {
+    const bx = k * 15 - 4, bh = 26 + (k * 23) % 34;
+    x.fillStyle = '#1a1030'; x.fillRect(bx, 70 - bh, 14, bh);
+    x.fillStyle = '#ffd88a'; for (let yy = 74 - bh; yy < 68; yy += 5) for (let xx = bx + 2; xx < bx + 12; xx += 4) if ((xx * 7 + yy * 3 + k) % 5 === 0) x.fillRect(xx, yy, 1, 2);
+  }
+  x.fillStyle = '#2a1840'; x.fillRect(0, 70, SW, 26); x.fillStyle = '#ff2bd6'; x.fillRect(0, 70, SW, 1);
+  // a guard pacing on the roof, a scope hunting him
+  const cyc = t % 4, gx = 40 + Math.sin(t * 0.9) * 30, gy = 62, dead = cyc > 2.6;
+  if (!dead) {
+    x.fillStyle = '#1a1a1a'; x.fillRect(Math.round(gx) - 2, gy - 6, 5, 6); x.fillStyle = '#b88a4a'; x.fillRect(Math.round(gx) - 2, gy - 10, 5, 4); x.fillStyle = '#ff2a3d'; x.fillRect(Math.round(gx) - 3, gy - 5, 1, 2);
+  } else {
+    x.fillStyle = '#1a1a1a'; x.fillRect(Math.round(gx) - 4, gy - 2, 7, 3);
+    const k = (cyc - 2.6) * 30;
+    x.fillStyle = '#d4001e'; for (let i = 0; i < 18; i++) x.fillRect(Math.round(gx + Math.cos(i * 1.7) * k * (0.4 + (i % 3) * 0.3)), Math.round(gy - 8 + Math.sin(i * 2.3) * k * 0.5 + k * k * 0.01), 1, 1);
+  }
+  const lock = Math.min(1, cyc / 2.4), sx = lerp(100, gx, lock), sy = lerp(30, gy - 8, lock);
+  x.strokeStyle = cyc > 2.4 && cyc < 2.6 ? '#fff' : '#ff2a3d'; x.lineWidth = 1;
+  x.beginPath(); x.arc(Math.round(sx) + .5, Math.round(sy) + .5, 12, 0, 7); x.stroke();
+  x.fillStyle = x.strokeStyle; x.fillRect(Math.round(sx) - 16, Math.round(sy), 33, 1); x.fillRect(Math.round(sx), Math.round(sy) - 16, 1, 33);
+  if (cyc > 2.4 && cyc < 2.5) { x.fillStyle = 'rgba(255,240,200,.4)'; x.fillRect(0, 0, SW, SH); }
+  pixText(x, 'ONE SHOT.', 6, 80, '#ffd23a', 1, '#000'); pixText(x, 'ONE CHEEK.', SW - 6 - textW('ONE CHEEK.'), 88, '#00e5ff', 1, '#000');
+}
+const lerp = (a, b, k) => a + (b - a) * k;
+const SCENES = { chonx: chonxScene, cheekyops: cheekyScene, yeet: yeetScene, gta: gtaScene, karen: karenScene };
 
 // small scores screen in the cabinet (alternates with the attract scene)
 function scoreScreen(x, g, t, scope) {
@@ -842,17 +888,37 @@ function buildRow() {
     const sx = scr.getContext('2d'); sx.imageSmoothingEnabled = false;
     units.push({ g, el: u, sx, phase: Math.random() * 10 });
     const cab = u.querySelector('.cab');
-    cab.addEventListener('mouseenter', () => { if (matchMedia('(hover:hover)').matches) select(i, false); });
-    cab.addEventListener('click', () => { Snd.unlock(); select(i, false); insertCoin(); });
-    u.querySelector('.hs').addEventListener('click', e => { e.stopPropagation(); Snd.unlock(); select(i, false); openScores(); });
+    cab.addEventListener('click', () => { if (swiped) return; Snd.unlock(); if (i === sel) insertCoin(); else select(i); });
+    u.querySelector('.hs').addEventListener('click', e => { e.stopPropagation(); if (i !== sel) return; Snd.unlock(); openScores(); });
   });
 }
-function select(i, scroll = true) {
-  i = (i + units.length) % units.length;
+// the ring: `target` counts whole steps (it can go past the ends, so it wraps around smoothly);
+// `pos` eases toward it every frame
+let target = 0, pos = 0, swiped = false;
+const N = () => units.length;
+function rot(d) { target += d; setSel(); }
+function select(i) { const n = N(); let d = ((i - sel) % n + n) % n; if (d > n / 2) d -= n; rot(d); }
+function setSel() {
+  const n = N(), i = ((target % n) + n) % n;
   if (i !== sel) Snd.blip(520, .05);
   sel = i;
   units.forEach((u, k) => u.el.classList.toggle('sel', k === sel));
-  if (scroll && document.body.classList.contains('port')) units[sel].el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function placeRing() {
+  const n = N(); if (!n) return;
+  pos += (target - pos) * 0.16; if (Math.abs(target - pos) < 0.001) pos = target;
+  const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cw')) || 260;
+  const port = document.body.classList.contains('port'), R = cw * (port ? 0.85 : 1.55);
+  units.forEach((u, i) => {
+    let d = (i - pos) % n; if (d > n / 2) d -= n; if (d < -n / 2) d += n;
+    const th = d / n * Math.PI * 2, c = Math.cos(th), sn = Math.sin(th);
+    const x = sn * R, z = (c - 1) * R * 0.9, ry = -th * 180 / Math.PI * 0.45;
+    u.el.style.transform = `translate3d(${x.toFixed(1)}px,0,${z.toFixed(1)}px) rotateY(${ry.toFixed(1)}deg)`;
+    u.el.style.zIndex = String(Math.round((c + 1) * 50));
+    const k = (c + 1) / 2;
+    u.el.style.opacity = (0.3 + 0.7 * Math.pow(k, 1.4)).toFixed(3);
+    u.el.style.filter = i === sel && Math.abs(target - pos) < 0.2 ? 'none' : `brightness(${(0.45 + 0.55 * k).toFixed(2)})`;
+  });
 }
 let leaving = false;
 function insertCoin() {
@@ -889,6 +955,7 @@ function refreshScores(only) {
 function render(now) {
   requestAnimationFrame(render);
   pollPad();
+  placeRing();
   const t = now / 1000;
   units.forEach(u => {
     const x = u.sx, g = u.g;
@@ -909,8 +976,8 @@ addEventListener('keydown', e => {
   Snd.unlock();
   const port = document.body.classList.contains('port');
   const k = e.code;
-  if (k === 'ArrowRight' || k === 'KeyD' || (port && (k === 'ArrowDown' || k === 'KeyS'))) { e.preventDefault(); select(sel + 1); }
-  else if (k === 'ArrowLeft' || k === 'KeyA' || (port && (k === 'ArrowUp' || k === 'KeyW'))) { e.preventDefault(); select(sel - 1); }
+  if (k === 'ArrowRight' || k === 'KeyD') { e.preventDefault(); rot(1); }
+  else if (k === 'ArrowLeft' || k === 'KeyA') { e.preventDefault(); rot(-1); }
   else if (k === 'Enter' || k === 'Space' || k === 'NumpadEnter') { e.preventDefault(); if (e.target && e.target.classList && e.target.classList.contains('hs')) return; insertCoin(); }
   else if (k === 'KeyH') openScores();
   else if (k === 'KeyM') Snd.toggle();
@@ -927,8 +994,8 @@ function pollPad() {
   if (padPrev.block) { padPrev = s; return; }   // just closed the scores overlay: ignore buttons still held
   const hit = k => s[k] && !padPrev[k];
   const port = document.body.classList.contains('port');
-  if (hit('r') || (port && hit('d'))) select(sel + 1);
-  if (hit('l') || (port && hit('u'))) select(sel - 1);
+  if (hit('r')) rot(1);
+  if (hit('l')) rot(-1);
   if (hit('a')) { Snd.unlock(); insertCoin(); }
   if (hit('y')) { Snd.unlock(); openScores(); }
   padPrev = s;
@@ -987,6 +1054,18 @@ const Snd = {
   },
 };
 $('snd').addEventListener('click', e => { e.stopPropagation(); Snd.toggle(); });
+$('arL').addEventListener('click', e => { e.stopPropagation(); Snd.unlock(); rot(-1); });
+$('arR').addEventListener('click', e => { e.stopPropagation(); Snd.unlock(); rot(1); });
+// swipe left / right on the ring
+let swipe = null;
+$('ring').addEventListener('pointerdown', e => { if (e.target.closest('.arrow')) return; swipe = { x: e.clientX, y: e.clientY, id: e.pointerId }; swiped = false; });
+$('ring').addEventListener('pointermove', e => {
+  if (!swipe || swipe.id !== e.pointerId) return;
+  const dx = e.clientX - swipe.x;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(e.clientY - swipe.y)) { Snd.unlock(); rot(dx < 0 ? 1 : -1); swiped = true; swipe = null; }
+});
+const endSwipe = () => { swipe = null; setTimeout(() => { swiped = false; }, 50); };
+$('ring').addEventListener('pointerup', endSwipe); $('ring').addEventListener('pointercancel', endSwipe);
 ['pointerdown', 'touchend'].forEach(ev => addEventListener(ev, () => Snd.unlock(), { passive: true }));
 document.addEventListener('visibilitychange', () => { if (!Snd.ctx) return; if (document.hidden) Snd.ctx.suspend(); else if (Snd.on) Snd.ctx.resume(); });
 // coming back with the browser's back button: reset the coin animation
@@ -997,11 +1076,11 @@ function layout() {
   const vw = innerWidth, vh = innerHeight, port = vh > vw * 1.05 || vw < 640;
   document.body.classList.toggle('port', port); document.body.classList.toggle('land', !port);
   let cw;
-  if (port) cw = Math.min(vw * .66, 330);
+  if (port) cw = Math.min(vw * .52, 300, (vh - 220) / 2.75);
   else {
-    // cabinet height is about 2.05 x its width, plus tagline and button
-    const byW = (vw - 40) / (4 + 3 * .16 + .5), byH = (vh - Math.min(vh * .3, 250)) / 2.75;
-    cw = Math.max(120, Math.min(byW, byH, 330));
+    // cabinet height is about 2.05 x its width, plus tagline and button; the ring is about 5 cabinets wide
+    const byW = (vw - 40) / 5.2, byH = (vh - Math.min(vh * .3, 250)) / 2.75;
+    cw = Math.max(110, Math.min(byW, byH, 330));
   }
   document.documentElement.style.setProperty('--cw', cw.toFixed(1) + 'px');
 }
@@ -1026,7 +1105,7 @@ function boot() {
   Snd.init();
   layout();
   buildRow();
-  select(0, false);
+  setSel(); units[0].el.classList.add('sel');
   lightSign();
   refreshScores();
   setInterval(() => { if (!document.hidden) refreshScores(); }, 120000);
