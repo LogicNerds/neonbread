@@ -763,9 +763,9 @@ function pollGamepad() {
   if (any) { Input.dev = 'pad'; Audio2.unlock(); }
   const E = Input.edge, M = Input.menu, ed = (k, v) => v && !prev[k];
   const vUp = up || ly < -0.3, vDown = down || ly > 0.3, vLeft = left || lx < -0.3, vRight = right || lx > 0.3;
-  if (ed('a', a)) { E.action = true; E.skip = true; M.ok = true; }   // Cross: action / menu OK
+  if (ed('a', a)) { E.jump = true; E.skip = true; M.ok = true; }     // Cross: jump / menu OK / skip
   if (ed('b', b)) { E.crouch = true; M.back = true; }
-  if (ed('x', x)) E.jump = true;                                       // Square: jump
+  if (ed('x', x)) E.action = true;                                     // Square: action
   if (ed('y', y)) E.exit = true;
   if (ed('rb', rb)) E.zoomIn = true;
   if (ed('lb', lb)) E.zoomOut = true;
@@ -789,7 +789,7 @@ function moveVec() {
 }
 const fireHeld = () => Input.mouse.down || Input.keys.KeyJ || (Input.pad.on && Input.pad.rt) || Input.touch.fire;
 const breathHeld = () => Input.keys.ShiftLeft || Input.keys.ShiftRight || Input.mouse.rdown || (Input.pad.on && Input.pad.lt) || Input.touch.breath;
-const jumpHeld = () => Input.keys.Space || (Input.pad.on && Input.pad.x) || Input.touch.jump;
+const jumpHeld = () => Input.keys.Space || (Input.pad.on && Input.pad.a) || Input.touch.jump;
 
 // ---------------------------------------------------------------------
 // TOUCH: control columns at the sides, never over the play area
@@ -1775,7 +1775,7 @@ function mapHint() {
 }
 // controller prompts use PlayStation names for a PS pad, Xbox letters otherwise
 const padName = (ps, xb) => Input.pad.ps ? ps : xb;
-function actKey() { return Input.dev === 'pad' ? '[' + padName('CROSS', 'A') + ']' : Input.dev === 'touch' ? '[ACTION]' : '[E]'; }
+function actKey() { return Input.dev === 'pad' ? '[' + padName('SQUARE', 'X') + ']' : Input.dev === 'touch' ? '[ACTION]' : '[E]'; }
 function floatW(x, y, text, color) { G.floaters.push({ x, y, text, color, life: 80, max: 80, world: G.mode }); }
 
 function enterMap(d, fresh) {
@@ -3172,8 +3172,8 @@ function showTitle() {
   $('titleHint').innerHTML = isCoarse()
     ? 'LEFT PAD MOVES &middot; RIGHT BUTTONS ACT &middot; DRAG THE SCREEN TO AIM THE SCOPE'
     : 'KEYS: WASD MOVE &middot; MOUSE AIM / CLICK FIRE (OR J) &middot; C SNEAK &middot; E ACTION &middot; SPACE JUMP &middot; ESC PAUSE<br>SCOPE: MOUSE (OR WASD) AIM &middot; CLICK (OR SPACE) FIRE &middot; SHIFT / RIGHT CLICK HOLD BREATH &middot; WHEEL ZOOM &middot; Q EXIT<br>' + (Input.pad.on && !Input.pad.ps
-      ? 'CONTROLLER: STICKS MOVE / AIM &middot; RT FIRE &middot; B SNEAK &middot; A ACTION &middot; X JUMP &middot; LT BREATH &middot; LB/RB ZOOM &middot; Y EXIT SCOPE'
-      : 'CONTROLLER: STICKS MOVE / AIM &middot; R2 FIRE &middot; CIRCLE SNEAK &middot; CROSS ACTION &middot; SQUARE JUMP &middot; L2 BREATH &middot; L1/R1 ZOOM &middot; TRIANGLE EXIT SCOPE');
+      ? 'CONTROLLER: STICKS MOVE / AIM &middot; RT FIRE &middot; B SNEAK &middot; X ACTION &middot; A JUMP &middot; LT BREATH &middot; LB/RB ZOOM &middot; Y EXIT SCOPE'
+      : 'CONTROLLER: STICKS MOVE / AIM &middot; R2 FIRE &middot; CIRCLE SNEAK &middot; SQUARE ACTION &middot; CROSS JUMP &middot; L2 BREATH &middot; L1/R1 ZOOM &middot; TRIANGLE EXIT SCOPE');
 }
 function goreLabel() { return 'GORE: ' + (G.gore === 'low' ? 'LOW' : 'MAX'); }
 function toggleGore() { G.gore = G.gore === 'low' ? 'max' : 'low'; try { localStorage.setItem(GORE_KEY, G.gore); } catch (e) { } }
