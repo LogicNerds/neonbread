@@ -750,6 +750,7 @@ function pollGamepad() {
   const P = Input.pad, prev = Input.padPrev;
   if (!gp) { P.on = false; return; }
   P.on = true;
+  P.ps = /054c|dualsense|dualshock|playstation|wireless controller/i.test(gp.id || '');
   const bt = i => { const b = gp.buttons[i]; return !!b && (b.pressed || b.value > 0.35); };
   const dz = (x, y) => { const m = Math.hypot(x, y); if (m < DEAD) return [0, 0]; const k = (m - DEAD) / (1 - DEAD) / m; return [x * Math.min(k, 1 / m), y * Math.min(k, 1 / m)]; };
   const [lx, ly] = dz(gp.axes[0] || 0, gp.axes[1] || 0), [rx, ry] = dz(gp.axes[2] || 0, gp.axes[3] || 0);
@@ -757,14 +758,14 @@ function pollGamepad() {
   P.lx = lx + (right ? 1 : 0) - (left ? 1 : 0); P.ly = ly + (down ? 1 : 0) - (up ? 1 : 0);
   P.rx = rx; P.ry = ry;
   const a = bt(0), b = bt(1), x = bt(2), y = bt(3), lb = bt(4), rb = bt(5), lt = bt(6), rt = bt(7), start = bt(9), back = bt(8);
-  P.a = a; P.lt = lt; P.rt = rt;
+  P.a = a; P.x = x; P.lt = lt; P.rt = rt;
   const any = a || b || x || y || lb || rb || lt || rt || start || Math.hypot(P.lx, P.ly) > 0 || Math.hypot(rx, ry) > 0;
   if (any) { Input.dev = 'pad'; Audio2.unlock(); }
   const E = Input.edge, M = Input.menu, ed = (k, v) => v && !prev[k];
   const vUp = up || ly < -0.3, vDown = down || ly > 0.3, vLeft = left || lx < -0.3, vRight = right || lx > 0.3;
-  if (ed('a', a)) { E.jump = true; E.skip = true; M.ok = true; }
+  if (ed('a', a)) { E.action = true; E.skip = true; M.ok = true; }   // Cross: action / menu OK
   if (ed('b', b)) { E.crouch = true; M.back = true; }
-  if (ed('x', x)) E.action = true;
+  if (ed('x', x)) E.jump = true;                                       // Square: jump
   if (ed('y', y)) E.exit = true;
   if (ed('rb', rb)) E.zoomIn = true;
   if (ed('lb', lb)) E.zoomOut = true;
@@ -788,7 +789,7 @@ function moveVec() {
 }
 const fireHeld = () => Input.mouse.down || Input.keys.KeyJ || (Input.pad.on && Input.pad.rt) || Input.touch.fire;
 const breathHeld = () => Input.keys.ShiftLeft || Input.keys.ShiftRight || Input.mouse.rdown || (Input.pad.on && Input.pad.lt) || Input.touch.breath;
-const jumpHeld = () => Input.keys.Space || (Input.pad.on && Input.pad.a) || Input.touch.jump;
+const jumpHeld = () => Input.keys.Space || (Input.pad.on && Input.pad.x) || Input.touch.jump;
 
 // ---------------------------------------------------------------------
 // TOUCH: control columns at the sides, never over the play area
@@ -1772,7 +1773,9 @@ function mapHint() {
   }
   return '';
 }
-function actKey() { return Input.dev === 'pad' ? '[X]' : Input.dev === 'touch' ? '[ACTION]' : '[E]'; }
+// controller prompts use PlayStation names for a PS pad, Xbox letters otherwise
+const padName = (ps, xb) => Input.pad.ps ? ps : xb;
+function actKey() { return Input.dev === 'pad' ? '[' + padName('CROSS', 'A') + ']' : Input.dev === 'touch' ? '[ACTION]' : '[E]'; }
 function floatW(x, y, text, color) { G.floaters.push({ x, y, text, color, life: 80, max: 80, world: G.mode }); }
 
 function enterMap(d, fresh) {
@@ -2499,7 +2502,7 @@ function drawScopeHUD() {
   txt('BREATH', 1880, 822, 18, '#9fb', 'right');
   ctx.fillStyle = '#000'; ctx.fillRect(1560, 840, 320, 30);
   ctx.fillStyle = S.tired ? '#ff2a3d' : S.holding ? '#00e5ff' : '#4dff9a'; ctx.fillRect(1564, 844, Math.round(312 * S.breath), 22);
-  const bk = Input.dev === 'pad' ? 'HOLD LT' : Input.dev === 'touch' ? 'HOLD BREATH BUTTON' : 'HOLD SHIFT / RIGHT CLICK';
+  const bk = Input.dev === 'pad' ? 'HOLD ' + padName('L2', 'LT') : Input.dev === 'touch' ? 'HOLD BREATH BUTTON' : 'HOLD SHIFT / RIGHT CLICK';
   txt(S.tired ? 'CATCHING BREATH...' : bk + ' TO STEADY', 1880, 902, 14, '#ccc', 'right');
   // overview inset of the whole scene
   const iw = 330, ih = Math.round(iw * SH / SW), ix = 1880 - iw, iy = 320;
@@ -3168,7 +3171,9 @@ function showTitle() {
   $('titleBest').textContent = best ? 'BEST: ' + best : '';
   $('titleHint').innerHTML = isCoarse()
     ? 'LEFT PAD MOVES &middot; RIGHT BUTTONS ACT &middot; DRAG THE SCREEN TO AIM THE SCOPE'
-    : 'KEYS: WASD MOVE &middot; MOUSE AIM / CLICK FIRE (OR J) &middot; C SNEAK &middot; E ACTION &middot; SPACE JUMP &middot; ESC PAUSE<br>SCOPE: MOUSE (OR WASD) AIM &middot; CLICK (OR SPACE) FIRE &middot; SHIFT / RIGHT CLICK HOLD BREATH &middot; WHEEL ZOOM &middot; Q EXIT<br>CONTROLLER: STICKS MOVE / AIM &middot; RT FIRE &middot; B SNEAK &middot; X ACTION &middot; A JUMP &middot; LT BREATH &middot; LB/RB ZOOM';
+    : 'KEYS: WASD MOVE &middot; MOUSE AIM / CLICK FIRE (OR J) &middot; C SNEAK &middot; E ACTION &middot; SPACE JUMP &middot; ESC PAUSE<br>SCOPE: MOUSE (OR WASD) AIM &middot; CLICK (OR SPACE) FIRE &middot; SHIFT / RIGHT CLICK HOLD BREATH &middot; WHEEL ZOOM &middot; Q EXIT<br>' + (Input.pad.on && !Input.pad.ps
+      ? 'CONTROLLER: STICKS MOVE / AIM &middot; RT FIRE &middot; B SNEAK &middot; A ACTION &middot; X JUMP &middot; LT BREATH &middot; LB/RB ZOOM &middot; Y EXIT SCOPE'
+      : 'CONTROLLER: STICKS MOVE / AIM &middot; R2 FIRE &middot; CIRCLE SNEAK &middot; CROSS ACTION &middot; SQUARE JUMP &middot; L2 BREATH &middot; L1/R1 ZOOM &middot; TRIANGLE EXIT SCOPE');
 }
 function goreLabel() { return 'GORE: ' + (G.gore === 'low' ? 'LOW' : 'MAX'); }
 function toggleGore() { G.gore = G.gore === 'low' ? 'max' : 'low'; try { localStorage.setItem(GORE_KEY, G.gore); } catch (e) { } }
@@ -3342,7 +3347,7 @@ function setTouchUI(on) {
   $('chips').classList.toggle('on', playing && !isCoarse());
   if (!playing) releaseAllTouch();
 }
-window.addEventListener('gamepadconnected', () => setTouchUI(G.state === 'play'));
+window.addEventListener('gamepadconnected', () => { setTouchUI(G.state === 'play'); if (G.state === 'title') setTimeout(() => { pollGamepad(); showTitle(); }, 50); });
 window.addEventListener('gamepaddisconnected', () => setTouchUI(G.state === 'play'));
 document.addEventListener('visibilitychange', () => { if (document.hidden && G.state === 'play') pauseGame(); });
 // Esc while the mouse is grabbed releases it without a key event, so losing the lock pauses
