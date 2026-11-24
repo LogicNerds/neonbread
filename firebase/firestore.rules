@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     function maxScore(game) {
-      return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : game == 'karen' ? 1000000 : game == 'cheekyops' ? 2000000 : game == 'pedxing' ? 10000000 : 10000000;
+      return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : game == 'karen' ? 1000000 : game == 'cheekyops' ? 2000000 : 10000000;   // gta + pedxing: 10M
     }
     function okName(n) {
       return n is string && n.matches('^[A-Z0-9]{1,6}$')
