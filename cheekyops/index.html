@@ -1791,6 +1791,9 @@ function enterMap(d, fresh) {
 // SIDE-SCROLL APPROACH — run, jump and sneak up to the sniper perch
 // =====================================================================
 const FY = 192;
+const TAKEDOWN_REACH = 25;          // side-scroll takedown reach (px)
+const END_PAUSE = 120;              // guards wait ~2s at the end of a patrol before turning around
+const CAM_CYCLE = 480, CAM_OFF = 180, CAM_WARN = 45;   // cameras: off 3s of every 8s, flicker 0.75s before coming back
 const SIDE = { len: 1000, solids: [], plats: [], guards: [], cams: [], bullets: [], parts: [], camX: 0, decal: null, dctx: null, perch: 0, theme: 0, alarm: false, alarmClear: 0, bg: null };
 const THEMES = [
   { sky: ['#0a0f1e', '#12203a'], far: '#141c2e', mid: '#1c2840', win: '#ffd88a', floor: '#3a2a1a', floorL: '#5a4026', prop: 'harbor' },
@@ -1910,7 +1913,7 @@ function updateSide() {
   }
   if (Input.edge.action) {
     let done = false;
-    for (const g of SIDE.guards) if (!g.dead && P.crouch && !g.chase && Math.abs(g.x - P.x) < 15 && Math.abs(g.y - P.y) < 8 && Math.sign(P.x - g.x) === -g.face) { takedownSide(g); done = true; break; }
+    for (const g of SIDE.guards) if (!g.dead && P.crouch && !g.chase && Math.abs(g.x - P.x) < TAKEDOWN_REACH && Math.abs(g.y - P.y) < 8 && Math.sign(P.x - g.x) === -g.face) { takedownSide(g); done = true; break; }
     if (!done && atPerch()) startScope();
   }
   updateGuardsSide(P);
@@ -1931,7 +1934,7 @@ function updateSide() {
 }
 const atPerch = () => PL.y <= 113 && Math.abs(PL.x - SIDE.perch) < 44;
 function sideTakedownHint(P) {
-  for (const g of SIDE.guards) if (!g.dead && P.crouch && !g.chase && Math.abs(g.x - P.x) < 15 && Math.abs(g.y - P.y) < 8 && Math.sign(P.x - g.x) === -g.face) return actKey() + ' TAKEDOWN';
+  for (const g of SIDE.guards) if (!g.dead && P.crouch && !g.chase && Math.abs(g.x - P.x) < TAKEDOWN_REACH && Math.abs(g.y - P.y) < 8 && Math.sign(P.x - g.x) === -g.face) return actKey() + ' TAKEDOWN';
   return '';
 }
 function sideAlarm() {
@@ -1958,21 +1961,54 @@ function updateGuardsSide(P) {
     const canSee = inFront && d < vr && Math.abs(dy) < 34 + Math.abs(dx) * 0.25 && visible;
     if (canSee) { g.meter += (1.25 - d / vr) * (P.crouch ? 0.022 : 0.04); if (g.meter >= 1) sideAlarm(); }
     else g.meter = Math.max(0, g.meter - 0.006);
-    if (g.pause > 0) { g.pause--; if (g.pause % 90 === 45) g.face *= -1; continue; }
+    if (g.pause > 0) {
+      g.pause--;
+      if (g.turnTo) { if (g.pause === 0) { g.face = g.turnTo; g.turnTo = 0; } }   // end of patrol: wait, then turn
+      else if (g.pause % 90 === 45) g.face *= -1;
+      continue;
+    }
     g.x += g.face * 0.32; g.walk++;
-    if (g.x < g.x0) { g.x = g.x0; g.face = 1; g.pause = irand(40, 120); }
-    if (g.x > g.x1) { g.x = g.x1; g.face = -1; g.pause = irand(40, 120); }
+    if (g.x < g.x0) { g.x = g.x0; g.turnTo = 1; g.pause = END_PAUSE; }
+    if (g.x > g.x1) { g.x = g.x1; g.turnTo = -1; g.pause = END_PAUSE; }
   }
   if (seen) SIDE.alarmClear = 0;
+}
+// cameras sweep, power down for a few seconds every cycle, and can't see through catwalks
+function camOff(c) { return (c.t % CAM_CYCLE) < CAM_OFF; }
+function camFlicker(c) { const k = c.t % CAM_CYCLE; return k >= CAM_OFF - CAM_WARN && k < CAM_OFF; }
+function platBlocks(ax, ay, bx, by) {
+  for (const p of SIDE.plats) {
+    if (!((ay < p.y && by > p.y + 1) || (by < p.y && ay > p.y + 1))) continue;
+    const t = (p.y - ay) / (by - ay), x = ax + t * (bx - ax);
+    if (x >= p.x && x <= p.x + p.w) return true;
+  }
+  return false;
+}
+function camSees(c, x, y) {
+  return sideLos(c.x, c.y, x, y) && !platBlocks(c.x, c.y, x, y);
 }
 function updateCamsSide(P) {
   for (const c of SIDE.cams) {
     c.t++; c.ang = Math.PI / 2 + Math.sin(c.t * 0.014) * 0.8;
+    if (camOff(c)) { c.meter = Math.max(0, c.meter - 0.02); continue; }
     const dx = P.x - c.x, dy = P.y - 10 - c.y, a = Math.atan2(dy, dx), d = Math.hypot(dx, dy);
-    const see = d < 140 && Math.abs(angDiff(c.ang, a)) < 0.22 && sideLos(c.x, c.y, P.x, P.y - 10);
+    const see = d < 140 && Math.abs(angDiff(c.ang, a)) < 0.22 && camSees(c, P.x, P.y - 10);
     if (see) { c.meter += 0.05; if (SIDE.alarm) SIDE.alarmClear = 0; if (c.meter >= 1 && !SIDE.alarm) sideAlarm(); }
     else c.meter = Math.max(0, c.meter - 0.01);
   }
+}
+// the beam as a fan of rays, each stopped by the floor, crates or catwalks
+function camBeam(c) {
+  const pts = [[c.x, c.y]], N = 22;
+  for (let i = 0; i <= N; i++) {
+    const a = c.ang - 0.22 + 0.44 * i / N, ca = Math.cos(a), sa = Math.sin(a);
+    let len = 140;
+    if (sa > 0) len = Math.min(len, (FY - c.y) / sa);
+    for (const p of SIDE.plats) if (sa > 0 && p.y > c.y) { const t = (p.y - c.y) / sa, x = c.x + ca * t; if (t < len && x >= p.x && x <= p.x + p.w) len = t; }
+    for (let t = 2; t < len; t += 2) if (sideSolidAt(c.x + ca * t, c.y + sa * t)) { len = t; break; }
+    pts.push([c.x + ca * len, c.y + sa * len]);
+  }
+  return pts;
 }
 function takedownSide(g) {
   Audio2.sfx('take'); Audio2.sfx('splat');
@@ -2033,13 +2069,20 @@ function renderSide() {
   for (const s of SIDE.solids) {
     const x = Math.round(s.x - ox); if (x > VW || x + s.w < 0) continue;
     c.fillStyle = '#6a4a2a'; c.fillRect(x, s.y - oy, s.w, s.h); c.fillStyle = '#4a3018'; c.fillRect(x, s.y - oy, s.w, 1);
-    for (let k = 0; k < s.h; k += 16) { c.fillStyle = '#3a2410'; c.fillRect(x + 1, s.y + k + 1 - oy, s.w - 2, 1); c.fillRect(x + 1, s.y + k - oy, 1, 15); c.fillRect(x + s.w - 2, s.y + k - oy, 1, 15); c.beginPath(); c.strokeStyle = '#3a2410'; c.moveTo(x + 1, s.y + k + 1 - oy); c.lineTo(x + s.w - 1, s.y + k + 15 - oy); c.stroke(); }
+    for (let k = 0; k < s.h; k += 16) { const hh = Math.min(15, s.h - k - 1); c.fillStyle = '#3a2410'; c.fillRect(x + 1, s.y + k + 1 - oy, s.w - 2, 1); c.fillRect(x + 1, s.y + k - oy, 1, hh); c.fillRect(x + s.w - 2, s.y + k - oy, 1, hh); c.beginPath(); c.strokeStyle = '#3a2410'; c.moveTo(x + 1, s.y + k + 1 - oy); c.lineTo(x + s.w - 1, s.y + k + hh - oy); c.stroke(); }
   }
   // cameras + their beams
   for (const k of SIDE.cams) {
     const x = Math.round(k.x - ox), y = k.y - oy;
-    c.save(); c.globalCompositeOperation = 'lighter'; cone(c, x, y, k.ang, 140, 0.22, k.meter > 0 ? 'rgba(255,60,60,.16)' : 'rgba(120,200,255,.09)'); c.restore();
-    c.fillStyle = '#888'; c.fillRect(x - 3, y - 2, 6, 4); c.fillStyle = Math.floor(t / 20) % 2 ? '#ff2a3d' : '#600'; c.fillRect(x, y + 1, 1, 1);
+    const off = camOff(k), flick = camFlicker(k);
+    if (!off || (flick && Math.floor(t / 4) % 2)) {
+      const pts = camBeam(k);
+      c.save(); c.globalCompositeOperation = 'lighter';
+      c.fillStyle = off ? 'rgba(120,200,255,.05)' : k.meter > 0 ? 'rgba(255,60,60,.16)' : 'rgba(120,200,255,.09)';
+      c.beginPath(); c.moveTo(pts[0][0] - ox, pts[0][1] - oy); for (const [px, py] of pts) c.lineTo(px - ox, py - oy); c.closePath(); c.fill(); c.restore();
+    }
+    c.fillStyle = '#888'; c.fillRect(x - 3, y - 2, 6, 4);
+    c.fillStyle = off ? (flick && Math.floor(t / 4) % 2 ? '#ff2a3d' : '#222') : Math.floor(t / 20) % 2 ? '#ff2a3d' : '#600'; c.fillRect(x, y + 1, 1, 1);
   }
   // guards
   for (const g of SIDE.guards) {
