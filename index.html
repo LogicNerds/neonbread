@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#06010d">
-<meta name="description" content="Neon Bread Studios arcade: Chonx '26, Chonx: Cheeky Ops, Yeet The Baby, Grandma Theft Automatic and Body The Karen. Free browser games with global high scores.">
+<meta name="description" content="Neon Bread Studios arcade: Chonx '26, Chonx: Cheeky Ops, Yeet The Baby, Grandma Theft Automatic, Body The Karen and Ped X-ing. Free browser games with global high scores.">
 <title>Neon Bread Studios — Arcade</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%2306010d'/%3E%3Crect x='3' y='4' width='10' height='9' rx='2' fill='%23ff2bd6'/%3E%3Crect x='5' y='6' width='6' height='5' fill='%2300e5ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -132,6 +132,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
     cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
+    pedxing: { title: 'PED X-ING', color: '#d4ff00' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
@@ -672,6 +673,7 @@ const GAMES = [
   { id: 'yeet', url: 'yeet/', title: 'YEET THE BABY', c: '#ff6b9d', b1: '#4ecdc4', b2: '#ffd700', tag: '"FLIGHT SCHOOL STARTS EARLY"' },
   { id: 'gta', url: 'gta/', title: 'GRANDMA THEFT AUTOMATIC', c: '#ffcc4d', b1: '#5fe0b7', b2: '#ff7a6b', tag: 'BORROW EVERY GRANDMA IN TOWN BEFORE THANKSGIVING DINNER.' },
   { id: 'karen', url: 'karen/', title: 'BODY THE KAREN', c: '#00e5ff', b1: '#ff2bd6', b2: '#ffe14d', tag: 'BEFORE SHE FINDS THE MANAGER!' },
+  { id: 'pedxing', url: 'pedxing/', title: 'PED X-ING', c: '#d4ff00', b1: '#ff2a3d', b2: '#ffffff', tag: 'KNOW YOUR RIGHT OF WAY.' },
 ];
 let sel = 0;
 const SCORES = {};   // game -> { week: [...], all: [...] }
@@ -856,6 +858,11 @@ function drawMarquee(cv, g) {
     // little crosshairs either side
     x.strokeStyle = g.c; x.lineWidth = 1;
     for (const cx of [9, W - 10]) { x.beginPath(); x.arc(cx + .5, 13.5, 5, 0, 7); x.stroke(); x.fillStyle = g.c; x.fillRect(cx - 6, 13, 13, 1); x.fillRect(cx, 7, 1, 13); }
+    return;
+  }
+  if (g.id === 'pedxing') {
+    const w = textW('PED X-ING', 2);
+    pixText(x, 'PED X-ING', Math.round((W - w) / 2), 8, g.c, 2, '#000');
     return;
   }
   if (g.id === 'chonx') {
@@ -1103,8 +1110,57 @@ function cheekyScene(x, t) {
   if (cyc > 2.4 && cyc < 2.5) { x.fillStyle = 'rgba(255,240,200,.4)'; x.fillRect(0, 0, SW, SH); }
   pixText(x, 'ONE SHOT.', 6, 80, '#ffd23a', 1, '#000'); pixText(x, 'ONE CHEEK.', SW - 6 - textW('ONE CHEEK.'), 88, '#00e5ff', 1, '#000');
 }
+// Ped X-ing: behind-the-car road; a jaywalker gets launched, a dog trots by safely on the sidewalk
+FONT['+'] = ['000', '010', '111', '010', '000'];
+const PXHAND = spr(['.o.o.', '.o.oo', 'ooooo', 'ooooo', '.ooo.'], { o: '#ff7a1a' });
+const PXCAR = spr([
+  '...dddddddd...',
+  '..dkkkkkkkkd..',
+  '..dkkskkkkkd..',
+  '.cccccccccccc.',
+  'crrccccccccrrc',
+  'crrccwwwwccrrc',
+  'cccccccccccccc',
+  '.zzz......zzz.'], { d: '#a8001c', k: '#16202e', s: '#05080d', c: '#e53935', r: '#ff3b3b', w: '#f0f0f0', z: '#111' });
+const PXPED = [spr(['.hh.', 'hss.', '.ss.', 'tttt', 'tttt', '.pp.', 'p..p', 's..s'], { h: '#2a1a10', s: '#e8b58a', t: '#ff2bd6', p: '#2c3e70' }),
+  spr(['.hh.', 'hss.', '.ss.', 'tttt', 'tttt', '.pp.', '.pp.', '.ss.'], { h: '#2a1a10', s: '#e8b58a', t: '#ff2bd6', p: '#2c3e70' })];
+const PXDOG = [spr(['b......bb', 'bbbbbbbbk', '.bbbbbbb.', '.b.b.b.b.'], { b: '#d9a441', k: '#111' }), spr(['b......bb', 'bbbbbbbbk', '.bbbbbbb.', 'b.b...b.b'], { b: '#d9a441', k: '#111' })];
+function pedxScene(x, t) {
+  const LOOP = 4.4, lt = t % LOOP, HY = 38, K = 58, K2 = 14;
+  const P3 = (X, z) => ({ x: 64 + X * K2 / z, y: HY + K / z, s: 1 / z });
+  x.fillStyle = '#120a2a'; x.fillRect(0, 0, SW, HY + 1);
+  x.fillStyle = '#ff7a5a'; x.fillRect(0, HY - 3, SW, 3);
+  for (let k = 0; k < 10; k++) { const bh = 8 + (k * 17) % 22, bx = k * 13 - 2; x.fillStyle = '#1e1442'; x.fillRect(bx, HY - bh, 12, bh); x.fillStyle = '#ffd88a'; if (k % 3) x.fillRect(bx + 3, HY - bh + 3, 1, 1); }
+  // ground: sidewalks, bike lanes, road
+  const band = (a, b, col) => { x.fillStyle = col; x.beginPath(); const p1 = P3(a, 1), p2 = P3(b, 1), p3 = P3(b, 40), p4 = P3(a, 40); x.moveTo(p1.x, p1.y); x.lineTo(p2.x, p2.y); x.lineTo(p3.x, p3.y); x.lineTo(p4.x, p4.y); x.closePath(); x.fill(); };
+  x.fillStyle = '#3a3a42'; x.fillRect(0, HY, SW, SH - HY);
+  band(-10, -4.8, '#55535a'); band(4.8, 10, '#55535a'); band(-6.6, -4.8, '#203d32'); band(4.8, 6.6, '#203d32'); band(-4.8, 4.8, '#25262c');
+  for (let k = 0; k < 12; k++) { const z = ((k * 3 - lt * 7) % 36 + 36) % 36 + 1; const a = P3(-1.6, z), b = P3(-1.6, z + 1.2), c = P3(1.6, z), d = P3(1.6, z + 1.2); x.fillStyle = '#e8e8e8'; x.fillRect(Math.round(a.x), Math.round(b.y), 1, Math.max(1, Math.round(a.y - b.y))); x.fillRect(Math.round(c.x), Math.round(d.y), 1, Math.max(1, Math.round(c.y - d.y))); }
+  // pole with DON'T WALK hand on the left
+  const pz = ((9 - lt * 7) % 30 + 30) % 30 + 1.5, pp = P3(-8, pz);
+  x.fillStyle = '#2a2d33'; x.fillRect(Math.round(pp.x), Math.round(pp.y - 30 * pp.s * 1.4), 1, Math.round(30 * pp.s * 1.4));
+  if (pp.s > 0.12) x.drawImage(PXHAND, Math.round(pp.x - 2), Math.round(pp.y - 30 * pp.s * 1.4 + 2));
+  // dog trotting the right sidewalk, safe
+  const dz = ((20 - lt * 5.5) % 30 + 30) % 30 + 2, dp = P3(7.6, dz), dimg = PXDOG[Math.floor(lt * 8) % 2];
+  if (dp.s > 0.08) x.drawImage(dimg, Math.round(dp.x - 4), Math.round(dp.y - 4));
+  // the jaywalker
+  const HIT = 2.05, jz = Math.max(1.6, 15.5 - lt * 7), jx = -7 + Math.min(lt, HIT) * 3.2;
+  let txt = null;
+  if (lt < HIT) { const jp = P3(jx, jz), img = PXPED[Math.floor(lt * 6) % 2], k = Math.max(1, Math.min(2, 3 / jz)); x.drawImage(img, Math.round(jp.x - 2 * k), Math.round(jp.y - 8 * k), Math.round(4 * k), Math.round(8 * k)); }
+  else {
+    const d = lt - HIT, bx = 60 + d * 18, by = 70 - d * 60 + d * d * 34;
+    if (by < 100) { x.save(); x.translate(Math.round(bx), Math.round(by)); x.rotate(d * 12); x.drawImage(PXPED[0], -4, -8, 8, 16); x.restore(); }
+    x.fillStyle = '#c4001d';
+    for (let k = 0; k < 14; k++) { const a = k * 2.4, sp = 10 + (k * 7) % 14; if (d < 0.8) x.fillRect(Math.round(62 + Math.cos(a) * sp * d), Math.round(72 + Math.sin(a) * sp * d * 0.6 + 30 * d * d), 1, 1); }
+    txt = d < 1.8;
+  }
+  // the car
+  x.drawImage(PXCAR, 57, 78 + (Math.floor(lt * 12) % 2));
+  if (txt) { const w1 = textW('+100'); pixText(x, '+100', Math.round((SW - w1) / 2), 18, '#d4ff00', 1, '#000'); const w2 = textW('JAYWALKER'); pixText(x, 'JAYWALKER', Math.round((SW - w2) / 2), 26, '#fff', 1, '#000'); }
+  else { const w = textW("DON'T JAYWALK"); if (Math.floor(lt * 3) % 3 !== 2) pixText(x, "DON'T JAYWALK", Math.round((SW - w) / 2), 6, '#ff7a1a', 1, '#000'); }
+}
 const lerp = (a, b, k) => a + (b - a) * k;
-const SCENES = { chonx: chonxScene, cheekyops: cheekyScene, yeet: yeetScene, gta: gtaScene, karen: karenScene };
+const SCENES = { chonx: chonxScene, cheekyops: cheekyScene, yeet: yeetScene, gta: gtaScene, karen: karenScene, pedxing: pedxScene };
 
 // small scores screen in the cabinet (alternates with the attract scene)
 function scoreScreen(x, g, t, scope) {

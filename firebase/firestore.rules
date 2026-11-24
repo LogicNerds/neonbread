@@ -10,7 +10,7 @@ service cloud.firestore {
     }
 
     function maxScore(game) {
-      return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : game == 'karen' ? 1000000 : game == 'cheekyops' ? 2000000 : 10000000;
+      return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : game == 'karen' ? 1000000 : game == 'cheekyops' ? 2000000 : game == 'pedxing' ? 10000000 : 10000000;
     }
     function okName(n) {
       return n is string && n.matches('^[A-Z0-9]{1,6}$')
@@ -25,7 +25,7 @@ service cloud.firestore {
     function validScore(d) {
       return d.keys().hasOnly(['game', 'name', 'score', 'week', 'ts'])
         && d.keys().hasAll(['game', 'name', 'score', 'week', 'ts'])
-        && d.game in ['chonx', 'yeet', 'gta', 'karen', 'cheekyops']
+        && d.game in ['chonx', 'yeet', 'gta', 'karen', 'cheekyops', 'pedxing']
         && okName(d.name)
         && d.score is int && d.score >= 0 && d.score <= maxScore(d.game)
         && okWeek(d.week)

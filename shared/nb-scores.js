@@ -13,6 +13,7 @@
     gta: { title: 'GRANDMA THEFT AUTOMATIC', color: '#ffcc4d' },
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
     cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
+    pedxing: { title: 'PED X-ING', color: '#d4ff00' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
