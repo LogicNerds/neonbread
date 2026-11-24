@@ -42,6 +42,22 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 #cps .btn{background:#fff;color:#d10000;border-color:#fff;box-shadow:0 8px 0 rgba(0,0,0,.3)}
 #cps .btn.sel,#cps .btn:hover{background:#ffe14d;border-color:#ffe14d;color:#000}
 /* desktop chips (mouse users) */
+/* party mode */
+#nameSlots{display:flex;gap:22px;margin:10px 0 18px}
+.nslot{display:flex;flex-direction:column;align-items:center;gap:10px}
+.nar{font-family:inherit;font-size:28px;width:110px;height:56px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #666;cursor:pointer}
+.nar:hover{border-color:#fff}
+.nch{width:110px;height:130px;display:flex;align-items:center;justify-content:center;font-size:64px;border:6px solid #444;background:rgba(0,0,0,.6)}
+.nch.cur{border-color:#ff6b9d;box-shadow:0 0 24px rgba(255,255,255,.35)}
+#nameErr{min-height:40px;font-size:24px;color:#ff3b3b}
+.nrow{flex-direction:row;gap:30px}.nrow .btn{min-width:300px}
+#resWinner{font-size:52px;margin:-20px 0 30px;text-shadow:4px 4px 0 #000}
+.resTie{font-size:20px;color:#ffd700;margin-top:14px}
+#resTable{border-collapse:collapse;font-size:24px;margin-bottom:24px;background:rgba(0,0,0,.5)}
+#resTable th{font-size:16px;color:#aaa;padding:10px 22px;text-align:left}
+#resTable td{padding:14px 22px;border-top:2px solid rgba(255,255,255,.12)}
+#resTable td.pt{font-size:16px;color:#ddd}#resTable td.ps{color:#ffd700}#resTable td.pp{color:#4ecdc4}
+#resPost{min-height:44px;font-size:20px;color:#9fe3ff;margin-bottom:24px}
 #chips{position:absolute;top:22px;right:26px;display:none;gap:16px;z-index:15}
 #chips.on{display:flex}
 .chip{font-family:inherit;font-size:20px;padding:14px 20px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #fff;cursor:pointer}
@@ -619,6 +635,29 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     <div class="menu" id="pauseMenu"></div>
   </div>
 
+  <div class="screen dim" id="partyCount">
+    <h1 class="big">PARTY MODE</h1>
+    <div class="tag">HOW MANY PLAYERS? PASS THE CONTROLLER.</div>
+    <div class="menu" id="partyCountMenu"></div>
+  </div>
+
+  <div class="screen dim" id="names">
+    <h1 class="big" id="namesTitle">PLAYER 1</h1>
+    <div class="tag">ENTER YOUR NAME</div>
+    <div id="nameSlots"></div>
+    <div id="nameErr"></div>
+    <div class="menu nrow"><button class="btn" id="nameDoneBtn">DONE</button><button class="btn mint" id="nameBackBtn">BACK</button></div>
+    <div class="hint" id="namesHint"></div>
+  </div>
+
+  <div class="screen dim" id="results">
+    <h1 class="big">PARTY RESULTS</h1>
+    <div id="resWinner"></div>
+    <table id="resTable"></table>
+    <div id="resPost"></div>
+    <div class="menu" id="resMenu"></div>
+  </div>
+
   <div class="screen" id="cps">
     <div class="cpsTitle">&#128680; CPS IS HERE! &#128680;</div>
     <div class="cpsSub">Bro said "Landing Optional &#128128;"!</div>
@@ -755,9 +794,10 @@ function babyPX(frame) {
   return p;
 }
 
-function parentPX(frame) {
+function shadeHex(hex, k) { const v = parseInt(hex.slice(1), 16); const f = c => Math.round(clamp(c * k, 0, 255)); return '#' + [f(v >> 16), f((v >> 8) & 255), f(v & 255)].map(n => n.toString(16).padStart(2, '0')).join(''); }
+function parentPX(frame, shirtCol) {
   const p = new PX(26, 38);
-  const hair = '#5a3418', shirt = '#f2ecd8', shirtD = '#cfc7ad', jeans = '#2d5aa0', jeansD = '#1f3f73';
+  const hair = '#5a3418', shirt = shirtCol || '#f2ecd8', shirtD = shirtCol ? shadeHex(shirtCol, 0.78) : '#cfc7ad', jeans = '#2d5aa0', jeansD = '#1f3f73';
   // legs + shoes
   p.rect(8, 25, 4, 10, jeans); p.rect(14, 25, 4, 10, jeans); p.rect(8, 25, 1, 10, jeansD); p.rect(14, 25, 1, 10, jeansD);
   p.rect(7, 35, 6, 2, '#222'); p.rect(14, 35, 6, 2, '#222');
@@ -1066,6 +1106,7 @@ const S = {};
 function buildSprites() {
   S.baby = { held: mkSprite(babyPX('held')), fly: mkSprite(babyPX('fly')), cry: mkSprite(babyPX('cry')) };
   S.parent = { idle: mkSprite(parentPX('idle')), ready: mkSprite(parentPX('ready')), throw: mkSprite(parentPX('throw')), panic: mkSprite(parentPX('panic')) };
+  S.parentBy = {};
   S.bear = [mkSprite(bearPX(0)), mkSprite(bearPX(1))];
   S.heli = [mkSprite(heliPX(0)), mkSprite(heliPX(1))];
   S.clouds = [mkSprite(cloudPX(1)), mkSprite(cloudPX(2))];
@@ -1135,7 +1176,7 @@ function buildBackdrops() {
 const Input = {
   keys: {}, pad: { on: false }, padPrev: {},
   edge: { yeet: false, pause: false },
-  menu: { up: false, down: false, ok: false, back: false },
+  menu: { up: false, down: false, left: false, right: false, ok: false, back: false },
   touch: { left: false, right: false },
 };
 window.addEventListener('keydown', e => {
@@ -1174,14 +1215,16 @@ function pollGamepad() {
   P.lx = Math.abs(lx) > 0.25 ? lx : 0;
   P.left = bt(14); P.right = bt(15); P.lb = bt(4); P.rb = bt(5);
   const a = bt(0), b = bt(1), start = bt(9), back = bt(8);
-  const vUp = bt(12) || ly < -DEAD, vDown = bt(13) || ly > DEAD;
+  const vUp = bt(12) || ly < -DEAD, vDown = bt(13) || ly > DEAD, hL = bt(14) || lx < -DEAD, hR = bt(15) || lx > DEAD;
   if (a && !prev.a) { Input.edge.yeet = true; Input.menu.ok = true; }
   if (b && !prev.b) Input.menu.back = true;
   if (start && !prev.start) Input.edge.pause = true;
   if (vUp && !prev.vUp) Input.menu.up = true;
   if (vDown && !prev.vDown) Input.menu.down = true;
+  if (hL && !prev.hL) Input.menu.left = true;
+  if (hR && !prev.hR) Input.menu.right = true;
   if (a || b || start) Audio2.unlock();
-  Input.padPrev = { a, b, start, back, vUp, vDown };
+  Input.padPrev = { a, b, start, back, vUp, vDown, hL, hR };
 }
 
 // ---- touch controls (pointer events, each control tracks its own pointer) ----
@@ -1202,6 +1245,8 @@ function setupTouch() {
   bindTouch('tRestart', () => { if (G.state === 'playing') restartGame(); });
   $('cPause').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') pauseGame(); });
   $('cRestart').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') restartGame(); });
+  $('nameDoneBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameDone(); });
+  $('nameBackBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameBack(); });
 }
 const isCoarse = () => window.matchMedia('(pointer: coarse)').matches;
 
@@ -1305,6 +1350,8 @@ const Audio2 = {
       case 'round': [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, 0.12, 'square', 0.14, i * 0.09)); break;
       case 'siren': for (let i = 0; i < 6; i++) this.tone(i % 2 ? 660 : 880, i % 2 ? 660 : 880, 0.24, 'square', 0.12, i * 0.25); break;
       case 'wind': this.noise(1.2, 0.15, 700, 0, 'bandpass'); break;
+      case 'catch': [784, 988, 1175].forEach((f, i) => this.tone(f, f, 0.08, 'square', 0.13, i * 0.06)); break;
+      case 'turn': [523, 784].forEach((f, i) => this.tone(f, f, 0.1, 'triangle', 0.16, i * 0.1)); break;
       case 'boom': this.noise(0.8, 0.5, 600); this.tone(120, 40, 0.6, 'square', 0.25); break;
       case 'rocket': this.noise(0.9, 0.2, 3000, 0, 'bandpass'); this.tone(400, 1600, 0.8, 'square', 0.08); break;
       case 'thump': this.noise(0.12, 0.25, 300); this.tone(120, 70, 0.12, 'square', 0.12); break;
@@ -1370,28 +1417,40 @@ const TIRED_STEPS = 60 * 18;        // after 18s of one throw, bouncers stop wor
 
 let items = [], flock = null, grabber = null, genX = 0;
 
+// ---- identical conditions: every player's throw N uses the same seed (yard, random event, flamingo bounces) ----
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const RNG = { yard: Math.random, ev: Math.random, phys: Math.random };
+const sr = (g, a, b) => a + g() * (b - a);
+const spick = (g, arr) => arr[Math.floor(g() * arr.length)];
+function sshuffle(g, arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(g() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const throwSeed = () => (G.seeds && G.seeds[G.round - 1]) || 1;
+function newSeeds() { G.seeds = Array.from({ length: ROUNDS }, () => (Math.random() * 4294967296) >>> 0 || 1); }
+// triangle wave in [-A, A], starting at 0 and rising (mower patrols / bear pacing, timed from the launch)
+const tri = (u, A) => A - Math.abs((((u + A) % (4 * A)) + 4 * A) % (4 * A) - 2 * A);
+const MAX_CATCHES = 3;
+
 // pick this round's mix: 5 of the 10 bouncers + 3 of the 5 perils
 function buildRound() {
-  const shuf = a => a.slice().sort(() => Math.random() - 0.5);
-  G.mixB = shuf(BOUNCERS).slice(0, 5);
-  G.mixP = shuf(PERILS).slice(0, 3);
+  RNG.yard = mulberry32(throwSeed());
+  G.mixB = sshuffle(RNG.yard, BOUNCERS).slice(0, 5);
+  G.mixP = sshuffle(RNG.yard, PERILS).slice(0, 3);
   items = []; genX = P_X + 90;
   generateItems(P_X + 900);
 }
 function generateItems(toX) {
   while (genX < toX) {
-    const peril = genX > P_X + 160 && Math.random() < PERIL_CHANCE;
-    const kind = pick(peril ? G.mixP : G.mixB);
+    const peril = genX > P_X + 160 && RNG.yard() < PERIL_CHANCE;
+    const kind = spick(RNG.yard, peril ? G.mixP : G.mixB);
     const hw = ITEM_HALF[kind];
     const x = Math.round(genX + hw);
     items.push(makeItem(kind, x));
-    genX = x + hw + rand(36, 105);
+    genX = x + hw + sr(RNG.yard, 36, 105);
   }
 }
 function makeItem(kind, x) {
   const it = { kind, x, cd: 0, anim: 0, used: false, inStream: false };
-  if (kind === 'mower') { it.x0 = x - 26; it.x1 = x + 26; it.dir = 1; it.mx = x; }
-  if (kind === 'bear') { it.dir = Math.random() < 0.5 ? 1 : -1; }
+  if (kind === 'mower') { it.dir = 1; it.mx = x; }
+  if (kind === 'bear') { it.home = x; it.d0 = RNG.yard() < 0.5 ? 1 : -1; it.dir = it.d0; }
   return it;
 }
 
@@ -1401,21 +1460,28 @@ function resetBaby() {
   G.event = null; grabber = null; flock = null; G.bounces = 0; G.liveFt = 0;
 }
 
+function resetPlayerStats() { G.round = 1; G.throws = []; G.totalBounces = 0; G.score = 0; G.distance = 0; G.catches = 0; }
+// SOLO, or (re)start a PARTY game with the same players. Fresh seeds every game.
 function newGame() {
   hideScreens();
-  G.state = 'playing'; G.round = 1; G.throws = []; G.totalBounces = 0; G.nextRound = false; G.flashScreen = 0;
-  G.score = 0; G.distance = 0; G.best = Best.get();
+  G.state = 'playing'; G.nextRound = false; G.flashScreen = 0; G.best = Best.get();
+  resetPlayerStats(); newSeeds();
   particles.length = 0; floaters.length = 0; G.caption = null; G.banner = null;
   Audio2.unlock(); Audio2.startMusic(); Audio2.setMusicVol(0.5);
-  startRound(true);
+  if (G.mode === 'party') {
+    G.players.forEach(pl => { pl.throws = []; pl.score = 0; pl.distance = 0; pl.bounces = 0; pl.done = false; pl.posted = false; });
+    G.cur = 0; showTurnCard();
+  } else startRound(true);
   clearEdges(); setTouchUI(true);
 }
+function startSolo() { G.mode = 'solo'; G.players = null; newGame(); }
 function restartGame() { Audio2.sfx('select'); newGame(); }
 
 function startRound(first) {
-  buildRound(); resetBaby();
+  buildRound(); resetBaby(); G.catches = 0; G.flyT = 0;
   Cam.x = AIM_CAM_X; Cam.y = 0;
-  G.banner = { title: 'THROW ' + G.round + ' OF ' + ROUNDS, sub: 'GO AS FAR AS YOU CAN', list: 'IN THE YARD: ' + G.mixB.concat(G.mixP).map(k => ITEM_NAMES[k]).join(' · '), t: 150, max: 150 };
+  const who = G.mode === 'party' ? curPlayer().name + ': ' : '';
+  G.banner = { title: who + 'THROW ' + G.round + ' OF ' + ROUNDS, sub: 'GO AS FAR AS YOU CAN', list: 'IN THE YARD: ' + G.mixB.concat(G.mixP).map(k => ITEM_NAMES[k]).join(' · '), t: 150, max: 150 };
   if (!first) Audio2.sfx('round');
   startAim();
 }
@@ -1433,25 +1499,28 @@ function launch() {
   baby.vx = Math.cos(a) * v; baby.vy = -Math.sin(a) * v;
   baby.state = 'fly'; baby.spin = rand(-0.18, 0.18) || 0.1;
   parentFrame = 'throw';
-  G.phase = 'flying'; G.bounces = 0;
+  G.phase = 'flying'; G.bounces = 0; G.flyT = 0; G.liveFt = 0;
   Audio2.sfx('yeet');
   showCaption(pick(launchCaptions));
-  // random events (rolled at launch) — one per throw at most
-  const roll = Math.random();
-  const apex = Math.min(220, (baby.vy * baby.vy) / (2 * GRAV) + 40);
-  const skyY = () => GY - rand(55, Math.max(60, apex * 0.85));
+  // random events (rolled at launch) — one per throw at most. Seeded per throw: every player, and every re-throw
+  // after a catch, gets the same event in the same spot.
+  const seed = throwSeed();
+  RNG.ev = mulberry32(seed ^ 0x9e3779b9); RNG.phys = mulberry32(seed ^ 0x85ebca6b);
+  const er = (a, b) => sr(RNG.ev, a, b);
+  const roll = RNG.ev();
+  const skyY = () => GY - er(60, 190);
   const P_DRONE = 1 / 12, P_GEESE = 1 / 6;
   if (roll < CHANCE_HELI) {
     G.event = { type: 'heli', name: 'HELICOPTER MOM', emoji: '🚁', t: 120 };
-    grabber = { kind: 'heli', x: baby.x + rand(160, 360), y: skyY(), vx: -rand(0.8, 1.3), t: 0, grabbed: false };
+    grabber = { kind: 'heli', x: baby.x + er(160, 360), y: skyY(), vx: -er(0.8, 1.3), t: 0, grabbed: false };
   } else if (roll < CHANCE_HELI + P_DRONE) {
     G.event = { type: 'drone', name: 'DELIVERY DRONE', emoji: '📦', t: 120 };
-    grabber = { kind: 'drone', x: baby.x + rand(160, 360), y: skyY(), vx: -rand(1.0, 1.5), t: 0, grabbed: false };
+    grabber = { kind: 'drone', x: baby.x + er(160, 360), y: skyY(), vx: -er(1.0, 1.5), t: 0, grabbed: false };
   } else if (roll < CHANCE_HELI + P_DRONE + P_GEESE) {
     G.event = { type: 'geese', name: 'ANGRY GEESE', emoji: '🪿', t: 120 };
-    flock = { x: baby.x + rand(180, 360), y: skyY(), vx: -1.5, t: 0, birds: [[0, 0], [9, -6], [9, 6], [18, -12], [18, 12]].map(([dx, dy]) => ({ dx, dy, hit: false })) };
+    flock = { x: baby.x + er(180, 360), y: skyY(), vx: -1.5, t: 0, birds: [[0, 0], [9, -6], [9, 6], [18, -12], [18, 12]].map(([dx, dy]) => ({ dx, dy, hit: false })) };
   } else if (roll < CHANCE_HELI + P_DRONE + P_GEESE + CHANCE_WIND) {
-    const f = (Math.random() < 0.5 ? -1 : 1) * rand(0.01, 0.025);
+    const f = (RNG.ev() < 0.5 ? -1 : 1) * er(0.01, 0.025);
     G.event = { type: 'wind', name: 'GUSTY WIND', emoji: '🌪️', t: 120, force: f };
     Audio2.sfx('wind');
   }
@@ -1527,7 +1596,7 @@ function itemHit(it, py) {
         baby.x = cx + dx * R; baby.y = cy + dy * R;
         const vn = baby.vx * dx + baby.vy * dy;
         if (vn < 0) { baby.vx -= 2 * vn * dx; baby.vy -= 2 * vn * dy; }
-        const a = Math.atan2(baby.vy, baby.vx) + rand(-0.6, 0.6), sp = Math.max(Math.hypot(baby.vx, baby.vy), 4.5);
+        const a = Math.atan2(baby.vy, baby.vx) + sr(RNG.phys, -0.6, 0.6), sp = Math.max(Math.hypot(baby.vx, baby.vy), 4.5);
         baby.vx = Math.cos(a) * sp; baby.vy = Math.sin(a) * sp;
         if (baby.vy > -1.5) baby.vy = -Math.abs(baby.vy) - 1.5;   // never slaps it straight into the dirt
         it.cd = 12; bounced(it, 'BOING?!');
@@ -1611,6 +1680,12 @@ function updateFlight() {
     const py = baby.y;
     baby.x += baby.vx / n; baby.y += baby.vy / n;
     for (const it of items) if (Math.abs(it.x - baby.x) < 70 && itemHit(it, py)) return;
+    // the parent catches it if it comes back to him from the belt up (legs are see-through)
+    if (G.catches < MAX_CATCHES) {
+      const upper = baby.x + baby.r > P_X - 8 && baby.x - baby.r < P_X + 8 && baby.y + baby.r > GY - 36 && baby.y - baby.r < GY - 13;
+      if (!upper) baby.clear = true;
+      else if (baby.clear) { caught(); return; }
+    }
     if (grabber && !grabber.grabbed && Math.hypot(baby.x - (grabber.x - 4), baby.y - (grabber.y + 8)) < 12) { endThrow(grabber.kind); return; }
     if (flock) for (const b of flock.birds) {
       if (!b.hit && Math.hypot(baby.x - (flock.x + b.dx), baby.y - (flock.y + b.dy)) < 9) {
@@ -1652,7 +1727,18 @@ function updateFlight() {
   for (const it of items) if (it.cd > 0) it.cd--;
   if (baby.flash > 0) baby.flash--;
   G.liveFt = Math.max(0, Math.round((baby.x - P_X) / PX_PER_FT));
-  if (!baby.onGround && ++baby.trail % 3 === 0) particles.push({ x: baby.x, y: baby.y, vx: 0, vy: 0, life: 18, max: 18, c: '#ffffff', g: 0, s: 2 });
+  if (!baby.onGround && ++baby.trail % 3 === 0) particles.push({ x: baby.x, y: baby.y, vx: 0, vy: 0, life: 18, max: 18, c: playerColor() || '#ffffff', g: 0, s: 2 });
+}
+
+// NICE CATCH: same throw again — fresh yard (same seed), bounces wiped, both meter taps again
+function caught() {
+  G.catches++;
+  showCaption('NICE CATCH!'); Audio2.sfx('catch');
+  floatText(P_X, GY - 48, 'RE-THROW ' + G.catches + '/' + MAX_CATCHES, '#4ecdc4', 90);
+  burst(P_X, GY - 36, 16, ['#ffffff', '#4ecdc4', '#ffe14d'], 1.8, 26);
+  const c = G.catches;
+  buildRound(); resetBaby(); G.catches = c; G.flyT = 0;
+  G.phase = 'caught'; G.resT = 60;
 }
 
 // the throw is over: at rest, or stopped by peril. Distance counts wherever the baby is.
@@ -1714,17 +1800,10 @@ function updateSky() {
 }
 // things that move on the ground (mowers patrol, bears pace)
 function updateGround() {
-  const frozen = G.phase === 'result' && baby.hidden;
+  const t = G.flyT || 0;
   for (const it of items) {
-    if (!frozen && it.kind === 'mower') {
-      it.mx += it.dir * 0.4;
-      if (it.mx > it.x1) { it.mx = it.x1; it.dir = -1; } if (it.mx < it.x0) { it.mx = it.x0; it.dir = 1; }
-    }
-    if (!frozen && it.kind === 'bear' && G.phase !== 'result') {
-      if (it.home === undefined) it.home = it.x;
-      it.x += it.dir * 0.25;
-      if (Math.abs(it.x - it.home) > 8) it.dir *= -1;
-    }
+    if (it.kind === 'mower') { it.mx = it.x + tri(t * 0.4, 26); it.dir = tri(t * 0.4 + 0.4, 26) >= tri(t * 0.4, 26) ? 1 : -1; }
+    if (it.kind === 'bear') { it.x = it.home + it.d0 * tri(t * 0.25, 8); it.dir = it.d0 * (tri(t * 0.25 + 0.25, 8) >= tri(t * 0.25, 8) ? 1 : -1); }
     if (it.anim > 0) it.anim--;
   }
 }
@@ -1738,7 +1817,7 @@ function updateCamera() {
     tx = Math.max(tx, AIM_CAM_X);
     kx = 0.12; ky = 0.22;
   } else if (G.phase === 'return') { kx = 0.1; ky = 0.12; }
-  else if (G.phase === 'power') kx = 0.15;
+  else if (G.phase === 'power' || G.phase === 'caught') { kx = 0.15; ky = 0.15; }
   Cam.x = lerp(Cam.x, tx, kx); Cam.y = lerp(Cam.y, ty, ky);
   if (Cam.y > 0) Cam.y = 0;
   if (Cam.shake > 0) { Cam.sx = rand(-Cam.shake, Cam.shake); Cam.sy = rand(-Cam.shake, Cam.shake); Cam.shake *= 0.85; if (Cam.shake < 0.3) Cam.shake = 0; }
@@ -1754,8 +1833,15 @@ function updatePlaying() {
       if (Cam.x - AIM_CAM_X > 300) Cam.x -= (Cam.x - AIM_CAM_X) * 0.12;
       if (Math.abs(Cam.x - AIM_CAM_X) < 1.5 && Math.abs(Cam.y) < 1.5) {
         Cam.x = AIM_CAM_X; Cam.y = 0;
-        startRound(false);
+        if (G.pendingTurn) { G.pendingTurn = false; showTurnCard(); } else startRound(false);
       }
+      break;
+    case 'turn':                      // "PASS THE CONTROLLER" card: waits for a press
+      if (G.resT > 0) G.resT--;
+      else if (Input.edge.yeet) { Audio2.sfx('lock'); startRound(true); }
+      break;
+    case 'caught':
+      if (--G.resT <= 0) startAim();
       break;
     case 'power':
       G.powerPos += G.powerDir * METER_SPEED;
@@ -1770,11 +1856,16 @@ function updatePlaying() {
       if (Input.edge.yeet) { G.angleValue = G.anglePos; Audio2.sfx('lock'); launch(); }
       break;
     case 'flying':
+      G.flyT++;
       updateFlight();
       break;
     case 'result':
+      if (!baby.hidden) G.flyT++;
       if (--G.resT <= 0) {
-        if (G.round >= ROUNDS) { showCPS(); return; }
+        if (G.round >= ROUNDS) {
+          if (G.mode === 'party') { finishPlayer(); return; }
+          showCPS(); return;
+        }
         G.round++; resetBaby(); items = []; G.phase = 'return';
       }
       break;
@@ -1820,6 +1911,198 @@ function showCPS() {
   ]);
   // global leaderboard: name entry + board on top of the CPS screen
   if (window.NBScores) NBScores.submit({ game: 'yeet', score: G.score });
+}
+
+
+// =====================================================================
+// PARTY MODE: 2–6 players pass the controller. Each player takes all 5 throws in a row,
+// with identical conditions (same seeds). Results rank everyone; every score posts under its name.
+// =====================================================================
+const PARTY_COLORS = ['#ff6b9d', '#4ecdc4', '#ffd700', '#b18cff', '#ff9f43', '#54a0ff'];
+const curPlayer = () => (G.players && G.players[G.cur]) || null;
+const playerColor = () => (G.mode === 'party' && curPlayer()) ? curPlayer().color : null;
+
+function showPartyCount() {
+  G.state = 'menu';
+  const items = [2, 3, 4, 5, 6].map(n => ({ label: n + ' PLAYERS', action: () => startNames(n) }));
+  items.push({ label: 'BACK', action: showTitle, cls: 'mint' });
+  showMenu('partyCount', 'partyCountMenu', items, showTitle);
+}
+
+// ---- name entry (one player at a time). Typing, ▲▼ per slot, controller D-pad.
+const NAME_LEN = 6, NAME_CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const NE = { n: 0, i: 0, chars: [], cur: 0, fresh: true, err: '', names: [] };
+function startNames(n) {
+  NE.n = n; NE.i = 0; NE.names = [];
+  beginName();
+}
+function beginName() {
+  NE.chars = ('P' + (NE.i + 1)).padEnd(NAME_LEN, ' ').split(''); NE.cur = 0; NE.fresh = true; NE.err = '';
+  hideScreens(); $('names').classList.add('on'); G.state = 'names'; setTouchUI(false);
+  renderNames();
+}
+function renderNames() {
+  const col = PARTY_COLORS[NE.i];
+  $('namesTitle').innerHTML = `PLAYER ${NE.i + 1} OF ${NE.n}`;
+  $('namesTitle').style.color = col; $('namesTitle').style.textShadow = `0 0 20px ${col}`;
+  let h = '';
+  for (let k = 0; k < NAME_LEN; k++) {
+    h += `<div class="nslot"><button class="nar" data-up="${k}">&#9650;</button><div class="nch${k === NE.cur ? ' cur' : ''}" data-ch="${k}" style="${k === NE.cur ? 'border-color:' + col : ''}">${NE.chars[k] === ' ' ? '&middot;' : NE.chars[k]}</div><button class="nar" data-dn="${k}">&#9660;</button></div>`;
+  }
+  $('nameSlots').innerHTML = h;
+  $('nameErr').textContent = NE.err;
+  $('nameSlots').querySelectorAll('[data-up]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.up; nameCycle(1); });
+  $('nameSlots').querySelectorAll('[data-dn]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.dn; nameCycle(-1); });
+  $('nameSlots').querySelectorAll('[data-ch]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.ch; NE.fresh = false; renderNames(); });
+  $('namesHint').innerHTML = isCoarse() && !Input.pad.on ? 'TAP &#9650; &#9660; TO PICK LETTERS, THEN DONE'
+    : 'TYPE A NAME &middot; ENTER = DONE &middot; BACKSPACE = DELETE<br>CONTROLLER: D-PAD &#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; CROSS NEXT &middot; CIRCLE BACK &middot; OPTIONS DONE';
+}
+function nameCycle(d) {
+  NE.fresh = false; let i = NAME_CHARS.indexOf(NE.chars[NE.cur]); if (i < 0) i = 0;
+  NE.chars[NE.cur] = NAME_CHARS[(i + d + NAME_CHARS.length) % NAME_CHARS.length]; NE.err = ''; Audio2.sfx('select'); renderNames();
+}
+function nameType(c) {
+  if (NE.fresh) { NE.chars = ' '.repeat(NAME_LEN).split(''); NE.cur = 0; NE.fresh = false; }
+  NE.chars[NE.cur] = c; NE.err = ''; NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); Audio2.sfx('select'); renderNames();
+}
+function nameBackspace() {
+  NE.fresh = false;
+  if (NE.chars[NE.cur] === ' ' && NE.cur > 0) NE.cur--;
+  NE.chars[NE.cur] = ' '; renderNames();
+}
+function nameDone() {
+  const raw = NE.chars.join('').replace(/ /g, '');
+  const clean = window.NBScores ? NBScores.clean(raw) : raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, NAME_LEN);
+  if (!clean) { NE.err = 'PICK AT LEAST ONE LETTER'; Audio2.sfx('strike'); return renderNames(); }
+  if (window.NBScores && NBScores.blocked(clean)) { NE.err = 'THAT NAME IS NOT ALLOWED'; Audio2.sfx('strike'); return renderNames(); }
+  NE.names[NE.i] = clean; Audio2.sfx('lock');
+  if (NE.i < NE.n - 1) { NE.i++; beginName(); return; }
+  G.mode = 'party';
+  G.players = NE.names.map((name, i) => ({ name, color: PARTY_COLORS[i], throws: [], score: 0, distance: 0, bounces: 0 }));
+  newGame();
+}
+function nameBack() {
+  if (NE.i > 0) { NE.i--; beginName(); NE.chars = NE.names[NE.i].padEnd(NAME_LEN, ' ').split(''); NE.fresh = false; renderNames(); }
+  else showPartyCount();
+}
+function handleNames() {
+  if (G.state !== 'names') return;
+  if (Input.menu.up) nameCycle(1);
+  if (Input.menu.down) nameCycle(-1);
+  if (Input.menu.left) { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.right) { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.ok) { if (NE.cur === NAME_LEN - 1) nameDone(); else { NE.cur++; NE.fresh = false; renderNames(); } }
+  if (Input.menu.back) { if (NE.cur > 0) { NE.cur--; renderNames(); } else nameBack(); }
+  if (Input.edge.pause) nameDone();
+}
+// keyboard typing on the name screen (handled before the normal game keys)
+window.addEventListener('keydown', e => {
+  if (G.state !== 'names' || (window.NBScores && NBScores.active)) return;
+  const k = e.code;
+  e.preventDefault(); e.stopImmediatePropagation(); Audio2.unlock();
+  if (/^Key[A-Z]$/.test(k) || /^Digit[0-9]$/.test(k) || /^Numpad[0-9]$/.test(k)) { if (!e.repeat) nameType(k.slice(-1)); return; }
+  if (k === 'Backspace') return nameBackspace();
+  if (k === 'Enter' || k === 'NumpadEnter') return nameDone();
+  if (k === 'Escape') return nameBack();
+  if (k === 'ArrowLeft') { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowRight' || k === 'Space') { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowUp') return nameCycle(1);
+  if (k === 'ArrowDown') return nameCycle(-1);
+}, true);
+
+// ---- turns
+function showTurnCard() {
+  resetBaby(); items = []; buildRoundPreviewless();
+  Cam.x = AIM_CAM_X; Cam.y = 0;
+  G.phase = 'turn'; G.resT = 30; G.banner = null; G.caption = null;
+  Audio2.sfx('turn');
+}
+function buildRoundPreviewless() { G.round = 1; buildRound(); }
+function finishPlayer() {
+  const pl = curPlayer();
+  pl.throws = G.throws.slice(); pl.score = G.score; pl.distance = G.distance; pl.bounces = G.totalBounces; pl.done = true;
+  if (G.cur < G.players.length - 1) {
+    G.cur++; resetPlayerStats(); resetBaby(); items = [];
+    G.pendingTurn = true; G.phase = 'return';
+  } else showPartyResults();
+}
+
+// ---- results + posting
+function partyRanking() {
+  return G.players.slice().sort((a, b) => b.score - a.score || Math.max(0, ...b.throws) - Math.max(0, ...a.throws));
+}
+function showPartyResults() {
+  G.state = 'results'; setTouchUI(false);
+  Audio2.sfx('win'); Audio2.setMusicVol(0.2);
+  const rk = partyRanking();
+  const best = Math.max(...G.players.map(p => p.score));
+  if (best > G.best) { G.best = best; Best.set(best); }
+  G.banner = null; G.caption = null; G.event = null;
+  const top = rk[0], second = rk[1];
+  const longest = p => Math.max(0, ...p.throws);
+  const tie = second && second.score === top.score;
+  const tiedOut = rk.filter(p => p.score === top.score && longest(p) === longest(top));   // tied on score AND longest throw
+  let rows = '';
+  rk.forEach((p, i) => {
+    rows += `<tr><td>${i + 1}</td><td style="color:${p.color}">${p.name}</td><td class="pt">${p.throws.map(f => f).join(' &middot; ')}</td><td>${longest(p)} FT</td><td class="ps">${p.score.toLocaleString('en-US')}</td><td class="pp" data-pp="${G.players.indexOf(p)}"></td></tr>`;
+  });
+  $('resTable').innerHTML = `<tr><th>#</th><th>NAME</th><th>THROWS (FT)</th><th>LONGEST</th><th>SCORE</th><th></th></tr>` + rows;
+  $('resWinner').innerHTML = tiedOut.length > 1
+    ? `&#127942; IT'S A TIE! ` + tiedOut.map(p => `<span style="color:${p.color}">${p.name}</span>`).join(' &amp; ') +
+      `<div class="resTie">SAME SCORE AND SAME LONGEST THROW (${longest(top)} FT)</div>`
+    : `&#127942; <span style="color:${top.color}">${top.name}</span> WINS!` +
+      (tie ? `<div class="resTie">TIED ON SCORE: LONGEST THROW (${longest(top)} FT) DECIDES IT</div>` : '');
+  showMenu('results', 'resMenu', [
+    { label: 'PLAY AGAIN', action: newGame },
+    { label: 'HIGH SCORES', action: () => { if (window.NBScores) NBScores.showBoard({ game: 'yeet', scope: 'week' }); }, cls: 'mint' },
+    { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' },
+  ]);
+  postPartyScores();
+}
+// every player's score posts under the name they entered at the start
+function postPartyScores() {
+  if (!window.NBScores || !NBScores.post) { $('resPost').textContent = ''; return; }
+  const todo = G.players.filter(p => !p.posted);
+  if (!todo.length) return;
+  $('resPost').innerHTML = 'POSTING SCORES...';
+  const paint = () => G.players.forEach((p, i) => { const c = document.querySelector(`[data-pp="${i}"]`); if (c) c.innerHTML = p.posted ? '&#10003;' : p.postFail ? '&#10007;' : ''; });
+  let chain = Promise.resolve(), fails = 0;
+  todo.forEach(p => {
+    chain = chain.then(() => NBScores.post('yeet', p.name, Math.max(0, Math.floor(p.score))))
+      .then(() => { p.posted = true; p.postFail = false; paint(); })
+      .catch(() => { p.postFail = true; fails++; paint(); });
+  });
+  chain.then(() => {
+    if (G.state !== 'results') return;
+    if (!fails) { $('resPost').innerHTML = 'SCORES POSTED TO THE GLOBAL BOARD'; return; }
+    $('resPost').innerHTML = `NO SIGNAL: ${fails} SCORE${fails > 1 ? 'S' : ''} NOT POSTED <button class="chip" id="resRetry">RETRY</button>`;
+    $('resRetry').onclick = e => { e.preventDefault(); postPartyScores(); };
+  });
+}
+
+// ---- party HUD: everyone's totals, current player highlighted
+function drawPartyStrip() {
+  if (G.mode !== 'party' || !G.players) return;
+  const n = G.players.length, w = 1920 / n, y = 104, h = 52;
+  G.players.forEach((p, i) => {
+    const x = i * w, cur = i === G.cur;
+    ctx.fillStyle = cur ? p.color : 'rgba(0,0,0,.55)'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = p.color; ctx.fillRect(x, y + h - 4, w, 4);
+    const score = cur ? G.score : p.done ? p.score : null;
+    txt(p.name, x + 20, y + 34, 20, cur ? '#000' : p.color, 'left', !cur);
+    txt(score === null ? '—' : score.toLocaleString('en-US'), x + w - 20, y + 34, 20, cur ? '#000' : '#fff', 'right', !cur);
+  });
+}
+function drawTurnCard() {
+  if (G.phase !== 'turn' || !curPlayer()) return;
+  const p = curPlayer();
+  ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, 1920, 1080);
+  ctx.fillStyle = p.color; ctx.fillRect(0, 300, 1920, 8); ctx.fillRect(0, 772, 1920, 8);
+  txt('PLAYER ' + (G.cur + 1) + ' OF ' + G.players.length, 960, 400, 34, '#ffffff', 'center');
+  txt(p.name + ", YOU'RE UP!", 960, 520, 84, p.color, 'center');
+  txt('PASS THE CONTROLLER', 960, 620, 40, '#ffffff', 'center');
+  if (G.resT <= 0 && Math.floor(G.t / 30) % 2 === 0)
+    txt(isCoarse() && !Input.pad.on ? 'TAP YEET WHEN READY' : 'PRESS CROSS / SPACE / CLICK WHEN READY', 960, 720, 24, '#ffd700', 'center');
 }
 
 // =====================================================================
@@ -1915,7 +2198,7 @@ function drawItem(c, it, camX, gy) {
 function render() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1920, 1080);
   const c = wctx;
-  if (G.state === 'title' || G.state === 'boot') { renderTitleBg(); return; }
+  if (G.state === 'title' || G.state === 'boot' || G.state === 'menu' || G.state === 'names') { renderTitleBg(); return; }
   const camX = Math.round(Cam.x), camY = Math.round(Cam.y);
   drawWorld(c, camX, camY, G.t);
   const gy = GY - camY;
@@ -1923,7 +2206,7 @@ function render() {
   for (const it of items) if (it.kind === 'tree' || it.kind === 'slide') drawItem(c, it, camX, gy);
   for (const it of items) if (it.kind !== 'tree' && it.kind !== 'slide') drawItem(c, it, camX, gy);
   // parent
-  drawSprite(c, S.parent[parentFrame], P_X - camX, gy + 1);
+  drawSprite(c, parentSprites()[parentFrame], P_X - camX, gy + 1);
   // baby
   if (baby && !baby.hidden) {
     const s = S.baby[baby.state] || S.baby.held;
@@ -1951,10 +2234,12 @@ function render() {
   drawFloaters(camX, camY);
   drawOffscreenBaby(camX, camY);
   drawHUD();
+  drawPartyStrip();
   drawMeter();
   drawEventBanner();
   drawBanner();
   drawCaption();
+  drawTurnCard();
 }
 
 function txt(s, x, y, size, color, align = 'left', outline = true) {
@@ -1989,11 +2274,19 @@ function drawOffscreenBaby(camX, camY) {
     txt(Math.round((GY - baby.y) / PX_PER_FT) + ' FT UP', x, 190, 18, '#fff', 'center');
   }
 }
+// party mode: the parent's shirt is the current player's color
+function parentSprites() {
+  const col = playerColor(); if (!col) return S.parent;
+  if (!S.parentBy[col]) S.parentBy[col] = { idle: mkSprite(parentPX('idle', col)), ready: mkSprite(parentPX('ready', col)), throw: mkSprite(parentPX('throw', col)), panic: mkSprite(parentPX('panic', col)) };
+  return S.parentBy[col];
+}
 function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 0, 1920, 100);
   ctx.fillStyle = '#ff6b9d'; ctx.fillRect(0, 100, 1920, 3);
-  txt('YEET SCORE', 34, 44, 18, '#ff6b9d');
+  const pl = G.mode === 'party' && curPlayer();
+  txt(pl ? pl.name + "'S SCORE" : 'YEET SCORE', 34, 44, 18, pl ? pl.color : '#ff6b9d');
   txt(String(G.score), 34, 84, 30, '#ffffff');
+  if (G.catches) txt('CATCHES ' + G.catches + '/' + MAX_CATCHES, 900, 96, 14, '#4ecdc4', 'center');
   txt('THIS THROW', 380, 44, 18, '#4ecdc4');
   txt((G.liveFt || 0) + ' FT', 380, 84, 30, '#ffffff');
   txt('THROW ' + G.round + '/' + ROUNDS, 900, 72, 32, '#ffd700', 'center');
@@ -2009,7 +2302,7 @@ function drawHUD() {
 }
 function drawMeter() {
   if (G.phase !== 'power' && G.phase !== 'angle') return;
-  const x = 520, y = 128, w = 880, h = 196;
+  const x = 520, y = G.mode === 'party' ? 176 : 128, w = 880, h = 196;
   ctx.fillStyle = 'rgba(255,255,255,.94)'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#ff6b9d'; ctx.lineWidth = 8; ctx.strokeRect(x, y, w, h);
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x + 4, y + h + 4, w, 8);
@@ -2037,8 +2330,9 @@ function drawEventBanner() {
   const k = clamp(Math.min(e.t, 120 - e.t) / 10, 0, 1);
   ctx.globalAlpha = k;
   let label = e.emoji + ' ' + e.name + ' ' + e.emoji;
-  txt(label, 960, 170, 40, '#ffffff', 'center');
-  if (e.type === 'wind') txt(e.force > 0 ? '>>> TAILWIND >>>' : '<<< HEADWIND <<<', 960, 222, 26, '#9fe3ff', 'center');
+  const oy = G.mode === 'party' ? 50 : 0;
+  txt(label, 960, 170 + oy, 40, '#ffffff', 'center');
+  if (e.type === 'wind') txt(e.force > 0 ? '>>> TAILWIND >>>' : '<<< HEADWIND <<<', 960, 222 + oy, 26, '#9fe3ff', 'center');
   ctx.globalAlpha = 1;
 }
 function drawBanner() {
@@ -2086,7 +2380,7 @@ function renderTitleBg() {
 // SCREENS + MENUS (mouse, touch, keyboard and controller all work)
 // =====================================================================
 const Menu = { items: [], idx: 0, onBack: null };
-const SCREENS = ['title', 'pause', 'cps'];
+const SCREENS = ['title', 'pause', 'cps', 'partyCount', 'names', 'results'];
 function hideScreens() { SCREENS.forEach(s => $(s).classList.remove('on')); Menu.items = []; Menu.onBack = null; }
 function showMenu(screen, boxId, items, onBack) {
   hideScreens();
@@ -2110,13 +2404,14 @@ function handleMenus() {
   if (Input.menu.ok) { Audio2.sfx('select'); const it = Menu.items[Menu.idx]; it && it.action(); clearEdges(); return; }
   if ((Input.menu.back || (G.state === 'paused' && Input.edge.pause)) && Menu.onBack) { Menu.onBack(); clearEdges(); }
 }
-function clearEdges() { Input.edge.yeet = Input.edge.pause = false; Input.menu.up = Input.menu.down = Input.menu.ok = Input.menu.back = false; }
+function clearEdges() { Input.edge.yeet = Input.edge.pause = false; Input.menu.up = Input.menu.down = Input.menu.left = Input.menu.right = Input.menu.ok = Input.menu.back = false; }
 
 function showTitle() {
-  G.state = 'title'; Audio2.stopMusic();
+  G.state = 'title'; Audio2.stopMusic(); G.mode = 'solo';
   G.best = Best.get();
   showMenu('title', 'titleMenu', [
-    { label: 'START YEETING', action: newGame },
+    { label: 'START YEETING', action: startSolo },
+    { label: 'PARTY MODE (PASS THE CONTROLLER)', action: showPartyCount },
     { label: 'FULLSCREEN', action: toggleFullscreen, cls: 'mint' },
     { label: 'EXIT TO ARCADE', action: exitToArcade, cls: 'mint' },
   ]);
@@ -2190,7 +2485,8 @@ function frame(now) {
   if (dt > 0.25) dt = 0.25;
   acc += dt;
   handleMenus();
-  Input.menu.up = Input.menu.down = Input.menu.ok = Input.menu.back = false;
+  if (!(window.NBScores && NBScores.active)) handleNames();
+  Input.menu.up = Input.menu.down = Input.menu.left = Input.menu.right = Input.menu.ok = Input.menu.back = false;
   let n = 0;
   while (acc >= STEP && n < 8) { step(); acc -= STEP; n++; }
   if (n >= 8) acc = 0;
