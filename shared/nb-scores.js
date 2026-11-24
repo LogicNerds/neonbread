@@ -86,16 +86,30 @@
       }],
     }).then(() => id);
   }
+  function rowsOf(res) {
+    return res.filter(r => r.document).map(r => {
+      const f = r.document.fields || {};
+      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
+    });
+  }
   function top(game, scope, limit) {
     return req(':runQuery', {
       structuredQuery: {
         from: [{ collectionId: 'scores' }], where: whereFor(game, scope),
         orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: limit || 100,
       },
-    }).then(rows => rows.filter(r => r.document).map(r => {
-      const f = r.document.fields || {};
-      return { id: r.document.name.split('/').pop(), name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
-    }));
+    }).then(rowsOf);
+  }
+  // Every all-time score, PAGE at a time. `after` is the last row of the previous page (cursor, so skipped rows aren't billed).
+  const PAGE = 100;
+  function page(game, after) {
+    const q = {
+      from: [{ collectionId: 'scores' }], where: whereFor(game, 'all'),
+      orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }, { field: { fieldPath: '__name__' }, direction: 'DESCENDING' }],
+      limit: PAGE,
+    };
+    if (after) q.startAt = { values: [{ integerValue: String(after.score) }, { referenceValue: after.ref }], before: false };
+    return req(':runQuery', { structuredQuery: q }).then(rowsOf);
   }
   function rank(game, scope, score) {
     return req(':runAggregationQuery', {
@@ -137,6 +151,8 @@
 .nbs-li.me span:last-child{color:#0b0620}
 .nbs-li.r1{color:#ffe14d}.nbs-li.r2{color:#e6e6ff}.nbs-li.r3{color:#ffa45c}
 .nbs-hint{font-size:16px;color:#7d72b8;line-height:1.9}
+.nbs-foc{outline:5px solid #fff;outline-offset:5px}
+.nbs-more{font-size:18px;color:#7d72b8;text-align:center;line-height:2.4}
 `;
   let root, panel, dims = { w: 1280, h: 820 };
   function ensureDom() {
@@ -148,6 +164,7 @@
     panel = root.firstChild;
     ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'wheel', 'contextmenu'].forEach(ev =>
       root.addEventListener(ev, e => e.stopPropagation(), { passive: ev === 'touchstart' || ev === 'touchend' || ev === 'wheel' }));
+    root.addEventListener('pointerdown', e => setDev(e.pointerType === 'touch' ? 'touch' : 'key'), true);
     window.addEventListener('resize', fit);
     window.addEventListener('orientationchange', () => setTimeout(fit, 200));
   }
@@ -161,7 +178,7 @@
     panel.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
     panel.classList.toggle('portrait', portrait);
     const list = panel.querySelector('.nbs-list');
-    if (list) list.style.maxHeight = (portrait ? 640 : 330) + (NB._expanded ? (portrait ? 140 : 40) : 0) + 'px';
+    if (list) list.style.maxHeight = (portrait ? 700 : 360) + (panel.querySelector('.nbs-rk') ? 0 : (portrait ? 60 : 50)) + 'px';
   }
 
   // ---------------------------------------------------------------- tiny sound (optional, uses its own context)
@@ -179,14 +196,44 @@
   // ---------------------------------------------------------------- input while the overlay is open
   // Keyboard is captured before the game sees it. The game must also skip its own menu input
   // while NBScores.active is true (each game checks it), because games poll the controller themselves.
-  const Ctl = { prev: null, held: {}, rep: {} };
-  function padState() {
+  const Ctl = { prev: null, held: {}, rep: {}, ps: false };
+  function firstPad() {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let gp = null; for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+    for (const p of pads || []) if (p && p.connected) return p;
+    return null;
+  }
+  function padState() {
+    const gp = firstPad();
     if (!gp) return null;
+    const id = gp.id || ''; // DualShock 4 reports just "Wireless Controller", but so does "Xbox Wireless Controller"
+    Ctl.ps = /054c|dualsense|dualshock|playstation/i.test(id) || (/wireless controller/i.test(id) && !/xbox|045e/i.test(id));
     const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > 0.5); };
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-    return { up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5, a: b(0), b: b(1), start: b(9), lb: b(4), rb: b(5), y: b(3) };
+    return { up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5, a: b(0), b: b(1), x: b(2), y: b(3), start: b(9), lb: b(4), rb: b(5) };
+  }
+  // which input the hints describe: the last one used, else a connected controller, else touch/keyboard
+  function setDev(d) { if (NB._dev === d) return; NB._dev = d; const h = panel && panel.querySelector('.nbs-hint'); if (h) h.innerHTML = hintFor(NB._mode); }
+  function dev() {
+    if (NB._dev) return NB._dev;
+    if (firstPad()) return 'pad';
+    return window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'key';
+  }
+  // button names: PlayStation names on a PS controller, Xbox letters on anything else
+  const P = (ps, xb) => Ctl.ps ? ps : xb;
+  function hintFor(mode) {
+    const d = dev();
+    if (mode === 'enter') {
+      if (d === 'touch') return 'TAP &#9650; &#9660; TO PICK LETTERS, OR TAP A LETTER TO TYPE';
+      if (d === 'pad') return '&#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; ' + P('CROSS', 'A') + ' NEXT &middot; ' + P('CIRCLE', 'B') + ' BACK &middot; ' + P('OPTIONS', 'START') + ' POST';
+      return 'TYPE YOUR NAME &middot; ENTER = POST';
+    }
+    if (mode === 'board') {
+      if (d === 'touch') return 'TAP A TAB OR BUTTON &middot; SWIPE THE LIST TO SCROLL';
+      if (d === 'pad') return '&#9664;&#9654; PICK &middot; ' + P('CROSS', 'A') + ' PRESS &middot; &#9650;&#9660; SCROLL &middot; ' + P('L1 R1', 'LB RB') + ' TABS<br>' +
+        P('TRIANGLE', 'Y') + ' ALL SCORES &middot; ' + P('CIRCLE', 'B') + ' BACK &middot; ' + P('OPTIONS', 'START') + ' CONTINUE';
+      return '&#9664;&#9654; PICK &middot; ENTER PRESS &middot; &#9650;&#9660; SCROLL<br>TAB ALL SCORES &middot; ESC BACK';
+    }
+    return '';
   }
   function pollPad() {
     const s = padState();
@@ -194,7 +241,7 @@
     const p = Ctl.prev || s; // first poll after opening: anything already held doesn't count
     const now = performance.now();
     for (const k in s) {
-      if (s[k] && !p[k]) { Ctl.rep[k] = now + 380; NB._act(k); }
+      if (s[k] && !p[k]) { Ctl.rep[k] = now + 380; setDev('pad'); NB._act(k); }
       else if (s[k] && (k === 'up' || k === 'down' || k === 'left' || k === 'right') && now > (Ctl.rep[k] || 1e15)) { Ctl.rep[k] = now + 110; NB._act(k); }
     }
     Ctl.prev = s;
@@ -213,6 +260,8 @@
       if (k === 'KeyW' || k === 'KeyS') act = 'type:' + k.slice(-1);
       if (k === 'Space') act = 'right';
     } else if (k === 'KeyA') act = 'left'; else if (k === 'KeyD') act = 'right';
+    if (NB._mode === 'board' && (k === 'Enter' || k === 'NumpadEnter')) act = 'a'; // Enter presses the highlighted button
+    setDev('key');
     e.preventDefault(); e.stopImmediatePropagation();
     if (act && !e.repeat || (act && /^(up|down|left|right|bs)$/.test(act))) NB._act(act);
   }, true);
@@ -224,8 +273,8 @@
 
   // ---------------------------------------------------------------- the overlay
   const NB = {
-    active: false, _mode: null, _expanded: false,
-    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, rank,
+    active: false, _mode: null, _dev: null, _cache: {},
+    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, page, rank,
     exitToArcade() { location.href = ARCADE_URL; },
 
     // After every run: name entry -> post -> board. onClose fires when the player continues.
@@ -244,7 +293,7 @@
     showBoard(opt) {
       ensureDom(); open(opt.game);
       NB._st = { game: opt.game, score: null, myId: null, onClose: opt.onClose, scope: opt.scope || 'week', ranks: null };
-      NB._mode = 'board'; NB._expanded = false;
+      NB._mode = 'board';
       renderBoard();
     },
 
@@ -260,7 +309,7 @@
   function open(game) {
     const g = GAMES[game] || { color: '#ff4bd8' };
     root.style.setProperty('--nbc', g.color);
-    root.classList.add('on'); NB.active = true; NB._expanded = false;
+    root.classList.add('on'); NB.active = true; NB._cache = {};
     Ctl.prev = padState();
     const unfocus = () => { const a = document.activeElement; if (NB.active && a && a !== document.body && !root.contains(a) && a.blur) a.blur(); };
     unfocus(); setTimeout(unfocus, 60); setTimeout(unfocus, 200);
@@ -292,8 +341,7 @@
       '<div class="nbs-slots">' + slots + '<input id="nbsIn" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>' +
       '<div class="nbs-e">' + esc(st.err) + '</div>' +
       '<div class="nbs-row"><button class="nbs-b sel" data-ok="1">POST SCORE</button></div>' +
-      '<div class="nbs-hint">' + (touch ? 'TAP &#9650; &#9660; TO PICK LETTERS, OR TAP A LETTER TO TYPE'
-        : 'TYPE YOUR NAME &middot; ENTER = POST<br>CONTROLLER: &#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; A NEXT &middot; B BACK &middot; START POST') + '</div>';
+      '<div class="nbs-hint">' + hintFor('enter') + '</div>';
     panel.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { st.cur = +b.dataset.up; cycle(1); });
     panel.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => { st.cur = +b.dataset.dn; cycle(-1); });
     const inp = panel.querySelector('#nbsIn');
@@ -348,7 +396,7 @@
     panel.innerHTML = '<div class="nbs-h">POSTING...</div><div class="nbs-m">' + esc(st.name) + ' &middot; ' + fmt(st.score) + '</div>';
     fit(); blip(880, 0.08);
     post(st.game, st.name, st.score).then(id => {
-      st.myId = id; st.scope = 'week';
+      st.myId = id; st.scope = 'week'; st.view = 'top'; NB._cache = {};
       return Promise.all([rank(st.game, 'week', st.score).catch(() => null), rank(st.game, 'all', st.score).catch(() => null)]);
     }).then(r => {
       if (!NB._st) return;
@@ -372,42 +420,108 @@
   }
 
   // ---- boards
+  // Both tabs show the top 100. ALL SCORES lists every all-time score, 100 more each time the list nears the bottom.
+  // Lists are kept for as long as the overlay is open, so flipping tabs doesn't re-read them.
+  // Controls in highlight order: THIS WEEK, ALL-TIME, ALL SCORES / TOP 100, CONTINUE.
   function renderBoard() {
     const st = NB._st, g = GAMES[st.game];
-    const posted = st.score != null;
+    st.view = st.view || 'top'; if (st.foc == null) st.foc = 3;
+    const posted = st.score != null, every = st.view === 'every';
     let rk = '';
     if (posted && st.ranks) rk = 'YOU PLACED ' + (st.ranks.week ? '#' + st.ranks.week : '?') + ' THIS WEEK &middot; ' + (st.ranks.all ? '#' + st.ranks.all : '?') + ' ALL-TIME';
+    const sub = st.scope === 'week' ? weekLabel(weekKey()) + ' &middot; TOP 100 &middot; RESETS MONDAY'
+      : every ? 'EVERY SCORE &middot; SINCE THE DOORS OPENED' : 'TOP 100 &middot; SINCE THE DOORS OPENED';
     panel.innerHTML =
       '<div class="nbs-k">' + esc(g.title) + '</div>' +
       '<div class="nbs-h">HIGH SCORES</div>' +
-      (rk ? '<div class="nbs-m">' + rk + '</div>' : '') +
-      '<div class="nbs-tabs"><button class="nbs-tab' + (st.scope === 'week' ? ' on' : '') + '" data-t="week">THIS WEEK</button><button class="nbs-tab' + (st.scope === 'all' ? ' on' : '') + '" data-t="all">ALL-TIME</button></div>' +
-      '<div class="nbs-m" style="font-size:16px;color:#7d72b8">' + (st.scope === 'week' ? weekLabel(weekKey()) + ' &middot; RESETS MONDAY' : 'SINCE THE DOORS OPENED') + '</div>' +
+      (rk ? '<div class="nbs-m nbs-rk">' + rk + '</div>' : '') +
+      '<div class="nbs-tabs"><button class="nbs-tab nbs-c' + (st.scope === 'week' ? ' on' : '') + '" data-t="week">THIS WEEK</button><button class="nbs-tab nbs-c' + (st.scope === 'all' ? ' on' : '') + '" data-t="all">ALL-TIME</button></div>' +
+      '<div class="nbs-m" style="font-size:16px;color:#7d72b8">' + sub + '</div>' +
       '<div class="nbs-list"><div class="nbs-m">LOADING...</div></div>' +
-      '<div class="nbs-row"><button class="nbs-b alt" data-x="1">' + (NB._expanded ? 'TOP 10' : 'SHOW TOP 100') + '</button><button class="nbs-b sel" data-c="1">CONTINUE</button></div>' +
-      '<div class="nbs-hint">&#9664;&#9654; / LB RB: WEEK OR ALL-TIME &middot; &#9650;&#9660; SCROLL &middot; A / ENTER: CONTINUE &middot; Y / TAB: TOP 100</div>';
-    panel.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { st.scope = b.dataset.t; renderBoard(); });
-    panel.querySelector('[data-x]').onclick = () => { NB._expanded = !NB._expanded; renderBoard(); };
+      '<div class="nbs-row"><button class="nbs-b alt nbs-c" data-x="1">' + (every ? 'TOP 100' : 'ALL SCORES') + '</button><button class="nbs-b nbs-c" data-c="1">CONTINUE</button></div>' +
+      '<div class="nbs-hint">' + hintFor('board') + '</div>';
+    panel.querySelectorAll('[data-t]').forEach((b, i) => b.onclick = () => { st.foc = i; pickTab(b.dataset.t); });
+    panel.querySelector('[data-x]').onclick = () => { st.foc = 2; toggleEvery(); };
     panel.querySelector('[data-c]').onclick = close;
-    fit();
-    const want = st.scope, n = NB._expanded ? 100 : 10;
-    top(st.game, want, n).then(rows => {
-      if (!NB._st || NB._mode !== 'board' || st.scope !== want) return;
-      const list = panel.querySelector('.nbs-list');
-      if (!rows.length) { list.innerHTML = '<div class="nbs-m">NO SCORES YET. BE THE FIRST.</div>'; return; }
-      list.innerHTML = rows.map((r, i) => '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>').join('');
-      const me = list.querySelector('.me'); if (me) me.scrollIntoView({ block: 'nearest' });
+    const list = panel.querySelector('.nbs-list');
+    list.addEventListener('scroll', maybeMore, { passive: true });
+    paintFoc(); fit();
+    loadList();
+  }
+  function paintFoc() {
+    const st = NB._st;
+    panel.querySelectorAll('.nbs-c').forEach((el, i) => { el.classList.toggle('nbs-foc', i === st.foc); if (el.classList.contains('nbs-b')) el.classList.toggle('sel', i === st.foc); });
+  }
+  function pickTab(scope) { const st = NB._st; st.scope = scope; st.view = 'top'; blip(520, 0.04); renderBoard(); }
+  function toggleEvery() {
+    const st = NB._st; blip(620, 0.05);
+    if (st.view === 'every') st.view = 'top'; else { st.view = 'every'; st.scope = 'all'; }
+    renderBoard();
+  }
+  function rowHtml(r, i) {
+    const st = NB._st;
+    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>';
+  }
+  function current() { const st = NB._st; return st.view === 'every' ? 'every' : st.scope; }
+  function loadList() {
+    const st = NB._st, key = current(), C = NB._cache;
+    if (key === 'every') {
+      const E = C.every = C.every || { rows: [], done: false, loading: false, err: false };
+      if (E.rows.length || E.done) return drawList(true);
+      return more();
+    }
+    if (C[key]) return drawList(true);
+    top(st.game, key, 100).then(rows => {
+      C[key] = rows;
+      if (NB._st === st && NB._mode === 'board' && current() === key) drawList(true);
     }).catch(() => {
-      if (!NB._st || NB._mode !== 'board') return;
+      if (NB._st !== st || NB._mode !== 'board' || current() !== key) return;
       panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">COULDN\'T LOAD SCORES.</div>';
     });
   }
+  function drawList(first) {
+    const st = NB._st, key = current(), list = panel.querySelector('.nbs-list'); if (!list) return;
+    const every = key === 'every', E = NB._cache.every;
+    const rows = every ? E.rows : NB._cache[key] || [];
+    if (!rows.length && (!every || E.done)) { list.innerHTML = '<div class="nbs-m">NO SCORES YET. BE THE FIRST.</div>'; return; }
+    const keep = list.scrollTop;
+    let foot = '';
+    if (every) foot = '<div class="nbs-more">' + (E.loading ? 'LOADING MORE...' : E.err ? 'COULDN\'T LOAD MORE &middot; SCROLL TO RETRY' : E.done ? 'END OF LIST &middot; ' + fmt(rows.length) + ' SCORES' : '&#9660; MORE BELOW') + '</div>';
+    list.innerHTML = rows.map(rowHtml).join('') + foot;
+    if (first) { list.scrollTop = 0; const me = list.querySelector('.me'); if (me) me.scrollIntoView({ block: 'nearest' }); }
+    else list.scrollTop = keep;
+  }
+  function more() {
+    const st = NB._st, E = NB._cache.every;
+    if (!E || E.loading || E.done) return;
+    E.loading = true; E.err = false;
+    if (E.rows.length) drawList(false); else panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">LOADING...</div>';
+    page(st.game, E.rows[E.rows.length - 1]).then(rows => {
+      if (NB._cache.every !== E) return;
+      E.loading = false; E.rows = E.rows.concat(rows); if (rows.length < PAGE) E.done = true;
+      if (NB._st === st && NB._mode === 'board' && current() === 'every') { drawList(E.rows.length === rows.length); maybeMore(); }
+    }).catch(() => {
+      if (NB._cache.every !== E) return;
+      E.loading = false; E.err = true;
+      if (NB._st !== st || NB._mode !== 'board' || current() !== 'every') return;
+      if (E.rows.length) drawList(false); else panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">COULDN\'T LOAD SCORES.</div>';
+    });
+  }
+  // load the next 100 once the list is scrolled near its bottom (or is too short to scroll)
+  function maybeMore() {
+    if (!NB._st || NB._mode !== 'board' || current() !== 'every') return;
+    const l = panel.querySelector('.nbs-list'); if (!l) return;
+    if (l.scrollTop + l.clientHeight >= l.scrollHeight - 260) more();
+  }
   function actBoard(a) {
     const st = NB._st;
-    if (a === 'left' || a === 'right' || a === 'lb' || a === 'rb') { st.scope = st.scope === 'week' ? 'all' : 'week'; blip(520, 0.04); return renderBoard(); }
-    if (a === 'up' || a === 'down') { const l = panel.querySelector('.nbs-list'); if (l) l.scrollTop += a === 'down' ? 120 : -120; return; }
-    if (a === 'tab' || a === 'y') { NB._expanded = !NB._expanded; return renderBoard(); }
-    if (a === 'a' || a === 'start' || a === 'b') return close();
+    if (a === 'left' || a === 'right') { st.foc = (st.foc + (a === 'right' ? 1 : 3)) % 4; blip(520, 0.04); return paintFoc(); }
+    if (a === 'lb' || a === 'rb') return pickTab(st.scope === 'week' ? 'all' : 'week');
+    if (a === 'up' || a === 'down') { const l = panel.querySelector('.nbs-list'); if (l) { l.scrollTop += a === 'down' ? 120 : -120; maybeMore(); } return; }
+    if (a === 'tab' || a === 'y' || a === 'x') return toggleEvery();
+    if (a === 'a') { const c = panel.querySelectorAll('.nbs-c')[st.foc]; if (c) c.click(); return; }
+    if (a === 'b') { if (st.view === 'every') return toggleEvery(); return close(); }
+    if (a === 'start') return close();
   }
 })();
 /* NB-SCORES END */

@@ -205,16 +205,30 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
       }],
     }).then(() => id);
   }
+  function rowsOf(res) {
+    return res.filter(r => r.document).map(r => {
+      const f = r.document.fields || {};
+      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
+    });
+  }
   function top(game, scope, limit) {
     return req(':runQuery', {
       structuredQuery: {
         from: [{ collectionId: 'scores' }], where: whereFor(game, scope),
         orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }], limit: limit || 100,
       },
-    }).then(rows => rows.filter(r => r.document).map(r => {
-      const f = r.document.fields || {};
-      return { id: r.document.name.split('/').pop(), name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
-    }));
+    }).then(rowsOf);
+  }
+  // Every all-time score, PAGE at a time. `after` is the last row of the previous page (cursor, so skipped rows aren't billed).
+  const PAGE = 100;
+  function page(game, after) {
+    const q = {
+      from: [{ collectionId: 'scores' }], where: whereFor(game, 'all'),
+      orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }, { field: { fieldPath: '__name__' }, direction: 'DESCENDING' }],
+      limit: PAGE,
+    };
+    if (after) q.startAt = { values: [{ integerValue: String(after.score) }, { referenceValue: after.ref }], before: false };
+    return req(':runQuery', { structuredQuery: q }).then(rowsOf);
   }
   function rank(game, scope, score) {
     return req(':runAggregationQuery', {
@@ -256,6 +270,8 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
 .nbs-li.me span:last-child{color:#0b0620}
 .nbs-li.r1{color:#ffe14d}.nbs-li.r2{color:#e6e6ff}.nbs-li.r3{color:#ffa45c}
 .nbs-hint{font-size:16px;color:#7d72b8;line-height:1.9}
+.nbs-foc{outline:5px solid #fff;outline-offset:5px}
+.nbs-more{font-size:18px;color:#7d72b8;text-align:center;line-height:2.4}
 `;
   let root, panel, dims = { w: 1280, h: 820 };
   function ensureDom() {
@@ -267,6 +283,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     panel = root.firstChild;
     ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'click', 'touchstart', 'touchend', 'wheel', 'contextmenu'].forEach(ev =>
       root.addEventListener(ev, e => e.stopPropagation(), { passive: ev === 'touchstart' || ev === 'touchend' || ev === 'wheel' }));
+    root.addEventListener('pointerdown', e => setDev(e.pointerType === 'touch' ? 'touch' : 'key'), true);
     window.addEventListener('resize', fit);
     window.addEventListener('orientationchange', () => setTimeout(fit, 200));
   }
@@ -280,7 +297,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     panel.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
     panel.classList.toggle('portrait', portrait);
     const list = panel.querySelector('.nbs-list');
-    if (list) list.style.maxHeight = (portrait ? 640 : 330) + (NB._expanded ? (portrait ? 140 : 40) : 0) + 'px';
+    if (list) list.style.maxHeight = (portrait ? 700 : 360) + (panel.querySelector('.nbs-rk') ? 0 : (portrait ? 60 : 50)) + 'px';
   }
 
   // ---------------------------------------------------------------- tiny sound (optional, uses its own context)
@@ -298,14 +315,44 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   // ---------------------------------------------------------------- input while the overlay is open
   // Keyboard is captured before the game sees it. The game must also skip its own menu input
   // while NBScores.active is true (each game checks it), because games poll the controller themselves.
-  const Ctl = { prev: null, held: {}, rep: {} };
-  function padState() {
+  const Ctl = { prev: null, held: {}, rep: {}, ps: false };
+  function firstPad() {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let gp = null; for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+    for (const p of pads || []) if (p && p.connected) return p;
+    return null;
+  }
+  function padState() {
+    const gp = firstPad();
     if (!gp) return null;
+    const id = gp.id || ''; // DualShock 4 reports just "Wireless Controller", but so does "Xbox Wireless Controller"
+    Ctl.ps = /054c|dualsense|dualshock|playstation/i.test(id) || (/wireless controller/i.test(id) && !/xbox|045e/i.test(id));
     const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > 0.5); };
     const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-    return { up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5, a: b(0), b: b(1), start: b(9), lb: b(4), rb: b(5), y: b(3) };
+    return { up: b(12) || ay < -0.5, down: b(13) || ay > 0.5, left: b(14) || ax < -0.5, right: b(15) || ax > 0.5, a: b(0), b: b(1), x: b(2), y: b(3), start: b(9), lb: b(4), rb: b(5) };
+  }
+  // which input the hints describe: the last one used, else a connected controller, else touch/keyboard
+  function setDev(d) { if (NB._dev === d) return; NB._dev = d; const h = panel && panel.querySelector('.nbs-hint'); if (h) h.innerHTML = hintFor(NB._mode); }
+  function dev() {
+    if (NB._dev) return NB._dev;
+    if (firstPad()) return 'pad';
+    return window.matchMedia && window.matchMedia('(pointer: coarse)').matches ? 'touch' : 'key';
+  }
+  // button names: PlayStation names on a PS controller, Xbox letters on anything else
+  const P = (ps, xb) => Ctl.ps ? ps : xb;
+  function hintFor(mode) {
+    const d = dev();
+    if (mode === 'enter') {
+      if (d === 'touch') return 'TAP &#9650; &#9660; TO PICK LETTERS, OR TAP A LETTER TO TYPE';
+      if (d === 'pad') return '&#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; ' + P('CROSS', 'A') + ' NEXT &middot; ' + P('CIRCLE', 'B') + ' BACK &middot; ' + P('OPTIONS', 'START') + ' POST';
+      return 'TYPE YOUR NAME &middot; ENTER = POST';
+    }
+    if (mode === 'board') {
+      if (d === 'touch') return 'TAP A TAB OR BUTTON &middot; SWIPE THE LIST TO SCROLL';
+      if (d === 'pad') return '&#9664;&#9654; PICK &middot; ' + P('CROSS', 'A') + ' PRESS &middot; &#9650;&#9660; SCROLL &middot; ' + P('L1 R1', 'LB RB') + ' TABS<br>' +
+        P('TRIANGLE', 'Y') + ' ALL SCORES &middot; ' + P('CIRCLE', 'B') + ' BACK &middot; ' + P('OPTIONS', 'START') + ' CONTINUE';
+      return '&#9664;&#9654; PICK &middot; ENTER PRESS &middot; &#9650;&#9660; SCROLL<br>TAB ALL SCORES &middot; ESC BACK';
+    }
+    return '';
   }
   function pollPad() {
     const s = padState();
@@ -313,7 +360,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     const p = Ctl.prev || s; // first poll after opening: anything already held doesn't count
     const now = performance.now();
     for (const k in s) {
-      if (s[k] && !p[k]) { Ctl.rep[k] = now + 380; NB._act(k); }
+      if (s[k] && !p[k]) { Ctl.rep[k] = now + 380; setDev('pad'); NB._act(k); }
       else if (s[k] && (k === 'up' || k === 'down' || k === 'left' || k === 'right') && now > (Ctl.rep[k] || 1e15)) { Ctl.rep[k] = now + 110; NB._act(k); }
     }
     Ctl.prev = s;
@@ -332,6 +379,8 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
       if (k === 'KeyW' || k === 'KeyS') act = 'type:' + k.slice(-1);
       if (k === 'Space') act = 'right';
     } else if (k === 'KeyA') act = 'left'; else if (k === 'KeyD') act = 'right';
+    if (NB._mode === 'board' && (k === 'Enter' || k === 'NumpadEnter')) act = 'a'; // Enter presses the highlighted button
+    setDev('key');
     e.preventDefault(); e.stopImmediatePropagation();
     if (act && !e.repeat || (act && /^(up|down|left|right|bs)$/.test(act))) NB._act(act);
   }, true);
@@ -343,8 +392,8 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
 
   // ---------------------------------------------------------------- the overlay
   const NB = {
-    active: false, _mode: null, _expanded: false,
-    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, rank,
+    active: false, _mode: null, _dev: null, _cache: {},
+    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, page, rank,
     exitToArcade() { location.href = ARCADE_URL; },
 
     // After every run: name entry -> post -> board. onClose fires when the player continues.
@@ -363,7 +412,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     showBoard(opt) {
       ensureDom(); open(opt.game);
       NB._st = { game: opt.game, score: null, myId: null, onClose: opt.onClose, scope: opt.scope || 'week', ranks: null };
-      NB._mode = 'board'; NB._expanded = false;
+      NB._mode = 'board';
       renderBoard();
     },
 
@@ -379,7 +428,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   function open(game) {
     const g = GAMES[game] || { color: '#ff4bd8' };
     root.style.setProperty('--nbc', g.color);
-    root.classList.add('on'); NB.active = true; NB._expanded = false;
+    root.classList.add('on'); NB.active = true; NB._cache = {};
     Ctl.prev = padState();
     const unfocus = () => { const a = document.activeElement; if (NB.active && a && a !== document.body && !root.contains(a) && a.blur) a.blur(); };
     unfocus(); setTimeout(unfocus, 60); setTimeout(unfocus, 200);
@@ -411,8 +460,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
       '<div class="nbs-slots">' + slots + '<input id="nbsIn" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false"></div>' +
       '<div class="nbs-e">' + esc(st.err) + '</div>' +
       '<div class="nbs-row"><button class="nbs-b sel" data-ok="1">POST SCORE</button></div>' +
-      '<div class="nbs-hint">' + (touch ? 'TAP &#9650; &#9660; TO PICK LETTERS, OR TAP A LETTER TO TYPE'
-        : 'TYPE YOUR NAME &middot; ENTER = POST<br>CONTROLLER: &#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; A NEXT &middot; B BACK &middot; START POST') + '</div>';
+      '<div class="nbs-hint">' + hintFor('enter') + '</div>';
     panel.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { st.cur = +b.dataset.up; cycle(1); });
     panel.querySelectorAll('[data-dn]').forEach(b => b.onclick = () => { st.cur = +b.dataset.dn; cycle(-1); });
     const inp = panel.querySelector('#nbsIn');
@@ -467,7 +515,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     panel.innerHTML = '<div class="nbs-h">POSTING...</div><div class="nbs-m">' + esc(st.name) + ' &middot; ' + fmt(st.score) + '</div>';
     fit(); blip(880, 0.08);
     post(st.game, st.name, st.score).then(id => {
-      st.myId = id; st.scope = 'week';
+      st.myId = id; st.scope = 'week'; st.view = 'top'; NB._cache = {};
       return Promise.all([rank(st.game, 'week', st.score).catch(() => null), rank(st.game, 'all', st.score).catch(() => null)]);
     }).then(r => {
       if (!NB._st) return;
@@ -491,42 +539,108 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   }
 
   // ---- boards
+  // Both tabs show the top 100. ALL SCORES lists every all-time score, 100 more each time the list nears the bottom.
+  // Lists are kept for as long as the overlay is open, so flipping tabs doesn't re-read them.
+  // Controls in highlight order: THIS WEEK, ALL-TIME, ALL SCORES / TOP 100, CONTINUE.
   function renderBoard() {
     const st = NB._st, g = GAMES[st.game];
-    const posted = st.score != null;
+    st.view = st.view || 'top'; if (st.foc == null) st.foc = 3;
+    const posted = st.score != null, every = st.view === 'every';
     let rk = '';
     if (posted && st.ranks) rk = 'YOU PLACED ' + (st.ranks.week ? '#' + st.ranks.week : '?') + ' THIS WEEK &middot; ' + (st.ranks.all ? '#' + st.ranks.all : '?') + ' ALL-TIME';
+    const sub = st.scope === 'week' ? weekLabel(weekKey()) + ' &middot; TOP 100 &middot; RESETS MONDAY'
+      : every ? 'EVERY SCORE &middot; SINCE THE DOORS OPENED' : 'TOP 100 &middot; SINCE THE DOORS OPENED';
     panel.innerHTML =
       '<div class="nbs-k">' + esc(g.title) + '</div>' +
       '<div class="nbs-h">HIGH SCORES</div>' +
-      (rk ? '<div class="nbs-m">' + rk + '</div>' : '') +
-      '<div class="nbs-tabs"><button class="nbs-tab' + (st.scope === 'week' ? ' on' : '') + '" data-t="week">THIS WEEK</button><button class="nbs-tab' + (st.scope === 'all' ? ' on' : '') + '" data-t="all">ALL-TIME</button></div>' +
-      '<div class="nbs-m" style="font-size:16px;color:#7d72b8">' + (st.scope === 'week' ? weekLabel(weekKey()) + ' &middot; RESETS MONDAY' : 'SINCE THE DOORS OPENED') + '</div>' +
+      (rk ? '<div class="nbs-m nbs-rk">' + rk + '</div>' : '') +
+      '<div class="nbs-tabs"><button class="nbs-tab nbs-c' + (st.scope === 'week' ? ' on' : '') + '" data-t="week">THIS WEEK</button><button class="nbs-tab nbs-c' + (st.scope === 'all' ? ' on' : '') + '" data-t="all">ALL-TIME</button></div>' +
+      '<div class="nbs-m" style="font-size:16px;color:#7d72b8">' + sub + '</div>' +
       '<div class="nbs-list"><div class="nbs-m">LOADING...</div></div>' +
-      '<div class="nbs-row"><button class="nbs-b alt" data-x="1">' + (NB._expanded ? 'TOP 10' : 'SHOW TOP 100') + '</button><button class="nbs-b sel" data-c="1">CONTINUE</button></div>' +
-      '<div class="nbs-hint">&#9664;&#9654; / LB RB: WEEK OR ALL-TIME &middot; &#9650;&#9660; SCROLL &middot; A / ENTER: CONTINUE &middot; Y / TAB: TOP 100</div>';
-    panel.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { st.scope = b.dataset.t; renderBoard(); });
-    panel.querySelector('[data-x]').onclick = () => { NB._expanded = !NB._expanded; renderBoard(); };
+      '<div class="nbs-row"><button class="nbs-b alt nbs-c" data-x="1">' + (every ? 'TOP 100' : 'ALL SCORES') + '</button><button class="nbs-b nbs-c" data-c="1">CONTINUE</button></div>' +
+      '<div class="nbs-hint">' + hintFor('board') + '</div>';
+    panel.querySelectorAll('[data-t]').forEach((b, i) => b.onclick = () => { st.foc = i; pickTab(b.dataset.t); });
+    panel.querySelector('[data-x]').onclick = () => { st.foc = 2; toggleEvery(); };
     panel.querySelector('[data-c]').onclick = close;
-    fit();
-    const want = st.scope, n = NB._expanded ? 100 : 10;
-    top(st.game, want, n).then(rows => {
-      if (!NB._st || NB._mode !== 'board' || st.scope !== want) return;
-      const list = panel.querySelector('.nbs-list');
-      if (!rows.length) { list.innerHTML = '<div class="nbs-m">NO SCORES YET. BE THE FIRST.</div>'; return; }
-      list.innerHTML = rows.map((r, i) => '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>').join('');
-      const me = list.querySelector('.me'); if (me) me.scrollIntoView({ block: 'nearest' });
+    const list = panel.querySelector('.nbs-list');
+    list.addEventListener('scroll', maybeMore, { passive: true });
+    paintFoc(); fit();
+    loadList();
+  }
+  function paintFoc() {
+    const st = NB._st;
+    panel.querySelectorAll('.nbs-c').forEach((el, i) => { el.classList.toggle('nbs-foc', i === st.foc); if (el.classList.contains('nbs-b')) el.classList.toggle('sel', i === st.foc); });
+  }
+  function pickTab(scope) { const st = NB._st; st.scope = scope; st.view = 'top'; blip(520, 0.04); renderBoard(); }
+  function toggleEvery() {
+    const st = NB._st; blip(620, 0.05);
+    if (st.view === 'every') st.view = 'top'; else { st.view = 'every'; st.scope = 'all'; }
+    renderBoard();
+  }
+  function rowHtml(r, i) {
+    const st = NB._st;
+    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>';
+  }
+  function current() { const st = NB._st; return st.view === 'every' ? 'every' : st.scope; }
+  function loadList() {
+    const st = NB._st, key = current(), C = NB._cache;
+    if (key === 'every') {
+      const E = C.every = C.every || { rows: [], done: false, loading: false, err: false };
+      if (E.rows.length || E.done) return drawList(true);
+      return more();
+    }
+    if (C[key]) return drawList(true);
+    top(st.game, key, 100).then(rows => {
+      C[key] = rows;
+      if (NB._st === st && NB._mode === 'board' && current() === key) drawList(true);
     }).catch(() => {
-      if (!NB._st || NB._mode !== 'board') return;
+      if (NB._st !== st || NB._mode !== 'board' || current() !== key) return;
       panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">COULDN\'T LOAD SCORES.</div>';
     });
   }
+  function drawList(first) {
+    const st = NB._st, key = current(), list = panel.querySelector('.nbs-list'); if (!list) return;
+    const every = key === 'every', E = NB._cache.every;
+    const rows = every ? E.rows : NB._cache[key] || [];
+    if (!rows.length && (!every || E.done)) { list.innerHTML = '<div class="nbs-m">NO SCORES YET. BE THE FIRST.</div>'; return; }
+    const keep = list.scrollTop;
+    let foot = '';
+    if (every) foot = '<div class="nbs-more">' + (E.loading ? 'LOADING MORE...' : E.err ? 'COULDN\'T LOAD MORE &middot; SCROLL TO RETRY' : E.done ? 'END OF LIST &middot; ' + fmt(rows.length) + ' SCORES' : '&#9660; MORE BELOW') + '</div>';
+    list.innerHTML = rows.map(rowHtml).join('') + foot;
+    if (first) { list.scrollTop = 0; const me = list.querySelector('.me'); if (me) me.scrollIntoView({ block: 'nearest' }); }
+    else list.scrollTop = keep;
+  }
+  function more() {
+    const st = NB._st, E = NB._cache.every;
+    if (!E || E.loading || E.done) return;
+    E.loading = true; E.err = false;
+    if (E.rows.length) drawList(false); else panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">LOADING...</div>';
+    page(st.game, E.rows[E.rows.length - 1]).then(rows => {
+      if (NB._cache.every !== E) return;
+      E.loading = false; E.rows = E.rows.concat(rows); if (rows.length < PAGE) E.done = true;
+      if (NB._st === st && NB._mode === 'board' && current() === 'every') { drawList(E.rows.length === rows.length); maybeMore(); }
+    }).catch(() => {
+      if (NB._cache.every !== E) return;
+      E.loading = false; E.err = true;
+      if (NB._st !== st || NB._mode !== 'board' || current() !== 'every') return;
+      if (E.rows.length) drawList(false); else panel.querySelector('.nbs-list').innerHTML = '<div class="nbs-m">COULDN\'T LOAD SCORES.</div>';
+    });
+  }
+  // load the next 100 once the list is scrolled near its bottom (or is too short to scroll)
+  function maybeMore() {
+    if (!NB._st || NB._mode !== 'board' || current() !== 'every') return;
+    const l = panel.querySelector('.nbs-list'); if (!l) return;
+    if (l.scrollTop + l.clientHeight >= l.scrollHeight - 260) more();
+  }
   function actBoard(a) {
     const st = NB._st;
-    if (a === 'left' || a === 'right' || a === 'lb' || a === 'rb') { st.scope = st.scope === 'week' ? 'all' : 'week'; blip(520, 0.04); return renderBoard(); }
-    if (a === 'up' || a === 'down') { const l = panel.querySelector('.nbs-list'); if (l) l.scrollTop += a === 'down' ? 120 : -120; return; }
-    if (a === 'tab' || a === 'y') { NB._expanded = !NB._expanded; return renderBoard(); }
-    if (a === 'a' || a === 'start' || a === 'b') return close();
+    if (a === 'left' || a === 'right') { st.foc = (st.foc + (a === 'right' ? 1 : 3)) % 4; blip(520, 0.04); return paintFoc(); }
+    if (a === 'lb' || a === 'rb') return pickTab(st.scope === 'week' ? 'all' : 'week');
+    if (a === 'up' || a === 'down') { const l = panel.querySelector('.nbs-list'); if (l) { l.scrollTop += a === 'down' ? 120 : -120; maybeMore(); } return; }
+    if (a === 'tab' || a === 'y' || a === 'x') return toggleEvery();
+    if (a === 'a') { const c = panel.querySelectorAll('.nbs-c')[st.foc]; if (c) c.click(); return; }
+    if (a === 'b') { if (st.view === 'every') return toggleEvery(); return close(); }
+    if (a === 'start') return close();
   }
 })();
 /* NB-SCORES END */
@@ -667,23 +781,36 @@ const S = {
     'ccccc',
     'ccccc',
     '.c.c.'], { b: '#3a2a20', s: '#f2c39a', k: '#000', c: '#5fe0b7' }),
-  karen: spr([
-    '..yyyyyy..',
-    '.yyyyyyyyy',
-    'yyyssssyyy',
-    'yyskssksyy',
-    '.ysssssy..',
-    '..sRRRs...',
-    '...sss....',
-    '.ppppppp..',
-    'ppppppppp.',
-    'sppppppps.',
-    's.ppppp.s.',
-    '..ppppp...',
-    '..kk.kk...'], { y: '#ffe08a', s: '#f2c39a', k: '#2a1f2e', R: '#d1002a', p: '#7fd1ff' }),
+  karen: null,   // set below from the cabinet Karen frames
 };
 S.hamL = S.ham.map(flipC);
 S.ratL = S.rat.map(flipC);
+// Body The Karen: walk A, walk B, hit (white eyes, mouth wide open). Same look as the in-game sprite.
+const KPAL = { h: '#f2c14e', H: '#c9962a', s: '#f6c48f', k: '#111', w: '#fff', m: '#7a1a1a', b: '#2f6fd1', B: '#2456a6', j: '#2a3f7a', J: '#1f2f5c', z: '#2b2b2b', W: '#ffffff' };
+const KTOP = ['..hhhhh..', '.hhhhhhh.', 'hhHsssHhh', 'hsksssksh', 'hssmmmssh', 'hssmwmssh', 'Hh.sss.hH', '.bbbbbbb.', 'bBbbbbbbb', 'sBbbbbbbs', 's.bbbbb.s', '..jjjjj..'];
+const KHIT = ['..hhhhh..', '.hhhhhhh.', 'hhHsssHhh', 'hswssswsh', 'hssmmmssh', 'hssmmmssh', 'HhsmmmshH', 's.bbbbb.s', 'sBbbbbbbs', '.Bbbbbbb.', '..bbbbb..', '..jjjjj..'];
+const KFR = [
+  KTOP.concat(['..Jj.Jj..', '..jj.jj..', '..jj.jj..', '.zzz.zzz.']),
+  KTOP.concat(['.Jj...jj.', '.jj...jj.', 'jj.....jj', 'zzz...zzz']),
+  KHIT.concat(['..Jj.Jj..', '..jj.jj..', '..jj.jj..', '.zzz.zzz.']),
+];
+// 1px dark outline around a sprite (canvas gets 1px bigger on every side)
+function outlineC(src, col) {
+  const w = src.width + 2, h = src.height + 2, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const x = c.getContext('2d'), d = src.getContext('2d').getImageData(0, 0, src.width, src.height).data;
+  const on = (i, j) => i >= 0 && j >= 0 && i < src.width && j < src.height && d[(j * src.width + i) * 4 + 3] > 0;
+  x.fillStyle = col;
+  for (let j = -1; j <= src.height; j++) for (let i = -1; i <= src.width; i++)
+    if (!on(i, j) && (on(i - 1, j) || on(i + 1, j) || on(i, j - 1) || on(i, j + 1))) x.fillRect(i + 1, j + 1, 1, 1);
+  x.drawImage(src, 1, 1); return c;
+}
+const whiteC = s => { const c = document.createElement('canvas'); c.width = s.width; c.height = s.height; const x = c.getContext('2d'); x.drawImage(s, 0, 0); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); return c; };
+const KAREN = KFR.map(r => outlineC(spr(r, KPAL), O));
+S.karen = KAREN[0];
+// managers per setting (shirt, tie); the CEO gets a dark suit
+const mgrC = (shirt, tie) => outlineC(spr(['..ddd..', '.dsssd.', '.sksks.', '..sss..', '.ccTcc.', 'ccwTwcc', 'scwTwcs', 's.ccc.s', '..ggg..', '..g.g..', '..g.g..', '.zz.zz.'],
+  { d: '#3a2a20', s: '#f6c48f', k: '#111', c: shirt, w: shirt === '#23232b' ? '#fff' : shirt, T: tie, g: '#3a3f4a', z: '#222' }), O);
+const KB = { walk: [dbl(KAREN[0]), dbl(KAREN[1])], hit: dbl(KAREN[2]), flash: dbl(whiteC(KAREN[2])) };
 const B = { ham: S.ham.map(dbl), ratL: S.ratL.map(dbl), baby: dbl(S.baby), parent: dbl(S.parent), van: dbl(S.van), gran: dbl(S.gran), grandson: dbl(S.grandson) };
 
 // ---------------------------------------------------------------- marquee logos (pixel text, code-drawn)
@@ -697,6 +824,12 @@ const FONT = {
   Y: ['10001', '01010', '00100', '00100', '00100'], S: ['01111', '10000', '01110', '00001', '11110'], P: ['11110', '10001', '11110', '10000', '10000'],
   W: ['10001', '10001', '10101', '11011', '10001'], "'": ['1', '1', '0', '0', '0'], '2': ['01110', '10001', '00110', '01000', '11111'],
   '6': ['01110', '10000', '11110', '10001', '01110'], ' ': ['00', '00', '00', '00', '00'], '?': ['01110', '10001', '00110', '00000', '00100'], ':': ['0', '1', '0', '1', '0'],
+  // added for the Body The Karen cabinet lines (and so any future line has the full set)
+  '!': ['1', '1', '1', '0', '1'], V: ['10001', '10001', '10001', '01010', '00100'], J: ['00111', '00010', '00010', '10010', '01100'],
+  Q: ['01110', '10001', '10101', '10010', '01101'], Z: ['11111', '00010', '00100', '01000', '11111'], '-': ['000', '000', '111', '000', '000'], '.': ['0', '0', '0', '0', '1'],
+  '0': ['01110', '10011', '10101', '11001', '01110'], '1': ['010', '110', '010', '010', '111'], '3': ['11110', '00001', '00110', '00001', '11110'],
+  '4': ['10010', '10010', '11111', '00010', '00010'], '5': ['11111', '10000', '11110', '00001', '11110'], '7': ['11111', '00001', '00010', '00100', '00100'],
+  '8': ['01110', '10001', '01110', '10001', '01110'], '9': ['01110', '10001', '01111', '00001', '01110'],
 };
 function pixText(x, str, px, py, col, sc = 1, shadow) {
   let cx = px;
@@ -806,11 +939,144 @@ function gtaScene(x, t) {
   x.drawImage(B.grandson, Math.round(gx), 41);
   if (Math.floor(t * 1.5) % 3 === 0) pixText(x, 'HONK', 76, 30, '#ffcc4d', 1, '#000');
 }
+// Body The Karen attract loop (KD seconds): Karen storms toward the manager while the slingshot pelts her.
+// Most loops she gets folded; about 1 in 4 she reaches the manager first. Each loop is a different store from the game.
+const KD = 4.8, KFY = 82;
+const KSET = [
+  { wall: '#d9cfa8', wallD: '#b3a77f', floor: '#8f949a', floorL: '#b0b5ba', sign: 'SERVICE', signC: '#e53935', mgr: dbl(mgrC('#c62828', '#ffe14d')), props: 'grocery' },
+  { wall: '#6d4c41', wallD: '#4e342e', floor: '#a1887f', floorL: '#bcaaa4', sign: 'MANAGER', signC: '#ffe14d', mgr: dbl(mgrC('#2e7d32', '#ffffff')), props: 'coffee' },
+  { wall: '#7b1f2a', wallD: '#5a1520', floor: '#4e342e', floorL: '#6d4c41', sign: 'OFFICE', signC: '#ffe14d', mgr: dbl(mgrC('#eceff1', '#c62828')), props: 'restaurant' },
+  { wall: '#f48fb1', wallD: '#d0789a', floor: '#e0e0e0', floorL: '#f5f5f5', sign: 'RETURNS', signC: '#7b1fa2', mgr: dbl(mgrC('#7b1fa2', '#111111')), props: 'clothes' },
+  { wall: '#1a2340', wallD: '#121a30', floor: '#37474f', floorL: '#546e7a', sign: 'CEO', signC: '#00e5ff', mgr: dbl(mgrC('#23232b', '#c62828')), props: 'hq' },
+];
+const KLINES = [["I'M CALLING", 'CORPORATE!'], ['DO YOU KNOW', 'WHO I AM?!'], ['EXCUSE ME?!'], ['I HAVE A', 'COUPON!'], ['ONE STAR', 'REVIEW!']];
+const KITEMS = [
+  spr(['.kkk.....', 'kgggk....', 'kgggkkkkk', 'kgggk....', '.kkk.....'], { k: '#222', g: '#666' }),                   // pan
+  spr(['..y..', '.yyyo', 'yyyy.', '.yy..', '.o.o.'], { y: '#ffe14d', o: '#ff8f00' }),                                  // rubber chicken
+  spr(['.kkkk.', 'kssssk', 'kswwsk', 'kssssk', 'kkkkkk'], { k: '#37474f', s: '#cfd8dc', w: '#ffffff' }),                 // toaster
+  spr(['kkkk', 'kkkk', '.w..', '.w..', '.w..'], { k: '#455a64', w: '#8d5a2b' }),                                       // hammer
+  spr(['....y', '...yy', '..yy.', 'yyy..'], { y: '#ffe14d' }),                                                          // banana
+];
+const khash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const SLING = { x: 10, y: 64 };
+function karenBg(x, S2, t) {
+  x.fillStyle = S2.wall; x.fillRect(0, 0, SW, 80);
+  x.fillStyle = S2.wallD; x.fillRect(0, 75, SW, 5);
+  x.fillStyle = S2.floor; x.fillRect(0, 80, SW, 16);
+  x.fillStyle = S2.floorL; for (let i = 0; i < SW; i += 16) x.fillRect(i, 80, 1, 16); x.fillRect(0, 87, SW, 1);
+  const P = S2.props;
+  if (P === 'grocery') {
+    for (const sx of [22, 56]) {
+      x.fillStyle = '#5d4037'; x.fillRect(sx, 30, 30, 45);
+      for (let r = 0; r < 4; r++) {
+        x.fillStyle = '#8d6e63'; x.fillRect(sx, 40 + r * 11, 30, 2);
+        for (let c = 0; c < 6; c++) { x.fillStyle = ['#e53935', '#fdd835', '#43a047', '#1e88e5', '#fb8c00', '#8e24aa'][(c + r * 2 + sx) % 6]; x.fillRect(sx + 2 + c * 5, 34 + r * 11, 3, 6); }
+      }
+    }
+  } else if (P === 'coffee') {
+    x.fillStyle = '#3e2723'; x.fillRect(22, 14, 44, 30); x.fillStyle = '#81d4fa'; x.fillRect(24, 16, 40, 26);
+    x.fillStyle = '#fff'; for (let k = 0; k < 2; k++) { const cx = 24 + ((k * 22 + t * 6) % 52) - 10; x.fillRect(Math.round(cx), 22 + k * 9, 12, 3); x.fillRect(Math.round(cx) + 3, 20 + k * 9, 6, 2); }
+    x.fillStyle = S2.wall; x.fillRect(0, 14, 24, 30); x.fillRect(64, 14, 6, 30);
+    x.fillStyle = '#3e2723'; x.fillRect(43, 14, 2, 30); x.fillRect(22, 28, 44, 2);
+    x.fillStyle = '#ffcc80'; x.fillRect(74, 4, 1, 10); x.fillRect(71, 14, 7, 3); x.fillStyle = '#fff59d'; x.fillRect(72, 17, 5, 1);
+  } else if (P === 'restaurant') {
+    x.fillStyle = '#ffd54f'; x.fillRect(30, 18, 26, 18); x.fillStyle = '#1b5e20'; x.fillRect(32, 20, 22, 14); x.fillStyle = '#ffeb3b'; x.fillRect(40, 24, 6, 6);
+    for (const tx of [26, 62]) { x.fillStyle = '#fff'; x.fillRect(tx, 62, 20, 3); x.fillStyle = '#c62828'; x.fillRect(tx, 65, 20, 5); x.fillStyle = '#3e2723'; x.fillRect(tx + 9, 70, 2, 10); x.fillStyle = '#ffcc80'; x.fillRect(tx + 8, 59, 4, 3); }
+  } else if (P === 'clothes') {
+    for (const rx of [24, 58]) {
+      x.fillStyle = '#9e9e9e'; x.fillRect(rx, 40, 28, 2); x.fillRect(rx + 1, 42, 2, 38); x.fillRect(rx + 25, 42, 2, 38);
+      for (let c = 0; c < 5; c++) { x.fillStyle = ['#26c6da', '#ffee58', '#ab47bc', '#66bb6a', '#ff7043'][(c + rx) % 5]; x.fillRect(rx + 3 + c * 5, 43, 4, 14); }
+    }
+  } else if (P === 'hq') {
+    x.fillStyle = '#0b0f1e'; x.fillRect(18, 10, 64, 40);
+    for (let k = 0; k < 8; k++) { const bh = 12 + (k * 13) % 22; x.fillStyle = '#1f2a48'; x.fillRect(20 + k * 8, 50 - bh, 7, bh); x.fillStyle = '#ffd88a'; if ((k * 5) % 3) x.fillRect(22 + k * 8, 52 - bh, 1, 1); }
+    x.fillStyle = Math.floor(t * 2) % 2 ? '#ff1744' : '#4a0a14'; x.fillRect(51, 22, 2, 2);
+    x.fillStyle = '#90a4ae'; x.fillRect(18, 10, 64, 1); x.fillRect(18, 49, 64, 1); x.fillRect(49, 10, 1, 40);
+  }
+}
 function karenScene(x, t) {
-  for (let i = 0; i < 260; i++) { const v = (Math.random() * 60) | 0; x.fillStyle = `rgb(${v},${v},${v + 20})`; x.fillRect((Math.random() * SW) | 0, (Math.random() * SH) | 0, 2, 2); }
-  x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, 0, SW, SH);
-  x.save(); x.translate(59, 30); x.scale(2, 2); x.drawImage(S.karen, -5, 0); x.restore();
-  pixText(x, 'LET ME SPEAK', 30, 66, '#ffe14d', 1, '#000'); pixText(x, 'TO YOUR MANAGER', 23, 74, '#ffe14d', 1, '#000');
+  const n = Math.floor(t / KD), lt = t - n * KD, S2 = KSET[((n % 5) + 5) % 5];
+  const found = khash(n) < 0.25, line = KLINES[Math.floor(khash(n + 0.5) * KLINES.length)];
+  const T_END = 3.1, v = found ? (86 - 30) / T_END : 11;
+  const kxAt = tt => 30 + v * Math.min(Math.max(tt, 0), T_END);
+  // throws: launch time, item, and what happens (hit body / head, or miss short / long)
+  const plan = found ? ['short', 'body', 'long'] : ['body', khash(n + 0.3) < 0.5 ? 'head' : 'body', 'body', 'head'];
+  const FL = 0.45, throws = plan.map((kind, i) => {
+    const t0 = 0.4 + i * 0.75, ta = t0 + FL, kx = kxAt(ta);
+    const to = kind === 'head' ? [kx + 1, KFY - 30] : kind === 'body' ? [kx, KFY - 19] : kind === 'short' ? [kx - 16, 80] : [kx + 24, 80];
+    return { t0, ta, kind, to, item: KITEMS[(n * 3 + i) % KITEMS.length], h: kind === 'long' ? 46 : 22 + (i % 2) * 8 };
+  });
+  const hits = throws.filter(h => h.kind === 'body' || h.kind === 'head' ? lt >= h.ta : false);
+  const lastHit = hits[hits.length - 1], hp = 4 - hits.length;
+  const koT = found ? Infinity : throws[throws.length - 1].ta, ko = lt >= koT ? Math.min(1, (lt - koT) / 0.35) : 0;
+  const shake = lastHit && lt - lastHit.ta < 0.1 ? (Math.floor(lt * 60) % 2 ? 1 : -1) : 0;
+  x.fillStyle = '#000'; x.fillRect(0, 0, SW, SH);
+  x.save(); x.translate(shake, 0);
+  karenBg(x, S2, t);
+  // manager behind the desk, sign over it
+  const reached = found && lt >= T_END;
+  x.drawImage(S2.mgr, 103, KFY - 28 - (reached && Math.floor(lt * 8) % 2 ? 1 : 0));
+  x.fillStyle = '#6d4c2b'; x.fillRect(97, 66, 31, 16); x.fillStyle = '#8d6e48'; x.fillRect(97, 66, 31, 2); x.fillStyle = '#4e3420'; x.fillRect(99, 70, 27, 1);
+  const sw = textW(S2.sign) + 6, sx = SW - 3 - sw;
+  x.fillStyle = '#111'; x.fillRect(sx, 4, sw, 11); x.fillStyle = S2.signC; x.fillRect(sx + 1, 5, sw - 2, 9);
+  pixText(x, S2.sign, sx + 3, 7, '#111');
+  // slingshot (pulled back just before each throw)
+  const next = throws.find(h => lt < h.t0 && h.t0 - lt < 0.3);
+  x.fillStyle = '#8d5a2b'; x.fillRect(9, 66, 3, 14); x.fillRect(5, 58, 2, 9); x.fillRect(14, 58, 2, 9); x.fillRect(5, 65, 11, 2);
+  const pull = next ? 1 - (next.t0 - lt) / 0.3 : 0, px = Math.round(SLING.x - pull * 6), py = Math.round(SLING.y + pull * 2);
+  x.fillStyle = '#3e2723'; for (const ax of [6, 15]) for (let k = 0; k <= 6; k++) x.fillRect(Math.round(ax + (px - ax) * k / 6), Math.round(59 + (py - 59) * k / 6), 1, 1);
+  if (next) x.drawImage(next.item, px - (next.item.width >> 1), py - (next.item.height >> 1));
+  // misses that already landed stay on the floor
+  for (const h of throws) if ((h.kind === 'short' || h.kind === 'long') && lt >= h.ta) x.drawImage(h.item, Math.round(h.to[0]) - (h.item.width >> 1), 80 - h.item.height + 1);
+  // Karen
+  const kx = Math.round(kxAt(lt));
+  if (ko > 0) {
+    x.save(); x.translate(kx, KFY - 11 * ko); x.rotate(Math.PI / 2 * ko); x.drawImage(KB.hit, -11, -36); x.restore();
+    if (ko >= 1) { // birdies
+      for (let k = 0; k < 3; k++) { const a = lt * 6 + k * 2.1; x.fillStyle = k % 2 ? '#ffe14d' : '#fff'; x.fillRect(Math.round(kx + 30 + Math.cos(a) * 6), Math.round(KFY - 20 + Math.sin(a) * 2), 2, 2); }
+    }
+  } else {
+    const flash = lastHit && lt - lastHit.ta < 0.15;
+    const walking = !reached, f = walking ? Math.floor(lt * 6) % 2 : 0;
+    x.drawImage(flash ? (Math.floor(lt * 30) % 2 ? KB.flash : KB.hit) : KB.walk[f], kx - 11 + (flash ? 1 : 0), KFY - 36 - (walking && f ? 1 : 0));
+    // HP bar
+    x.fillStyle = '#111'; x.fillRect(kx - 9, KFY - 42, 18, 4);
+    x.fillStyle = '#3a0d14'; x.fillRect(kx - 8, KFY - 41, 16, 2);
+    x.fillStyle = hp > 2 ? '#39ff6a' : hp > 1 ? '#ffe14d' : '#ff2a3d'; x.fillRect(kx - 8, KFY - 41, 4 * hp, 2);
+  }
+  // items in flight
+  for (const h of throws) {
+    if (lt < h.t0 || lt >= h.ta) continue;
+    const u = (lt - h.t0) / FL, ix = SLING.x + (h.to[0] - SLING.x) * u, iy = SLING.y + (h.to[1] - SLING.y) * u - h.h * 4 * u * (1 - u);
+    x.save(); x.translate(Math.round(ix), Math.round(iy)); x.rotate(u * 9); x.drawImage(h.item, -(h.item.width >> 1), -(h.item.height >> 1)); x.restore();
+  }
+  // hit debris + popups
+  hits.forEach((h, i) => {
+    const d = lt - h.ta;
+    if (d < 0.5) for (let k = 0; k < 7; k++) {
+      const a = khash(n * 9 + i * 7 + k) * Math.PI * 2, sp = 18 + khash(n + k) * 22;
+      x.fillStyle = k % 2 ? '#fff' : '#ffe14d'; x.fillRect(Math.round(h.to[0] + Math.cos(a) * sp * d), Math.round(h.to[1] + Math.sin(a) * sp * d + 40 * d * d), 1, 1);
+    }
+    if (d < 0.65) {
+      const word = h.kind === 'head' ? 'HEADSHOT!' : ['BONK!', 'THWACK!', 'OOF!', 'WHAM!'][(n + i) % 4];
+      const w = textW(word), wx = Math.max(2, Math.min(SW - 2 - w, Math.round(h.to[0] - w / 2)));
+      pixText(x, word, wx, Math.round(KFY - 48 - d * 12), h.kind === 'head' ? '#ff2a3d' : '#ffe14d', 1, '#000');
+    }
+  });
+  // speech bubble: her line while she walks, the big demand when she reaches the manager
+  const say = reached ? ['I WANT TO SPEAK', 'TO THE MANAGER!'] : lt > 0.15 && lt < 2.1 ? line : null;
+  if (say && ko === 0) {
+    const bw = Math.max(...say.map(s2 => textW(s2))) + 8, bh = say.length * 7 + 5;
+    // walking lines sit left of the sign; the big demand sits under it
+    const by = reached ? 18 : 4, bx = Math.max(2, Math.min((reached ? SW - 2 : sx - 3) - bw, kx - (bw >> 1)));
+    x.fillStyle = '#111'; x.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+    x.fillStyle = '#fff'; x.fillRect(bx, by, bw, bh);
+    const tx = Math.max(bx + 3, Math.min(bx + bw - 6, kx));
+    x.fillStyle = '#111'; x.fillRect(tx - 1, by + bh, 5, 1); x.fillStyle = '#fff'; x.fillRect(tx, by + bh, 3, 2); x.fillRect(tx + 1, by + bh + 2, 1, 2);
+    say.forEach((s2, i) => pixText(x, s2, bx + Math.round((bw - textW(s2)) / 2), by + 3 + i * 7, reached ? '#d1002a' : '#111'));
+  }
+  if (ko >= 1 && Math.floor(lt * 4) % 4 !== 3) { const w = textW('KAREN FOLDED'); pixText(x, 'KAREN FOLDED', Math.round((SW - w) / 2), 12, '#ffe14d', 1, '#000'); }
+  x.restore();
 }
 function cheekyScene(x, t) {
   x.fillStyle = '#0a0614'; x.fillRect(0, 0, SW, SH);
