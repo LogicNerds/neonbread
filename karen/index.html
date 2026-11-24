@@ -43,6 +43,23 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-14px)}75%{transform:translateX(14px)}}
 #over .btn{background:#fff;color:#c4001d;border-color:#fff;box-shadow:0 8px 0 rgba(0,0,0,.3)}
 #over .btn.sel,#over .btn:hover{background:var(--gold);border-color:var(--gold);color:#000}
+/* party mode */
+#nameSlots{display:flex;gap:22px;margin:10px 0 18px}
+.nslot{display:flex;flex-direction:column;align-items:center;gap:10px}
+.nar{font-family:inherit;font-size:28px;width:110px;height:56px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #666;cursor:pointer}
+.nar:hover{border-color:#fff}
+.nch{width:110px;height:130px;display:flex;align-items:center;justify-content:center;font-size:64px;border:6px solid #444;background:rgba(0,0,0,.6)}
+.nch.cur{box-shadow:0 0 24px rgba(255,255,255,.35)}
+#nameErr{min-height:40px;font-size:24px;color:#ff3b3b}
+.nrow{flex-direction:row;gap:30px}.nrow .btn{min-width:300px}
+#resWinner{font-size:52px;margin:-20px 0 30px;text-shadow:4px 4px 0 #000}
+.resTie{font-size:20px;color:var(--gold);margin-top:14px}
+#resTable{border-collapse:collapse;font-size:24px;margin-bottom:24px;background:rgba(0,0,0,.5)}
+#resTable th{font-size:16px;color:#aaa;padding:10px 22px;text-align:left}
+#resTable td{padding:14px 22px;border-top:2px solid rgba(255,255,255,.12)}
+#resTable td.pt{font-size:16px;color:#ddd}#resTable td.ps{color:var(--gold)}#resTable td.pp{color:var(--mint)}
+#resPost{min-height:44px;font-size:20px;color:#9fe3ff;margin-bottom:24px}
+.pname{font-size:30px;margin-bottom:6px}
 #chips{position:absolute;top:22px;right:26px;display:none;gap:16px;z-index:15}
 #chips.on{display:flex}
 .chip{font-family:inherit;font-size:20px;padding:14px 20px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #fff;cursor:pointer}
@@ -620,6 +637,29 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     <div class="menu" id="pauseMenu"></div>
   </div>
 
+  <div class="screen dim" id="partyCount">
+    <h1 class="big">PARTY MODE</h1>
+    <div class="tag">HOW MANY PLAYERS? PASS THE CONTROLLER.</div>
+    <div class="menu" id="partyCountMenu"></div>
+  </div>
+
+  <div class="screen dim" id="names">
+    <h1 class="big" id="namesTitle">PLAYER 1</h1>
+    <div class="tag">ENTER YOUR NAME</div>
+    <div id="nameSlots"></div>
+    <div id="nameErr"></div>
+    <div class="menu nrow"><button class="btn" id="nameDoneBtn">DONE</button><button class="btn mint" id="nameBackBtn">BACK</button></div>
+    <div class="hint" id="namesHint"></div>
+  </div>
+
+  <div class="screen dim" id="results">
+    <h1 class="big">PARTY RESULTS</h1>
+    <div id="resWinner"></div>
+    <table id="resTable"></table>
+    <div id="resPost"></div>
+    <div class="menu" id="resMenu"></div>
+  </div>
+
   <div class="screen" id="clear">
     <div class="endTitle" id="clearTitle"></div>
     <div class="endMsg" id="clearMsg"></div>
@@ -1132,7 +1172,7 @@ function drawLevelBg(c, n, t, ox, oy) {
 const Input = {
   keys: {}, pad: { on: false }, padPrev: {},
   edge: { fire: false, pause: false, prev: false, next: false, skip: false },
-  menu: { up: false, down: false, ok: false, back: false },
+  menu: { up: false, down: false, left: false, right: false, ok: false, back: false },
   drag: null, dragRelease: false, wheel: 0,
 };
 window.addEventListener('keydown', e => {
@@ -1146,6 +1186,8 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE') Input.edge.next = true;
   if (e.code === 'ArrowUp' || e.code === 'KeyW') Input.menu.up = true;
   if (e.code === 'ArrowDown' || e.code === 'KeyS') Input.menu.down = true;
+  if (e.code === 'ArrowLeft') Input.menu.left = true;
+  if (e.code === 'ArrowRight') Input.menu.right = true;
   if (e.code === 'Enter' || e.code === 'Space' || e.code === 'NumpadEnter') Input.menu.ok = true;
   if (e.code === 'Escape' || e.code === 'Backspace') Input.menu.back = true;
   Audio2.unlock();
@@ -1165,6 +1207,7 @@ canvas.addEventListener('pointerdown', e => {
   if (mouse && e.button !== 0) return;
   Audio2.unlock();
   if (window.NBScores && NBScores.active) return;
+  if (G.state === 'turn') { Input.edge.fire = true; return; }   // PASS THE CONTROLLER card: click / tap anywhere
   if (G.state !== 'playing' || Input.drag) return;
   if (G.phase === 'intro') { if (mouse) Input.edge.skip = true; return; }
   if (mouse) {
@@ -1213,7 +1256,7 @@ function pollGamepad() {
   P.up = bt(12); P.down = bt(13); P.left = bt(14); P.right = bt(15);
   const a = bt(0), b = bt(1), start = bt(9), lb = bt(4), rb = bt(5);
   P.a = a;
-  const vUp = P.up || ly < -DEAD, vDown = P.down || ly > DEAD;
+  const vUp = P.up || ly < -DEAD, vDown = P.down || ly > DEAD, hL = P.left || lx < -DEAD, hR = P.right || lx > DEAD;
   if (a && !prev.a) { Input.edge.fire = true; Input.edge.skip = true; Input.menu.ok = true; }
   if (b && !prev.b) Input.menu.back = true;
   if (start && !prev.start) Input.edge.pause = true;
@@ -1221,8 +1264,10 @@ function pollGamepad() {
   if (rb && !prev.rb) Input.edge.next = true;
   if (vUp && !prev.vUp) Input.menu.up = true;
   if (vDown && !prev.vDown) Input.menu.down = true;
+  if (hL && !prev.hL) Input.menu.left = true;
+  if (hR && !prev.hR) Input.menu.right = true;
   if (a || b || start) Audio2.unlock();
-  Input.padPrev = { a, b, start, lb, rb, vUp, vDown };
+  Input.padPrev = { a, b, start, lb, rb, vUp, vDown, hL, hR };
 }
 
 const touchHeld = {};
@@ -1241,6 +1286,8 @@ function setupTouch() {
   bindTouch('tRestart', () => { if (G.state === 'playing') restartGame(); });
   bindTouch('tPrev', () => { Input.edge.prev = true; });
   bindTouch('tNext', () => { Input.edge.next = true; });
+  $('nameDoneBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameDone(); });
+  $('nameBackBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameBack(); });
   $('cPause').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') pauseGame(); });
   $('cRestart').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') restartGame(); });
 }
@@ -1304,6 +1351,9 @@ const Audio2 = {
       case 'fail': [392, 330, 262, 196].forEach((f, i) => this.tone(f, f * 0.97, 0.26, 'square', 0.15, i * 0.22)); break;
       case 'win': [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(f, f, 0.14, 'square', 0.14, i * 0.11)); break;
       case 'empty': this.tone(200, 150, 0.08, 'square', 0.08); break;
+      case 'turn': [523, 784].forEach((f, i) => this.tone(f, f, 0.1, 'triangle', 0.16, i * 0.1)); break;
+      case 'lock': this.tone(880, 1320, 0.08, 'square', 0.12); break;
+      case 'bad': this.tone(220, 160, 0.18, 'square', 0.12); break;
     }
   }
 };
@@ -1325,6 +1375,7 @@ const G = {
   sel: 0, reload: 0, aim: 35, aimMode: 'mouse', kbPulling: false, kbPull: 0,
   banner: null, caption: null, flashScreen: 0,
   lvlScore0: 0, lvlHeads: 0, clearLeft: 0,
+  mode: 'solo', players: null, cur: 0, turnT: 0,
 };
 const Cam = { shake: 0, sx: 0, sy: 0 };
 let karen = null, inv = [], projectiles = [];
@@ -1356,11 +1407,17 @@ function nextUnused(from) {
   return -1;
 }
 
+// SOLO, or (re)start a PARTY game with the same players from player 1.
 function newGame() {
   G.score = 0; G.level = 1; G.headshots = 0; G.best = Best.get();
+  if (G.mode === 'party') {
+    G.players.forEach(pl => { pl.score = 0; pl.level = 0; pl.beat = false; pl.heads = 0; pl.done = false; pl.posted = false; pl.postFail = false; });
+    G.cur = 0; showTurnCard(); return;
+  }
   Audio2.startMusic();
   startLevel(1);
 }
+function startSolo() { G.mode = 'solo'; G.players = null; newGame(); }
 function restartGame() { Audio2.sfx('select'); newGame(); }
 
 function startLevel(n) {
@@ -1471,7 +1528,7 @@ function zoneFor(b, cy) { return b.z === 'arm' && cy < ELBOW_Y ? 'torso' : b.z; 
 function hitKaren(p, zone, at) {
   p.hit = true;
   p.vx = -Math.abs(p.vx) * 0.3 - 0.3; p.vy = Math.min(p.vy, 0) * 0.5 - 0.8; p.spin *= -1.4;
-  const gain = p.base * MULT[zone] * rand(0.9, 1.1);
+  const gain = p.base * MULT[zone] * (G.mode === 'party' ? 1 : rand(0.9, 1.1));   // party: no random swing, same throw = same damage
   const head = zone === 'head';
   let pts = Math.round(gain * 100) + (head ? 250 : 0);
   karen.hp = Math.max(0, karen.hp - gain);
@@ -1589,7 +1646,8 @@ function gameOver(kind) {
     $('overTitle').textContent = 'Karen Found the Manager! 😠';
     $('overMsg').innerHTML = `Time ran out. She still had <b>${karen.hp.toFixed(1)}/${karen.max} HP</b>. Why you no try harder!?`;
   }
-  $('overStats').innerHTML = finalStats(`LEVEL REACHED: ${G.level} &middot; ${LEVELS[G.level - 1].name}<br>`);
+  $('overStats').innerHTML = partyName() + finalStats(`LEVEL REACHED: ${G.level} &middot; ${LEVELS[G.level - 1].name}<br>`);
+  if (G.mode === 'party') { finishPlayer(false); showMenu('over', 'overMenu', partyEndMenu()); return; }
   showMenu('over', 'overMenu', [
     { label: 'TRY AGAIN', action: newGame },
     { label: 'QUIT TO TITLE', action: showTitle },
@@ -1600,12 +1658,217 @@ function victory() {
   G.state = 'win'; setTouchUI(false);
   Audio2.stopMusic(); Audio2.sfx('win');
   const left = G.clearLeft, elapsed = G.lt / 60;
-  $('winStats').innerHTML = finalStats((left <= 1.0 ? 'Karen took the L just as time expired!' : `Karen folded in ${elapsed.toFixed(1)}s.`) + '<br>');
+  $('winStats').innerHTML = partyName() + finalStats((left <= 1.0 ? 'Karen took the L just as time expired!' : `Karen folded in ${elapsed.toFixed(1)}s.`) + '<br>');
+  if (G.mode === 'party') { finishPlayer(true); showMenu('win', 'winMenu', partyEndMenu()); return; }
   showMenu('win', 'winMenu', [
     { label: 'PLAY AGAIN', action: newGame },
     { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' },
   ]);
   if (window.NBScores) NBScores.submit({ game: 'karen', score: G.score });
+}
+
+// =====================================================================
+// PARTY MODE: 2–6 players pass the controller. Each player goes as far as they can through
+// the 5 levels; then the next player is up. Same as Yeet The Baby: names first, every score posts after.
+// =====================================================================
+const PARTY_COLORS = ['#ff6b9d', '#4ecdc4', '#ffd700', '#b18cff', '#ff9f43', '#54a0ff'];
+const curPlayer = () => (G.players && G.players[G.cur]) || null;
+const playerColor = () => (G.mode === 'party' && curPlayer()) ? curPlayer().color : null;
+const partyName = () => G.mode === 'party' && curPlayer() ? `<div class="pname" style="color:${curPlayer().color}">${curPlayer().name}</div>` : '';
+
+function showPartyCount() {
+  G.state = 'menu';
+  const items = [2, 3, 4, 5, 6].map(n => ({ label: n + ' PLAYERS', action: () => startNames(n) }));
+  items.push({ label: 'BACK', action: showTitle, cls: 'mint' });
+  showMenu('partyCount', 'partyCountMenu', items, showTitle);
+}
+
+// ---- name entry (one player at a time). Typing, ▲▼ per slot, controller D-pad.
+const NAME_LEN = 6, NAME_CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const NE = { n: 0, i: 0, chars: [], cur: 0, fresh: true, err: '', names: [] };
+function startNames(n) { NE.n = n; NE.i = 0; NE.names = []; beginName(); }
+function beginName() {
+  NE.chars = ('P' + (NE.i + 1)).padEnd(NAME_LEN, ' ').split(''); NE.cur = 0; NE.fresh = true; NE.err = '';
+  hideScreens(); $('names').classList.add('on'); G.state = 'names'; setTouchUI(false);
+  renderNames();
+}
+function renderNames() {
+  const col = PARTY_COLORS[NE.i];
+  $('namesTitle').innerHTML = `PLAYER ${NE.i + 1} OF ${NE.n}`;
+  $('namesTitle').style.color = col; $('namesTitle').style.textShadow = `0 0 20px ${col}`;
+  let h = '';
+  for (let k = 0; k < NAME_LEN; k++) {
+    h += `<div class="nslot"><button class="nar" data-up="${k}">&#9650;</button><div class="nch${k === NE.cur ? ' cur' : ''}" data-ch="${k}" style="${k === NE.cur ? 'border-color:' + col : ''}">${NE.chars[k] === ' ' ? '&middot;' : NE.chars[k]}</div><button class="nar" data-dn="${k}">&#9660;</button></div>`;
+  }
+  $('nameSlots').innerHTML = h;
+  $('nameErr').textContent = NE.err;
+  $('nameSlots').querySelectorAll('[data-up]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.up; nameCycle(1); });
+  $('nameSlots').querySelectorAll('[data-dn]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.dn; nameCycle(-1); });
+  $('nameSlots').querySelectorAll('[data-ch]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.ch; NE.fresh = false; renderNames(); });
+  $('namesHint').innerHTML = isCoarse() && !Input.pad.on ? 'TAP &#9650; &#9660; TO PICK LETTERS, THEN DONE'
+    : 'TYPE A NAME &middot; ENTER = DONE &middot; BACKSPACE = DELETE<br>CONTROLLER: D-PAD &#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; CROSS NEXT &middot; CIRCLE BACK &middot; OPTIONS DONE';
+}
+function nameCycle(d) {
+  NE.fresh = false; let i = NAME_CHARS.indexOf(NE.chars[NE.cur]); if (i < 0) i = 0;
+  NE.chars[NE.cur] = NAME_CHARS[(i + d + NAME_CHARS.length) % NAME_CHARS.length]; NE.err = ''; Audio2.sfx('select'); renderNames();
+}
+function nameType(c) {
+  if (NE.fresh) { NE.chars = ' '.repeat(NAME_LEN).split(''); NE.cur = 0; NE.fresh = false; }
+  NE.chars[NE.cur] = c; NE.err = ''; NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); Audio2.sfx('select'); renderNames();
+}
+function nameBackspace() {
+  NE.fresh = false;
+  if (NE.chars[NE.cur] === ' ' && NE.cur > 0) NE.cur--;
+  NE.chars[NE.cur] = ' '; renderNames();
+}
+function nameDone() {
+  if (G.state !== 'names') return;
+  const raw = NE.chars.join('').replace(/ /g, '');
+  const clean = window.NBScores ? NBScores.clean(raw) : raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, NAME_LEN);
+  if (!clean) { NE.err = 'PICK AT LEAST ONE LETTER'; Audio2.sfx('bad'); return renderNames(); }
+  if (window.NBScores && NBScores.blocked(clean)) { NE.err = 'THAT NAME IS NOT ALLOWED'; Audio2.sfx('bad'); return renderNames(); }
+  NE.names[NE.i] = clean; Audio2.sfx('lock');
+  if (NE.i < NE.n - 1) { NE.i++; beginName(); return; }
+  G.mode = 'party';
+  G.players = NE.names.map((name, i) => ({ name, color: PARTY_COLORS[i], score: 0, level: 0, beat: false, heads: 0 }));
+  newGame();
+}
+function nameBack() {
+  if (G.state !== 'names') return;
+  if (NE.i > 0) { NE.i--; beginName(); NE.chars = NE.names[NE.i].padEnd(NAME_LEN, ' ').split(''); NE.fresh = false; renderNames(); }
+  else showPartyCount();
+}
+function handleNames() {
+  if (G.state !== 'names') return;
+  if (Input.menu.up) nameCycle(1);
+  if (Input.menu.down) nameCycle(-1);
+  if (Input.menu.left) { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.right) { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.ok) { if (NE.cur === NAME_LEN - 1) nameDone(); else { NE.cur++; NE.fresh = false; renderNames(); } }
+  if (Input.menu.back) { if (NE.cur > 0) { NE.cur--; renderNames(); } else nameBack(); }
+  if (Input.edge.pause) { Input.edge.pause = false; nameDone(); }
+}
+// keyboard typing on the name screen (handled before the normal game keys)
+window.addEventListener('keydown', e => {
+  if (G.state !== 'names' || (window.NBScores && NBScores.active)) return;
+  const k = e.code;
+  e.preventDefault(); e.stopImmediatePropagation(); Audio2.unlock();
+  if (/^Key[A-Z]$/.test(k) || /^Digit[0-9]$/.test(k) || /^Numpad[0-9]$/.test(k)) { if (!e.repeat) nameType(k.slice(-1)); return; }
+  if (k === 'Backspace') return nameBackspace();
+  if (k === 'Enter' || k === 'NumpadEnter') return nameDone();
+  if (k === 'Escape') return nameBack();
+  if (k === 'ArrowLeft') { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowRight' || k === 'Space') { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowUp') return nameCycle(1);
+  if (k === 'ArrowDown') return nameCycle(-1);
+}, true);
+
+// ---- turns
+function showTurnCard() {
+  hideScreens(); cancelPull(); Audio2.stopMusic();
+  G.state = 'turn'; G.turnT = 0; G.banner = null; G.caption = null;
+  setTouchUI(false); clearEdges();
+  Audio2.sfx('turn');
+}
+function updateTurn() {
+  G.t++;
+  if (G.turnT < 30) G.turnT++;
+  else if (Input.edge.fire || Input.edge.skip) { Audio2.sfx('lock'); beginPlayer(); }
+}
+function beginPlayer() {
+  G.score = 0; G.level = 1; G.headshots = 0; G.best = Best.get();
+  Audio2.startMusic();
+  startLevel(1);
+}
+function finishPlayer(beat) {
+  const pl = curPlayer();
+  pl.score = G.score; pl.level = G.level; pl.beat = beat; pl.heads = G.headshots; pl.done = true;
+}
+function nextPlayer() { G.cur++; showTurnCard(); }
+function partyEndMenu() {
+  const nx = G.players[G.cur + 1];
+  return [
+    nx ? { label: 'NEXT PLAYER: ' + nx.name, action: nextPlayer } : { label: 'SEE RESULTS', action: showPartyResults },
+    { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' },
+  ];
+}
+
+// ---- results + posting
+const reach = p => p.beat ? 6 : p.level;   // beating level 5 ranks above dying on it
+const reachLabel = p => p.beat ? 'BEAT ALL 5' : 'L' + p.level + ' ' + LEVELS[p.level - 1].name;
+function partyRanking() {
+  return G.players.slice().sort((a, b) => b.score - a.score || reach(b) - reach(a) || b.heads - a.heads);
+}
+function showPartyResults() {
+  G.state = 'results'; setTouchUI(false);
+  Audio2.stopMusic(); Audio2.sfx('win');
+  const rk = partyRanking();
+  const best = Math.max(...G.players.map(p => p.score));
+  if (best > G.best) { G.best = best; Best.set(best); }
+  const top = rk[0], second = rk[1];
+  const tiedOut = rk.filter(p => p.score === top.score && reach(p) === reach(top) && p.heads === top.heads);
+  let why = '';
+  if (second && second.score === top.score && tiedOut.length < 2)
+    why = reach(second) !== reach(top) ? 'TIED ON SCORE: GETTING FURTHER DECIDES IT' : 'TIED ON SCORE AND LEVEL: HEADSHOTS DECIDE IT';
+  let rows = '';
+  rk.forEach((p, i) => {
+    rows += `<tr><td>${i + 1}</td><td style="color:${p.color}">${p.name}</td><td class="pt">${reachLabel(p)}</td><td>${p.heads}</td><td class="ps">${p.score.toLocaleString('en-US')}</td><td class="pp" data-pp="${G.players.indexOf(p)}"></td></tr>`;
+  });
+  $('resTable').innerHTML = `<tr><th>#</th><th>NAME</th><th>GOT TO</th><th>HEADSHOTS</th><th>SCORE</th><th></th></tr>` + rows;
+  $('resWinner').innerHTML = tiedOut.length > 1
+    ? `&#127942; IT'S A TIE! ` + tiedOut.map(p => `<span style="color:${p.color}">${p.name}</span>`).join(' &amp; ') +
+      `<div class="resTie">SAME SCORE, SAME LEVEL, SAME HEADSHOTS</div>`
+    : `&#127942; <span style="color:${top.color}">${top.name}</span> WINS!` + (why ? `<div class="resTie">${why}</div>` : '');
+  showMenu('results', 'resMenu', [
+    { label: 'PLAY AGAIN', action: newGame },
+    { label: 'HIGH SCORES', action: () => { if (window.NBScores) NBScores.showBoard({ game: 'karen', scope: 'week' }); }, cls: 'mint' },
+    { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' },
+  ]);
+  postPartyScores();
+}
+// every player's score posts under the name they entered at the start
+function postPartyScores() {
+  if (!window.NBScores || !NBScores.post) { $('resPost').textContent = ''; return; }
+  const todo = G.players.filter(p => !p.posted);
+  if (!todo.length) return;
+  $('resPost').innerHTML = 'POSTING SCORES...';
+  const paint = () => G.players.forEach((p, i) => { const c = document.querySelector(`[data-pp="${i}"]`); if (c) c.innerHTML = p.posted ? '&#10003;' : p.postFail ? '&#10007;' : ''; });
+  let chain = Promise.resolve(), fails = 0;
+  todo.forEach(p => {
+    chain = chain.then(() => NBScores.post('karen', p.name, Math.max(0, Math.floor(p.score))))
+      .then(() => { p.posted = true; p.postFail = false; paint(); })
+      .catch(() => { p.postFail = true; fails++; paint(); });
+  });
+  chain.then(() => {
+    if (G.state !== 'results') return;
+    if (!fails) { $('resPost').innerHTML = 'SCORES POSTED TO THE GLOBAL BOARD'; return; }
+    $('resPost').innerHTML = `NO SIGNAL: ${fails} SCORE${fails > 1 ? 'S' : ''} NOT POSTED <button class="chip" id="resRetry">RETRY</button>`;
+    $('resRetry').onclick = e => { e.preventDefault(); postPartyScores(); };
+  });
+}
+
+// ---- party HUD: everyone's totals, current player highlighted
+function drawPartyStrip() {
+  if (G.mode !== 'party' || !G.players) return;
+  const n = G.players.length, w = 1920 / n, y = 106, h = 52;
+  G.players.forEach((p, i) => {
+    const x = i * w, cur = i === G.cur;
+    ctx.fillStyle = cur ? p.color : 'rgba(0,0,0,.55)'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = p.color; ctx.fillRect(x, y + h - 4, w, 4);
+    const score = cur && !p.done ? G.score : p.done ? p.score : null;
+    txt(p.name, x + 20, y + 34, 20, cur ? '#000' : p.color, 'left', !cur);
+    txt(score === null ? '—' : score.toLocaleString('en-US'), x + w - 20, y + 34, 20, cur ? '#000' : '#fff', 'right', !cur);
+  });
+}
+function drawTurnCard() {
+  const p = curPlayer(); if (!p) return;
+  ctx.fillStyle = 'rgba(0,0,0,.78)'; ctx.fillRect(0, 0, 1920, 1080);
+  ctx.fillStyle = p.color; ctx.fillRect(0, 300, 1920, 8); ctx.fillRect(0, 772, 1920, 8);
+  txt('PLAYER ' + (G.cur + 1) + ' OF ' + G.players.length, 960, 400, 34, '#ffffff', 'center');
+  txt(p.name + ", YOU'RE UP!", 960, 520, 84, p.color, 'center');
+  txt('PASS THE CONTROLLER', 960, 620, 40, '#ffffff', 'center');
+  if (G.turnT >= 30 && Math.floor(G.t / 30) % 2 === 0)
+    txt(isCoarse() && !Input.pad.on ? 'TAP ANYWHERE WHEN READY' : 'PRESS CROSS / SPACE / CLICK WHEN READY', 960, 720, 24, '#ffe14d', 'center');
 }
 
 // =====================================================================
@@ -1616,14 +1879,14 @@ function drawSling(c, ox, oy) {
   const pouch = ps ? { x: REST.x - ps.dx * ps.len, y: REST.y - ps.dy * ps.len } : { x: REST.x, y: REST.y };
   const band = (a, b) => {
     const n = Math.max(1, Math.round(Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y))));
-    c.fillStyle = '#5a2a14';
+    c.fillStyle = playerColor() || '#5a2a14';   // party: band in the current player's color
     for (let i = 0; i <= n; i++) c.fillRect(Math.round(lerp(a.x, b.x, i / n) + ox), Math.round(lerp(a.y, b.y, i / n) + oy), 1, 2);
   };
   band(FORK_R, pouch);                                  // back band
   drawSprite(c, S.sling, SX + ox, FY + 1 + oy);
   const it = G.phase === 'play' || G.phase === 'intro' ? loadedItem() : null;
   if (it) drawCentered(c, S.items[it.id], pouch.x + ox, pouch.y + oy - 1, 0);
-  c.fillStyle = '#3e2a14'; c.fillRect(Math.round(pouch.x - 3 + ox), Math.round(pouch.y + oy), 6, 2);
+  c.fillStyle = playerColor() || '#3e2a14'; c.fillRect(Math.round(pouch.x - 3 + ox), Math.round(pouch.y + oy), 6, 2);
   band(FORK_L, pouch);                                  // front band
   // keyboard / controller: small direction marker at the pouch (not a trajectory)
   if (G.aimMode === 'kb' && G.phase === 'play' && it) {
@@ -1647,7 +1910,8 @@ function drawKaren(c, kx, ox, oy, t) {
 }
 function render() {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1920, 1080);
-  if (G.state === 'title' || G.state === 'boot') { renderTitleBg(); return; }
+  if (G.state === 'turn') { renderTitleBg(); drawPartyStrip(); drawTurnCard(); return; }
+  if (G.state === 'title' || G.state === 'boot' || G.state === 'menu' || G.state === 'names' || G.state === 'results' || !karen) { renderTitleBg(); return; }
   const c = wctx, n = G.level, art = buildLevelArt(n);
   const ox = Cam.sx, oy = Cam.sy;
   drawLevelBg(c, n, G.t, ox, oy);
@@ -1670,6 +1934,7 @@ function render() {
   drawFloaters(ox, oy);
   drawOffscreen();
   drawHUD();
+  drawPartyStrip();
   drawItemPanel();
   drawBanner();
   drawCaption();
@@ -1691,13 +1956,14 @@ function drawOffscreen() {
   for (const p of projectiles) {
     if (p.y + p.r >= 0 || p.x < 0 || p.x > VW) continue;
     const x = clamp(p.x * SCALE, 40, 1880);
-    ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(x, 118); ctx.lineTo(x - 18, 146); ctx.lineTo(x + 18, 146); ctx.fill();
+    const ay = G.mode === 'party' ? 56 : 0;   // below the party strip
+    ctx.fillStyle = '#ffe14d'; ctx.beginPath(); ctx.moveTo(x, 118 + ay); ctx.lineTo(x - 18, 146 + ay); ctx.lineTo(x + 18, 146 + ay); ctx.fill();
   }
 }
 function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, 1920, 100);
   ctx.fillStyle = '#ff4081'; ctx.fillRect(0, 100, 1920, 3);
-  txt('SCORE', 34, 44, 18, '#ff4081');
+  txt(G.mode === 'party' && curPlayer() ? curPlayer().name + "'S SCORE" : 'SCORE', 34, 44, 18, playerColor() || '#ff4081');
   txt(String(G.score), 34, 84, 30, '#ffffff');
   const left = G.phase === 'intro' ? G.T / 60 : G.phase === 'ko' ? G.clearLeft : Math.max(0, (G.T - G.lt) / 60);
   txt('TIME', 380, 44, 18, '#00e5ff');
@@ -1800,7 +2066,7 @@ function renderTitleBg() {
 // SCREENS + MENUS (mouse, touch, keyboard and controller all work)
 // =====================================================================
 const Menu = { items: [], idx: 0, onBack: null };
-const SCREENS = ['title', 'pause', 'clear', 'over', 'win'];
+const SCREENS = ['title', 'pause', 'clear', 'over', 'win', 'partyCount', 'names', 'results'];
 function hideScreens() { SCREENS.forEach(s => $(s).classList.remove('on')); Menu.items = []; Menu.onBack = null; }
 function showMenu(screen, boxId, items, onBack) {
   hideScreens();
@@ -1826,14 +2092,15 @@ function handleMenus() {
 }
 function clearEdges() {
   for (const k in Input.edge) Input.edge[k] = false;
-  Input.menu.up = Input.menu.down = Input.menu.ok = Input.menu.back = false;
+  Input.menu.up = Input.menu.down = Input.menu.left = Input.menu.right = Input.menu.ok = Input.menu.back = false;
 }
 
 function showTitle() {
   G.state = 'title'; Audio2.stopMusic(); cancelPull();
   G.best = Best.get();
   showMenu('title', 'titleMenu', [
-    { label: 'START', action: newGame },
+    { label: 'START', action: startSolo },
+    { label: 'PARTY MODE (PASS THE CONTROLLER)', action: showPartyCount },
     { label: 'FULLSCREEN', action: toggleFullscreen, cls: 'mint' },
     { label: 'EXIT TO ARCADE', action: exitToArcade, cls: 'mint' },
   ]);
@@ -1900,6 +2167,7 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 function step() {
   if (window.NBScores && NBScores.active) { clearEdges(); return; }
   if (G.state === 'playing') updatePlaying();
+  else if (G.state === 'turn') updateTurn();
   for (const k in Input.edge) Input.edge[k] = false;
 }
 let last = performance.now(), acc = 0;
@@ -1910,7 +2178,8 @@ function frame(now) {
   if (dt > 0.25) dt = 0.25;
   acc += dt;
   handleMenus();
-  Input.menu.up = Input.menu.down = Input.menu.ok = Input.menu.back = false;
+  if (!(window.NBScores && NBScores.active)) handleNames();
+  Input.menu.up = Input.menu.down = Input.menu.left = Input.menu.right = Input.menu.ok = Input.menu.back = false;
   let n = 0;
   while (acc >= STEP && n < 8) { step(); acc -= STEP; n++; }
   if (n >= 8) acc = 0;

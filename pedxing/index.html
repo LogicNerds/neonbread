@@ -57,6 +57,22 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
 #gPrice{font-size:24px;margin-top:26px;color:var(--sign)}
 #gCash{font-size:22px;margin-top:14px;color:var(--mint)}
 #gMsg{font-size:18px;margin-top:14px;color:#ff6b6b;min-height:24px}
+/* party mode */
+#nameSlots{display:flex;gap:22px;margin:10px 0 18px}
+.nslot{display:flex;flex-direction:column;align-items:center;gap:10px}
+.nar{font-family:inherit;font-size:28px;width:110px;height:56px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #666;cursor:pointer}
+.nar:hover{border-color:#fff}
+.nch{width:110px;height:130px;display:flex;align-items:center;justify-content:center;font-size:64px;border:6px solid #444;background:rgba(0,0,0,.6)}
+.nch.cur{box-shadow:0 0 24px rgba(255,255,255,.35)}
+#nameErr{min-height:40px;font-size:24px;color:#ff3b3b}
+.nrow{flex-direction:row;gap:30px}.nrow .btn{min-width:300px}
+#resWinner,#stWinner{font-size:52px;margin:-20px 0 30px;text-shadow:4px 4px 0 #000}
+.resTie{font-size:20px;color:var(--sign);margin-top:14px}
+.ptable{border-collapse:collapse;font-size:24px;margin-bottom:24px;background:rgba(0,0,0,.5)}
+.ptable th{font-size:16px;color:#aaa;padding:10px 22px;text-align:left}
+.ptable td{padding:14px 22px;border-top:2px solid rgba(255,255,255,.12)}
+.ptable td.pt{font-size:16px;color:#ddd}.ptable td.ps{color:var(--sign)}.ptable td.pp{color:var(--mint)}
+#resPost{min-height:44px;font-size:20px;color:#9fe3ff;margin-bottom:24px}
 #chips{position:absolute;top:22px;right:26px;display:none;gap:16px;z-index:15}
 #chips.on{display:flex}
 .chip{font-family:inherit;font-size:20px;padding:14px 20px;background:rgba(0,0,0,.6);color:#fff;border:4px solid #fff;cursor:pointer}
@@ -673,6 +689,36 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     <div class="menu" id="shiftMenu"></div>
   </div>
 
+  <div class="screen dim" id="partyCount">
+    <h1 class="big">PARTY MODE</h1>
+    <div class="tag">HOW MANY PLAYERS? PASS THE CONTROLLER.<br>A 3-DAY WEEK, 3-MINUTE SHIFTS, EVERYONE DRIVES THE SAME ROADS.</div>
+    <div class="menu" id="partyCountMenu"></div>
+  </div>
+
+  <div class="screen dim" id="names">
+    <h1 class="big" id="namesTitle">PLAYER 1</h1>
+    <div class="tag">ENTER YOUR NAME</div>
+    <div id="nameSlots"></div>
+    <div id="nameErr"></div>
+    <div class="menu nrow"><button class="btn" id="nameDoneBtn">DONE</button><button class="btn mint" id="nameBackBtn">BACK</button></div>
+    <div class="hint" id="namesHint"></div>
+  </div>
+
+  <div class="screen dim" id="standings">
+    <h1 class="big" id="stTitle">STANDINGS</h1>
+    <div id="stWinner"></div>
+    <table class="ptable" id="stTable"></table>
+    <div class="menu" id="stMenu"></div>
+  </div>
+
+  <div class="screen dim" id="results">
+    <h1 class="big">PARTY RESULTS</h1>
+    <div id="resWinner"></div>
+    <table class="ptable" id="resTable"></table>
+    <div id="resPost"></div>
+    <div class="menu" id="resMenu"></div>
+  </div>
+
   <div class="screen" id="week">
     <div class="endTitle">END OF THE WEEK.</div>
     <div class="endMsg" id="weekMsg"></div>
@@ -1140,12 +1186,15 @@ const G = {
   boost: 0, boostT: 0, hornCD: 0, power: null, powerT: 0,
   totals: [], stats: null, gore: 'max', cash: 0, owned: ['compact'], car: 'compact', paints: {},
   spawnZ: 0, pickupZ: 0, penFlash: 0,
+  mode: 'solo', players: null, cur: 0, days: null, pday: 0, turnT: 0,
 };
 const P = { x: 0, z: 0, v: 0, steer: 0, braking: false, bump: 0, scrape: 0 };
 const Cam = { shake: 0 };
 let ents = [], parts = [], floaters = [], blobs = [], wiper = null;
 
-const carDef = () => CARS.find(c => c.id === G.car) || CARS[0];
+const inParty = () => G.mode === 'party' && !G.demo && !!curPlayer();
+const driveId = () => inParty() ? curPlayer().car : G.car;
+const carDef = () => CARS.find(c => c.id === driveId()) || CARS[0];
 const paintOf = id => G.paints[id] != null ? PAINTS[G.paints[id] % PAINTS.length][1] : PAINTS[CARS.findIndex(c => c.id === id) % PAINTS.length][1];
 function loadSave() {
   G.cash = Math.max(0, parseInt(store.get(KEY.cash, '0'), 10) || 0);
@@ -1564,7 +1613,7 @@ function updateWindshield(dt) {
 // =====================================================================
 function honk() {
   if (G.hornCD > 0 || G.phase !== 'drive') return;
-  G.hornCD = 1.0; Audio2.horn(G.car);
+  G.hornCD = 1.0; Audio2.horn(driveId());
   for (const e of ents) {
     if (!isTarget(e) || e.dead) continue;
     const dz = e.z - P.z; if (dz < 1.5 || dz > 45) continue;
@@ -1890,7 +1939,7 @@ function drawEnt(e, S) {
   }
 }
 function drawPlayer(S) {
-  const C = carDef(), img = carSprite(G.car, paintOf(G.car), P.braking);
+  const C = carDef(), img = carSprite(driveId(), inParty() ? curPlayer().color : paintOf(G.car), P.braking);
   const p = proj(P.x, 0, P.z); if (!p) return;
   const sc = p.s / PXM, w = img.width * sc, h = img.height * sc;
   const bob = P.v > 1 ? Math.round(Math.sin(G.simT * 18) * 0.6) : 0;
@@ -1989,10 +2038,11 @@ function drawWindshield() {
   }
 }
 function drawHUD() {
-  const S = SHIFTS[G.shift];
+  const S = SHIFTS[G.shift], party = inParty();
+  ctx.save(); if (party) ctx.translate(0, 52);   // top boxes sit under the party strip
   // score + combo
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(24, 22, 520, G.comboT > 0 ? 170 : 116);
-  txt('SCORE', 44, 38, 20, '#d4ff00');
+  txt(party ? curPlayer().name + "'S SCORE" : 'SCORE', 44, 38, 20, party ? curPlayer().color : '#d4ff00');
   txt(fmt(G.score), 44, 70, 42, '#ffffff');
   if (G.comboT > 0 && G.combo > 0) {
     txt('COMBO x' + G.combo, 44, 130, 26, '#ff2bd6');
@@ -2003,6 +2053,7 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(700, 22, 520, 120);
   txt(S.d + ' · ' + S.name + ' · ' + S.tod, 960, 36, 16, '#00e5ff', 'center');
   txt(m + ':' + String(s).padStart(2, '0'), 960, 66, 54, left <= 10 && Math.floor(left * 2) % 2 ? '#ff2a3d' : '#ffffff', 'center');
+  ctx.restore();
   // speed + boost
   const mph = Math.round(P.v * 2.237);
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(24, 920, 520, 136);
@@ -2029,7 +2080,7 @@ function drawBanners() {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, 360, 1920, 330);
     txt(S.day, 960, 400, 96, '#d4ff00', 'center');
     txt(S.name + ' · ' + S.tod, 960, 530, 36, '#ffffff', 'center');
-    txt(t < 1.6 ? 'GET READY...' : 'GO!', 960, 610, 34, t < 1.6 ? '#00e5ff' : '#ff2bd6', 'center');
+    txt(t < 1.6 ? (inParty() ? curPlayer().name + ', GET READY...' : 'GET READY...') : 'GO!', 960, 610, 34, t < 1.6 ? (inParty() ? curPlayer().color : '#00e5ff') : '#ff2bd6', 'center');
   }
   if (G.phase === 'outro') { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 420, 1920, 200); txt('SHIFT OVER!', 960, 470, 90, '#d4ff00', 'center'); }
   if (G.penFlash > 0 && G.phase === 'drive') {
@@ -2041,10 +2092,12 @@ function render() {
   renderWorld();
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(world, 0, 0, 1920, 1080);
-  if (G.state === 'title' || G.state === 'garage') { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, 1920, 1080); return; }
+  if (G.state === 'turn') { drawPartyStrip(); drawTurnCard(); return; }
+  if (G.state === 'title' || G.state === 'garage' || G.state === 'menu' || G.state === 'names' || G.state === 'standings' || G.state === 'results') { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, 1920, 1080); return; }
   if (G.state === 'shift' || G.state === 'week') return;
   drawWindshield();
   drawHUD();
+  drawPartyStrip();
   drawFloaters();
   drawBanners();
 }
@@ -2186,7 +2239,7 @@ const Music = {
 const Input = {
   keys: {}, touch: { left: false, right: false, gas: false, brake: false },
   pad: { on: false, lx: 0, left: false, right: false, r2: 0, l2: 0, cross: false, square: false }, padPrev: {},
-  edge: { pause: false, horn: false, boost: false },
+  edge: { pause: false, horn: false, boost: false, go: false },
   menu: { up: false, down: false, left: false, right: false, ok: false, back: false },
   dev: 'key',
 };
@@ -2197,6 +2250,7 @@ window.addEventListener('keydown', e => {
   if (e.repeat) return;
   Input.keys[e.code] = true;
   if (e.code === 'Space') Input.edge.horn = true;
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') Input.edge.go = true;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') Input.edge.boost = true;
   if (e.code === 'Escape' || e.code === 'KeyP') Input.edge.pause = true;
   if (e.code === 'KeyF') toggleFullscreen();
@@ -2232,7 +2286,7 @@ function pollGamepad() {
   D.lx = lx; D.left = bt(14); D.right = bt(15); D.r2 = bv(7); D.l2 = bv(6); D.cross = bt(0); D.square = bt(2);
   const cross = bt(0), circle = bt(1), tri = bt(3), opt = bt(9);
   const vUp = bt(12) || ly < -DEAD, vDown = bt(13) || ly > DEAD, hL = D.left || lx < -DEAD, hR = D.right || lx > DEAD;
-  if (cross && !prev.cross) Input.menu.ok = true;
+  if (cross && !prev.cross) { Input.menu.ok = true; Input.edge.go = true; }
   if (circle && !prev.circle) { Input.menu.back = true; Input.edge.horn = true; }
   if (tri && !prev.tri) Input.edge.boost = true;
   if (opt && !prev.opt) Input.edge.pause = true;
@@ -2267,6 +2321,9 @@ function setupTouch() {
   bindTouch('tBrake', () => { Input.touch.brake = true; }, () => { Input.touch.brake = false; });
   bindTouch('tHorn', () => { Input.edge.horn = true; });
   bindTouch('tBoost', () => { Input.edge.boost = true; });
+  $('nameDoneBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameDone(); });
+  $('nameBackBtn').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); nameBack(); });
+  canvas.addEventListener('pointerdown', e => { if (G.state === 'turn' && !(window.NBScores && NBScores.active)) { Audio2.unlock(); Input.edge.go = true; } });
   $('cPause').addEventListener('click', e => { e.preventDefault(); if (G.state === 'playing') pauseGame(); });
   $('gPrev').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); if (Menu.onLR) Menu.onLR(-1); });
   $('gNext').addEventListener('click', e => { e.preventDefault(); Audio2.unlock(); if (Menu.onLR) Menu.onLR(1); });
@@ -2292,7 +2349,7 @@ window.addEventListener('gamepaddisconnected', () => { if (!padKind()) Input.dev
 // MENUS + SCREENS
 // =====================================================================
 const Menu = { items: [], idx: 0, onBack: null, onLR: null };
-const SCREENS = ['title', 'garage', 'pause', 'shift', 'week'];
+const SCREENS = ['title', 'garage', 'pause', 'shift', 'week', 'partyCount', 'names', 'standings', 'results'];
 function hideScreens() { SCREENS.forEach(s => $(s).classList.remove('on')); Menu.items = []; Menu.onBack = null; Menu.onLR = null; }
 function showMenu(screen, boxId, items, onBack, onLR) {
   hideScreens();
@@ -2329,16 +2386,18 @@ const goreLabel = () => 'GORE: ' + (G.gore === 'max' ? 'MAX' : 'LOW');
 function toggleGore() { G.gore = G.gore === 'max' ? 'low' : 'max'; store.set(KEY.gore, G.gore); relabel(); }
 const muteLabel = () => 'SOUND: ' + (Audio2.muted ? 'OFF' : 'ON');
 
-function startDemo() {
-  G.demo = true; G.shift = Math.floor(Math.random() * SHIFTS.length); G.phase = 'drive';
+function startDemo(shift, seed) {
+  G.demo = true; G.shift = shift != null ? shift : Math.floor(Math.random() * SHIFTS.length); G.phase = 'drive';
   G.power = null; G.powerT = 0; G.boostT = 0; G.boost = 0;
-  resetWorld(Math.floor(Math.random() * 1e9)); P.z = 40; P.v = 16; G.spawnZ = P.z + 20;
+  resetWorld(seed != null ? seed : Math.floor(Math.random() * 1e9)); P.z = 40; P.v = 16; G.spawnZ = P.z + 20;
 }
 function showTitle() {
   G.state = 'title'; Music.stop(); Audio2.engineOff(); releaseAllTouch();
+  G.mode = 'solo';
   if (!G.demo) startDemo();
   showMenu('title', 'titleMenu', [
-    { label: 'PLAY', action: startWeek },
+    { label: 'PLAY', action: startSolo },
+    { label: 'PARTY MODE (PASS THE CONTROLLER)', action: showPartyCount },
     { label: 'GARAGE', action: showGarage },
     { label: goreLabel, action: toggleGore, cls: 'mint' },
     { label: 'FULLSCREEN', action: toggleFullscreen, cls: 'mint' },
@@ -2351,6 +2410,7 @@ function showTitle() {
 // --- garage
 let gIdx = 0;
 function showGarage() {
+  $('garage').querySelector('h1').textContent = 'GARAGE'; $('gNav').lastChild.textContent = '\u00a0BROWSE';
   G.state = 'garage'; gIdx = Math.max(0, CARS.findIndex(c => c.id === G.car));
   const C = () => CARS[gIdx];
   const actLabel = () => G.owned.includes(C().id) ? (G.car === C().id ? 'SELECTED' : 'SELECT') : 'BUY $' + fmt(C().price);
@@ -2386,14 +2446,280 @@ function drawGarage() {
   $('gPrice').textContent = G.owned.includes(c.id) ? (G.car === c.id ? 'OWNED · DRIVING THIS ONE' : 'OWNED') : 'PRICE: $' + fmt(c.price);
   $('gCash').textContent = 'CAREER CASH: $' + fmt(G.cash);
 }
+// =====================================================================
+// PARTY MODE: 2–6 players pass the controller. A 3-day week of random settings, 3-minute shifts.
+// Each day every player drives that day's shift in turn, on the same road (same seed).
+// Names first, everyone picks a car they own here, colors are random and paint the car.
+// Party shifts don't earn career cash. Every player's week posts to the global board at the end.
+// =====================================================================
+const PARTY_COLORS = ['#ff6b9d', '#4ecdc4', '#ffd700', '#b18cff', '#ff9f43', '#54a0ff'];
+const PARTY_DAYS = 3;
+const curPlayer = () => (G.players && G.players[G.cur]) || null;
+const shuffled = a => { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
+
+function showPartyCount() {
+  G.state = 'menu';
+  const items = [2, 3, 4, 5, 6].map(n => ({ label: n + ' PLAYERS', action: () => startNames(n) }));
+  items.push({ label: 'BACK', action: showTitle, cls: 'mint' });
+  showMenu('partyCount', 'partyCountMenu', items, showTitle);
+}
+
+// ---- name entry (one player at a time). Typing, ▲▼ per slot, controller D-pad.
+const NAME_LEN = 6, NAME_CHARS = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const NE = { n: 0, i: 0, chars: [], cur: 0, fresh: true, err: '', names: [], colors: [] };
+function startNames(n) { NE.n = n; NE.i = 0; NE.names = []; NE.colors = shuffled(PARTY_COLORS).slice(0, n); beginName(); }
+function beginName() {
+  NE.chars = ('P' + (NE.i + 1)).padEnd(NAME_LEN, ' ').split(''); NE.cur = 0; NE.fresh = true; NE.err = '';
+  hideScreens(); $('names').classList.add('on'); G.state = 'names'; setTouchUI(false);
+  renderNames();
+}
+function renderNames() {
+  const col = NE.colors[NE.i];
+  $('namesTitle').innerHTML = `PLAYER ${NE.i + 1} OF ${NE.n}`;
+  $('namesTitle').style.color = col; $('namesTitle').style.textShadow = `0 0 20px ${col}`;
+  let h = '';
+  for (let k = 0; k < NAME_LEN; k++) {
+    h += `<div class="nslot"><button class="nar" data-up="${k}">&#9650;</button><div class="nch${k === NE.cur ? ' cur' : ''}" data-ch="${k}" style="${k === NE.cur ? 'border-color:' + col : ''}">${NE.chars[k] === ' ' ? '&middot;' : NE.chars[k]}</div><button class="nar" data-dn="${k}">&#9660;</button></div>`;
+  }
+  $('nameSlots').innerHTML = h;
+  $('nameErr').textContent = NE.err;
+  $('nameSlots').querySelectorAll('[data-up]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.up; nameCycle(1); });
+  $('nameSlots').querySelectorAll('[data-dn]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.dn; nameCycle(-1); });
+  $('nameSlots').querySelectorAll('[data-ch]').forEach(b => b.onclick = e => { e.preventDefault(); NE.cur = +b.dataset.ch; NE.fresh = false; renderNames(); });
+  const k = Input.dev === 'pad' ? padKind() : null;
+  $('namesHint').innerHTML = isCoarse() && Input.dev !== 'pad' ? 'TAP &#9650; &#9660; TO PICK LETTERS, THEN DONE'
+    : 'TYPE A NAME &middot; ENTER = DONE &middot; BACKSPACE = DELETE<br>CONTROLLER: D-PAD &#9650;&#9660; LETTER &middot; &#9664;&#9654; MOVE &middot; ' +
+      (k === 'xbox' ? 'A NEXT &middot; B BACK &middot; MENU DONE' : 'CROSS NEXT &middot; CIRCLE BACK &middot; OPTIONS DONE');
+}
+function nameCycle(d) {
+  NE.fresh = false; let i = NAME_CHARS.indexOf(NE.chars[NE.cur]); if (i < 0) i = 0;
+  NE.chars[NE.cur] = NAME_CHARS[(i + d + NAME_CHARS.length) % NAME_CHARS.length]; NE.err = ''; Audio2.sfx('select'); renderNames();
+}
+function nameType(c) {
+  if (NE.fresh) { NE.chars = ' '.repeat(NAME_LEN).split(''); NE.cur = 0; NE.fresh = false; }
+  NE.chars[NE.cur] = c; NE.err = ''; NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); Audio2.sfx('select'); renderNames();
+}
+function nameBackspace() {
+  NE.fresh = false;
+  if (NE.chars[NE.cur] === ' ' && NE.cur > 0) NE.cur--;
+  NE.chars[NE.cur] = ' '; renderNames();
+}
+function nameDone() {
+  if (G.state !== 'names') return;
+  const raw = NE.chars.join('').replace(/ /g, '');
+  const clean = window.NBScores ? NBScores.clean(raw) : raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, NAME_LEN);
+  if (!clean) { NE.err = 'PICK AT LEAST ONE LETTER'; Audio2.sfx('deny'); return renderNames(); }
+  if (window.NBScores && NBScores.blocked(clean)) { NE.err = 'THAT NAME IS NOT ALLOWED'; Audio2.sfx('deny'); return renderNames(); }
+  NE.names[NE.i] = clean; Audio2.sfx('beep');
+  if (NE.i < NE.n - 1) { NE.i++; beginName(); return; }
+  G.players = NE.names.map((name, i) => ({ name, color: NE.colors[i], car: 'compact', score: 0, shifts: [] }));
+  pickCar(0);
+}
+function nameBack() {
+  if (G.state !== 'names') return;
+  if (NE.i > 0) { NE.i--; beginName(); NE.chars = NE.names[NE.i].padEnd(NAME_LEN, ' ').split(''); NE.fresh = false; renderNames(); }
+  else showPartyCount();
+}
+function handleNames() {
+  if (G.state !== 'names') return;
+  if (Input.menu.up) nameCycle(1);
+  if (Input.menu.down) nameCycle(-1);
+  if (Input.menu.left) { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.right) { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; renderNames(); }
+  if (Input.menu.ok) { if (NE.cur === NAME_LEN - 1) nameDone(); else { NE.cur++; NE.fresh = false; renderNames(); } }
+  if (Input.menu.back) { if (NE.cur > 0) { NE.cur--; renderNames(); } else nameBack(); }
+  if (Input.edge.pause) { Input.edge.pause = false; nameDone(); }
+}
+// keyboard typing on the name screen (handled before the normal game keys)
+window.addEventListener('keydown', e => {
+  if (G.state !== 'names' || (window.NBScores && NBScores.active)) return;
+  const k = e.code;
+  e.preventDefault(); e.stopImmediatePropagation(); Audio2.unlock(); Input.dev = 'key';
+  if (/^Key[A-Z]$/.test(k) || /^Digit[0-9]$/.test(k) || /^Numpad[0-9]$/.test(k)) { if (!e.repeat) nameType(k.slice(-1)); return; }
+  if (k === 'Backspace') return nameBackspace();
+  if (k === 'Enter' || k === 'NumpadEnter') return nameDone();
+  if (k === 'Escape') return nameBack();
+  if (k === 'ArrowLeft') { NE.cur = Math.max(0, NE.cur - 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowRight' || k === 'Space') { NE.cur = Math.min(NAME_LEN - 1, NE.cur + 1); NE.fresh = false; return renderNames(); }
+  if (k === 'ArrowUp') return nameCycle(1);
+  if (k === 'ArrowDown') return nameCycle(-1);
+}, true);
+
+// ---- car pick: each player picks from the cars owned on this device, painted in their color
+let pIdx = 0;
+function pickCar(i) {
+  if (G.owned.length <= 1) { G.players.forEach(p => { p.car = G.owned[0] || 'compact'; }); G.mode = 'party'; newPartyWeek(); return; }
+  const pl = G.players[i];
+  G.state = 'menu'; pIdx = Math.max(0, G.owned.indexOf(pl.car));
+  const h = $('garage').querySelector('h1');
+  h.innerHTML = `${pl.name}: PICK YOUR RIDE`;
+  $('gNav').lastChild.textContent = ' BROWSE YOUR CARS';
+  showMenu('garage', 'garageMenu', [
+    { label: 'SELECT', action: () => {
+      pl.car = G.owned[pIdx];
+      if (i < G.players.length - 1) pickCar(i + 1); else { G.mode = 'party'; newPartyWeek(); }
+    } },
+    { label: 'BACK', action: () => { if (i > 0) pickCar(i - 1); else { NE.i = NE.n - 1; beginName(); NE.chars = NE.names[NE.i].padEnd(NAME_LEN, ' ').split(''); NE.fresh = false; renderNames(); } }, cls: 'mint' },
+  ], null, d => { pIdx = (pIdx + d + G.owned.length) % G.owned.length; Audio2.sfx('select'); drawCarPick(i); });
+  h.style.color = pl.color; h.style.textShadow = `0 0 20px ${pl.color}`;
+  drawCarPick(i);
+}
+function drawCarPick(i) {
+  const pl = G.players[i], id = G.owned[pIdx], c = CARS.find(x => x.id === id) || CARS[0], cv = $('gCar'), x = cv.getContext('2d');
+  x.imageSmoothingEnabled = false; x.clearRect(0, 0, cv.width, cv.height);
+  x.fillStyle = '#3a3a44'; x.fillRect(0, 74, 160, 46); x.fillStyle = '#d4ff00'; for (let k = 0; k < 160; k += 20) x.fillRect(k, 96, 10, 2);
+  const img = carSprite(c.id, pl.color, false), k = 4;
+  x.drawImage(img, Math.round(80 - img.width * k / 2), Math.round(100 - img.height * k), img.width * k, img.height * k);
+  $('gName').textContent = c.name + ' (' + (pIdx + 1) + '/' + G.owned.length + ')';
+  $('bSpd').style.width = (c.vmax / 44 * 100) + '%';
+  $('bHnd').style.width = (c.hnd / 7.6 * 100) + '%';
+  $('bWid').style.width = ((c.w - 1.5) / 0.6 * 100) + '%';
+  $('gHorn').textContent = c.horn;
+  $('gPrice').textContent = 'PLAYER ' + (i + 1) + ' OF ' + G.players.length;
+  $('gCash').innerHTML = `<span style="color:${pl.color}">PAINTED IN YOUR COLOR</span>`;
+  $('gMsg').textContent = '';
+}
+
+// ---- the party week
+function newPartyWeek() {
+  G.mode = 'party';
+  G.players.forEach(p => { p.score = 0; p.shifts = []; p.posted = false; p.postFail = false; });
+  const pickIdx = shuffled(SHIFTS.map((s, i) => i)).slice(0, PARTY_DAYS).sort((a, b) => a - b);   // random settings, in week order
+  G.days = pickIdx.map(i => ({ shift: i, seed: Math.floor(Math.random() * 1e9) }));
+  G.pday = 0; G.cur = 0; G.bestCombo = 0;
+  showTurnCard();
+}
+// "PASS THE CONTROLLER" card; behind it, the day's road drives itself
+function showTurnCard() {
+  hideScreens(); Music.stop(); Audio2.engineOff(); releaseAllTouch();
+  const d = G.days[G.pday];
+  startDemo(d.shift, d.seed); P.v = 12;
+  G.state = 'turn'; G.turnT = 0;
+  setTouchUI(false); clearEdges();
+  Audio2.sfx('beep');
+}
+function updateTurn() {
+  if (G.turnT < 30) G.turnT++;
+  else if (Input.edge.go) { Audio2.sfx('go'); beginShift(); }
+}
+function beginShift() {
+  const d = G.days[G.pday], pl = curPlayer();
+  G.shift = d.shift; G.score = pl.score; G.totals = [];
+  startShift(d.seed);
+}
+function endPartyShift() {
+  G.state = 'shift'; Music.stop(); Audio2.engineOff(); releaseAllTouch();
+  const S = SHIFTS[G.shift], pl = curPlayer();
+  pl.score = G.score; pl.shifts[G.pday] = G.shiftScore;
+  Audio2.sfx('cash');
+  const lastPlayer = G.cur === G.players.length - 1, lastDay = G.pday === G.days.length - 1;
+  $('shiftTitle').innerHTML = `<span style="color:${pl.color}">${pl.name}</span>: ${S.day} SHIFT DONE.`;
+  $('shiftMsg').textContent = S.name + ' · ' + S.tod + ' · DAY ' + (G.pday + 1) + ' OF ' + G.days.length + (G.stats.legal + G.stats.animal === 0 ? ' · CLEAN SHIFT. THE CITY THANKS YOU.' : '');
+  $('shiftStats').innerHTML = statRows() +
+    '<div class="row tot"><span>SHIFT TOTAL</span><span class="gold">' + fmt(G.shiftScore) + '</span></div>' +
+    '<div class="row"><span>WEEK SO FAR</span><span>' + fmt(G.score) + '</span></div>';
+  const nx = G.players[G.cur + 1];
+  showMenu('shift', 'shiftMenu', [
+    !lastPlayer ? { label: 'NEXT UP: ' + nx.name, action: () => { G.cur++; showTurnCard(); } }
+      : lastDay ? { label: 'FINAL RESULTS', action: showPartyResults }
+      : { label: 'DAY STANDINGS', action: showStandings },
+    { label: 'QUIT TO TITLE', action: () => { G.demo = false; showTitle(); }, cls: 'mint' },
+  ]);
+}
+const bestShift = p => Math.max(0, ...p.shifts.map(v => v || 0));
+function partyRanking() { return G.players.slice().sort((a, b) => b.score - a.score || bestShift(b) - bestShift(a)); }
+function showStandings() {
+  G.state = 'standings'; startDemo();
+  const S = SHIFTS[G.days[G.pday].shift], rk = partyRanking(), top = rk[0];
+  $('stTitle').textContent = S.day + ' STANDINGS';
+  const leaders = rk.filter(p => p.score === top.score);
+  $('stWinner').innerHTML = leaders.length > 1 ? 'TIED AT THE TOP: ' + leaders.map(p => `<span style="color:${p.color}">${p.name}</span>`).join(' &amp; ')
+    : `<span style="color:${top.color}">${top.name}</span> LEADS`;
+  $('stTable').innerHTML = `<tr><th>#</th><th>NAME</th><th>${S.d}</th><th>WEEK</th></tr>` +
+    rk.map((p, i) => `<tr><td>${i + 1}</td><td style="color:${p.color}">${p.name}</td><td>${fmt(p.shifts[G.pday] || 0)}</td><td class="ps">${fmt(p.score)}</td></tr>`).join('');
+  const next = SHIFTS[G.days[G.pday + 1].shift];
+  showMenu('standings', 'stMenu', [
+    { label: 'NEXT DAY: ' + next.day, action: () => { G.pday++; G.cur = 0; showTurnCard(); } },
+    { label: 'QUIT TO TITLE', action: () => { G.demo = false; showTitle(); }, cls: 'mint' },
+  ]);
+}
+function showPartyResults() {
+  G.state = 'results'; startDemo(); Audio2.sfx('whistle');
+  const rk = partyRanking(), top = rk[0], second = rk[1];
+  const tiedOut = rk.filter(p => p.score === top.score && bestShift(p) === bestShift(top));
+  const tie = second && second.score === top.score;
+  const days = G.days.map(d => SHIFTS[d.shift].d);
+  $('resTable').innerHTML = `<tr><th>#</th><th>NAME</th><th>${days.join(' &middot; ')}</th><th>BEST SHIFT</th><th>WEEK</th><th></th></tr>` +
+    rk.map((p, i) => `<tr><td>${i + 1}</td><td style="color:${p.color}">${p.name}</td><td class="pt">${G.days.map((d, k) => fmt(p.shifts[k] || 0)).join(' &middot; ')}</td><td>${fmt(bestShift(p))}</td><td class="ps">${fmt(p.score)}</td><td class="pp" data-pp="${G.players.indexOf(p)}"></td></tr>`).join('');
+  $('resWinner').innerHTML = tiedOut.length > 1
+    ? `&#127942; IT'S A TIE! ` + tiedOut.map(p => `<span style="color:${p.color}">${p.name}</span>`).join(' &amp; ') + `<div class="resTie">SAME WEEK AND SAME BEST SHIFT (${fmt(bestShift(top))})</div>`
+    : `&#127942; <span style="color:${top.color}">${top.name}</span> WINS!` + (tie ? `<div class="resTie">TIED ON THE WEEK: BEST SHIFT (${fmt(bestShift(top))}) DECIDES IT</div>` : '');
+  showMenu('results', 'resMenu', [
+    { label: 'PLAY AGAIN', action: newPartyWeek },
+    { label: 'HIGH SCORES', action: () => { if (window.NBScores) NBScores.showBoard({ game: 'pedxing', scope: 'week', onClose: nbClosed }); }, cls: 'mint' },
+    { label: 'QUIT TO TITLE', action: () => { G.demo = false; showTitle(); }, cls: 'mint' },
+  ]);
+  postPartyScores();
+}
+// every player's week posts under the name they entered at the start
+function postPartyScores() {
+  if (!window.NBScores || !NBScores.post) { $('resPost').textContent = ''; return; }
+  const todo = G.players.filter(p => !p.posted);
+  if (!todo.length) return;
+  $('resPost').innerHTML = 'POSTING SCORES...';
+  const paintCells = () => G.players.forEach((p, i) => { const c = document.querySelector(`[data-pp="${i}"]`); if (c) c.innerHTML = p.posted ? '&#10003;' : p.postFail ? '&#10007;' : ''; });
+  let chain = Promise.resolve(), fails = 0;
+  todo.forEach(p => {
+    chain = chain.then(() => NBScores.post('pedxing', p.name, Math.max(0, Math.floor(p.score))))
+      .then(() => { p.posted = true; p.postFail = false; paintCells(); })
+      .catch(() => { p.postFail = true; fails++; paintCells(); });
+  });
+  chain.then(() => {
+    if (G.state !== 'results') return;
+    if (!fails) { $('resPost').innerHTML = 'SCORES POSTED TO THE GLOBAL BOARD'; return; }
+    $('resPost').innerHTML = `NO SIGNAL: ${fails} SCORE${fails > 1 ? 'S' : ''} NOT POSTED <button class="chip" id="resRetry">RETRY</button>`;
+    $('resRetry').onclick = e => { e.preventDefault(); postPartyScores(); };
+  });
+}
+
+// ---- party HUD: everyone's week totals across the top, current player highlighted (leaves room for the desktop chips)
+function drawPartyStrip() {
+  if (G.mode !== 'party' || !G.players) return;
+  const n = G.players.length, x0 = 330, w = (1920 - 660) / n, h = 64;
+  G.players.forEach((p, i) => {
+    const x = x0 + i * w, cur = i === G.cur;
+    ctx.fillStyle = cur ? p.color : 'rgba(0,0,0,.6)'; ctx.fillRect(x, 0, w, h);
+    ctx.fillStyle = p.color; ctx.fillRect(x, h - 4, w, 4);
+    const score = cur && G.state === 'playing' ? G.score : p.score;
+    txt(p.name, x + w / 2, 8, 18, cur ? '#000' : p.color, 'center', !cur);
+    txt(fmt(score), x + w / 2, 34, 18, cur ? '#000' : '#fff', 'center', !cur);
+  });
+}
+function drawTurnCard() {
+  const p = curPlayer(); if (!p) return;
+  const S = SHIFTS[G.days[G.pday].shift];
+  ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, 1920, 1080);
+  ctx.fillStyle = p.color; ctx.fillRect(0, 280, 1920, 8); ctx.fillRect(0, 800, 1920, 8);
+  txt('DAY ' + (G.pday + 1) + ' OF ' + G.days.length + ' · ' + S.day + ' · ' + S.name + ' · ' + S.tod, 960, 340, 28, '#d4ff00', 'center');
+  txt('PLAYER ' + (G.cur + 1) + ' OF ' + G.players.length + ' · ' + (CARS.find(c => c.id === p.car) || CARS[0]).name, 960, 410, 26, '#ffffff', 'center');
+  txt(p.name + ", YOU'RE UP!", 960, 490, 84, p.color, 'center');
+  txt('PASS THE CONTROLLER', 960, 620, 40, '#ffffff', 'center');
+  if (G.turnT >= 30 && Math.floor(performance.now() / 500) % 2 === 0) {
+    const k = Input.dev === 'pad' ? padKind() : null;
+    txt(isCoarse() && Input.dev !== 'pad' ? 'TAP ANYWHERE WHEN READY' : k === 'xbox' ? 'PRESS A WHEN READY' : k === 'ps' ? 'PRESS CROSS WHEN READY' : 'PRESS SPACE / ENTER / CLICK WHEN READY', 960, 720, 24, '#d4ff00', 'center');
+  }
+}
+
 // --- the week
+function startSolo() { G.mode = 'solo'; G.players = null; startWeek(); }
 function startWeek() {
+  if (G.mode === 'party') { newPartyWeek(); return; }
   G.score = 0; G.totals = []; G.shift = 0; G.bestCombo = 0;
   startShift();
 }
-function startShift() {
+function startShift(seed) {
   G.demo = false;
-  resetWorld(Math.floor(Math.random() * 1e9));
+  resetWorld(seed != null ? seed : Math.floor(Math.random() * 1e9));
   P.z = 40; G.spawnZ = P.z + 30;
   G.state = 'playing'; G.phase = 'intro'; G.phaseT = 0; G.shiftT = 0;
   G.combo = 0; G.comboT = 0; G.boost = 0; G.boostT = 0; G.power = null; G.powerT = 0; G.hornCD = 0; G.penFlash = 0;
@@ -2463,6 +2789,7 @@ function bankShift() {
   return earned;
 }
 function endShift() {
+  if (G.mode === 'party') { endPartyShift(); return; }
   G.state = 'shift'; Music.stop(); Audio2.engineOff(); releaseAllTouch();
   const S = SHIFTS[G.shift], earned = bankShift(), last = G.shift === SHIFTS.length - 1;
   Audio2.sfx('cash');
@@ -2551,7 +2878,8 @@ window.addEventListener('orientationchange', () => setTimeout(layout, 200));
 // =====================================================================
 function step() {
   if (window.NBScores && NBScores.active) { clearEdges(); return; }
-  if (G.state === 'title' || G.state === 'garage') demoStep();
+  if (G.state === 'title' || G.state === 'garage' || G.state === 'menu' || G.state === 'names' || G.state === 'standings' || G.state === 'results') demoStep();
+  else if (G.state === 'turn') { demoStep(); updateTurn(); }
   else if (G.state === 'playing') updatePlaying();
   for (const k in Input.edge) Input.edge[k] = false;
 }
@@ -2563,6 +2891,7 @@ function frame(now) {
   if (dt > 0.25) dt = 0.25;
   acc += dt;
   handleMenus();
+  if (!(window.NBScores && NBScores.active)) handleNames();
   for (const k of ['up', 'down', 'left', 'right', 'ok', 'back']) Input.menu[k] = false;
   let n = 0;
   while (acc >= STEP && n < 8) { step(); acc -= STEP; n++; }
