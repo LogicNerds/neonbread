@@ -43,9 +43,6 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
 #shift .endTitle{color:var(--sign)}
 #week{background:rgba(20,0,50,.9)}
 #week .endTitle{color:var(--sign)}
-#fired{background:rgba(120,0,20,.92)}
-#fired .endTitle{color:#fff;animation:shake .3s infinite}
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-14px)}75%{transform:translateX(14px)}}
 #garage{background:rgba(8,8,20,.94)}
 #garage h1{font-size:60px;color:var(--sign);margin-bottom:20px;text-shadow:0 0 20px var(--sign)}
 #gWrap{display:flex;gap:70px;align-items:center;margin-bottom:30px}
@@ -683,12 +680,6 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     <div class="menu" id="weekMenu"></div>
   </div>
 
-  <div class="screen" id="fired">
-    <div class="endTitle">YOU'RE FIRED.</div>
-    <div class="endMsg" id="firedMsg"></div>
-    <div class="endStats" id="firedStats"></div>
-    <div class="menu" id="firedMenu"></div>
-  </div>
 </div>
 <script>
 'use strict';
@@ -769,7 +760,7 @@ const VIOL = {
   scooter: { label: 'SCOOTER OUT OF BOUNDS', pts: 500 },
   red:     { label: 'RED LIGHT RUNNER', pts: 750 },
 };
-const PEN_LEGAL = 500, PEN_ANIMAL = 1000, MAX_STRIKES = 5;
+const PEN_LEGAL = 500, PEN_ANIMAL = 1000;
 const LEGAL_LINES = ['HAD THE RIGHT OF WAY!', 'THEY WERE LEGAL!', 'THAT ONE WAS INNOCENT!', 'WRONG PERSON!', 'OBEYING THE LAW, TOO!'];
 const ANIMAL_LINES = { dog: 'THAT WAS SOMEBODY\'S DOG!', cat: 'NOT THE CAT!', duck: 'THE DUCKS DID NOTHING!', crow: 'CROW DOWN!' };
 
@@ -1145,10 +1136,10 @@ function inCrosswalk(e) {
 const G = {
   state: 'boot', phase: 'intro', demo: false,
   shift: 0, simT: 0, shiftT: 0, phaseT: 0,
-  week: 0, score: 0, shiftScore: 0, strikes: 0, combo: 0, comboT: 0, bestCombo: 0,
+  week: 0, score: 0, shiftScore: 0, combo: 0, comboT: 0, bestCombo: 0,
   boost: 0, boostT: 0, hornCD: 0, power: null, powerT: 0,
   totals: [], stats: null, gore: 'max', cash: 0, owned: ['compact'], car: 'compact', paints: {},
-  spawnZ: 0, pickupZ: 0, strikeFlash: 0, strikeGrace: 0,
+  spawnZ: 0, pickupZ: 0, penFlash: 0,
 };
 const P = { x: 0, z: 0, v: 0, steer: 0, braking: false, bump: 0, scrape: 0 };
 const Cam = { shake: 0 };
@@ -1167,7 +1158,7 @@ function loadSave() {
 function saveGarage() { store.set(KEY.cash, G.cash); store.set(KEY.cars, JSON.stringify(G.owned)); store.set(KEY.car, G.car); store.set(KEY.paint, JSON.stringify(G.paints)); }
 const Best = { get() { return parseInt(store.get(KEY.best, '0'), 10) || 0; }, set(v) { store.set(KEY.best, v); } };
 
-function freshStats() { return { hits: {}, pts: {}, legal: 0, animal: 0, lost: 0, bestCombo: 0, total: 0 }; }
+function freshStats() { return { hits: {}, pts: {}, legal: 0, animal: 0, lostLegal: 0, lostAnimal: 0, lost: 0, saved: 0, bestCombo: 0, total: 0 }; }
 function resetWorld(seed) {
   track = []; inters = []; blockN = 0; trng = seeded(seed);
   ents = []; parts = []; floaters = []; blobs = []; wiper = null;
@@ -1490,16 +1481,24 @@ function hit(e) {
     Audio2.sfx('hit', G.combo);
   } else {
     const pen = j.animal ? PEN_ANIMAL : PEN_LEGAL;
-    const lost = Math.min(pen, G.score);
-    G.score -= lost; G.shiftScore -= lost; G.stats.lost += lost;
-    if (j.animal) G.stats.animal++; else G.stats.legal++;
-    G.combo = 0; G.comboT = 0;
-    G.boost = Math.max(0, G.boost - 40);
-    floatWorld(e.x, 2.6, e.z, '-' + fmt(pen), '#ff2a3d', 34);
-    floatWorld(e.x, 3.5, e.z, j.animal ? ANIMAL_LINES[e.k] : pick(LEGAL_LINES), '#ffffff', 18);
-    if (G.power === 'shield') { G.power = null; G.powerT = 0; floatWorld(e.x, 4.3, e.z, 'CLEAN RECORD SAVED YOU', '#00e5ff', 22); Audio2.sfx('shield'); }
-    else if (G.strikeGrace > 0) { /* same pile-up: one strike per crash */ }
-    else { G.strikes++; G.strikeFlash = 1.2; G.strikeGrace = 0.6; Audio2.sfx('strike'); }
+    if (G.power === 'shield') {
+      // Clean Record cancels this penalty completely: no points lost, combo and boost kept
+      G.power = null; G.powerT = 0; G.stats.saved++;
+      floatWorld(e.x, 2.6, e.z, 'PENALTY CANCELLED', '#00e5ff', 30);
+      floatWorld(e.x, 3.5, e.z, 'CLEAN RECORD USED', '#ffffff', 18);
+      Audio2.sfx('shield');
+    } else {
+      if (j.animal) G.stats.animal++; else G.stats.legal++;
+      const lost = Math.min(pen, G.score);
+      G.score -= lost; G.shiftScore -= lost; G.stats.lost += lost;
+      if (j.animal) G.stats.lostAnimal += lost; else G.stats.lostLegal += lost;
+      G.combo = 0; G.comboT = 0;
+      G.boost = Math.max(0, G.boost - 40);
+      G.penFlash = 0.6;
+      floatWorld(e.x, 2.6, e.z, '-' + fmt(pen), '#ff2a3d', 34);
+      floatWorld(e.x, 3.5, e.z, j.animal ? ANIMAL_LINES[e.k] : pick(LEGAL_LINES), '#ffffff', 18);
+      Audio2.sfx('penalty');
+    }
     Audio2.sfx(j.animal ? (e.k === 'duck' || e.k === 'crow' ? 'squawk' : 'yelp') : 'thud');
   }
   // launch the body
@@ -1512,7 +1511,6 @@ function hit(e) {
   goreBurst(body, isAnimal(e) ? 16 : 30);
   if (G.gore === 'max' && P.v > 14 && chance(0.4)) windshield(isAnimal(e) ? 2 : 4);
   if (G.gore === 'low') floatWorld(e.x, 1.6, e.z, pick(['BONK!', 'YEET!', 'OOF!', 'WHAM!']), '#ffe14d', 30);
-  if (G.strikes >= MAX_STRIKES) { G.phase = 'fired'; G.phaseT = 0; Audio2.sfx('fired'); }
 }
 function land(e) {
   const src = e.src;
@@ -1595,8 +1593,7 @@ function updateTimers(dt) {
   if (G.boostT > 0) G.boostT -= dt;
   if (G.comboT > 0) { G.comboT -= dt; if (G.comboT <= 0) G.combo = 0; }
   if (G.power && POWER[G.power].secs > 0) { G.powerT -= dt; if (G.powerT <= 0) { G.power = null; G.powerT = 0; } }
-  if (G.strikeFlash > 0) G.strikeFlash -= dt;
-  if (G.strikeGrace > 0) G.strikeGrace -= dt;
+  if (G.penFlash > 0) G.penFlash -= dt;
 }
 
 // =====================================================================
@@ -2006,16 +2003,6 @@ function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(700, 22, 520, 120);
   txt(S.d + ' · ' + S.name + ' · ' + S.tod, 960, 36, 16, '#00e5ff', 'center');
   txt(m + ':' + String(s).padStart(2, '0'), 960, 66, 54, left <= 10 && Math.floor(left * 2) % 2 ? '#ff2a3d' : '#ffffff', 'center');
-  // strikes (under the restart / pause chips)
-  const sy0 = isCoarse() ? 22 : 104;
-  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(1440, sy0, 456, 92);
-  txt('STRIKES', 1460, sy0 + 14, 18, '#ff6b6b');
-  for (let i = 0; i < MAX_STRIKES; i++) {
-    const x = 1460 + i * 84, y = sy0 + 44, on = i < G.strikes;
-    ctx.fillStyle = on ? '#ff2a3d' : '#2a2a2a'; ctx.fillRect(x, y, 66, 34);
-    ctx.strokeStyle = on ? '#fff' : '#555'; ctx.lineWidth = 4; ctx.strokeRect(x, y, 66, 34);
-    if (on) txt('X', x + 33, y + 6, 22, '#fff', 'center', false);
-  }
   // speed + boost
   const mph = Math.round(P.v * 2.237);
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(24, 920, 520, 136);
@@ -2045,11 +2032,8 @@ function drawBanners() {
     txt(t < 1.6 ? 'GET READY...' : 'GO!', 960, 610, 34, t < 1.6 ? '#00e5ff' : '#ff2bd6', 'center');
   }
   if (G.phase === 'outro') { ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(0, 420, 1920, 200); txt('SHIFT OVER!', 960, 470, 90, '#d4ff00', 'center'); }
-  if (G.phase === 'fired') { ctx.fillStyle = 'rgba(120,0,20,.6)'; ctx.fillRect(0, 0, 1920, 1080); txt('STRIKE FIVE.', 960, 430, 96, '#ffffff', 'center'); txt('HR WANTS A WORD.', 960, 570, 40, '#ffd0d0', 'center'); }
-  if (G.strikeFlash > 0 && G.phase === 'drive') {
-    const a = clamp(G.strikeFlash / 1.2, 0, 1);
-    ctx.strokeStyle = 'rgba(255,42,61,' + a + ')'; ctx.lineWidth = 40; ctx.strokeRect(20, 20, 1880, 1040);
-    ctx.globalAlpha = a; txt('STRIKE ' + G.strikes + '!', 960, 300, 80, '#ff2a3d', 'center'); ctx.globalAlpha = 1;
+  if (G.penFlash > 0 && G.phase === 'drive') {
+    ctx.strokeStyle = 'rgba(255,42,61,' + clamp(G.penFlash / 0.6, 0, 1) + ')'; ctx.lineWidth = 40; ctx.strokeRect(20, 20, 1880, 1040);
   }
 }
 function render() {
@@ -2058,7 +2042,7 @@ function render() {
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(world, 0, 0, 1920, 1080);
   if (G.state === 'title' || G.state === 'garage') { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(0, 0, 1920, 1080); return; }
-  if (G.state === 'shift' || G.state === 'week' || G.state === 'fired') return;
+  if (G.state === 'shift' || G.state === 'week') return;
   drawWindshield();
   drawHUD();
   drawFloaters();
@@ -2144,8 +2128,7 @@ const Audio2 = {
       case 'poof': this.noise(0.18, 0.18, 2400, 0, 'bandpass'); this.tone(500, 1200, 0.15, 'triangle', 0.08); break;
       case 'yelp': this.tone(900, 1500, 0.08, 'sawtooth', 0.1); this.tone(1400, 700, 0.18, 'sawtooth', 0.1, 0.08); break;
       case 'squawk': this.tone(700, 1100, 0.1, 'sawtooth', 0.12); this.tone(1100, 600, 0.14, 'sawtooth', 0.1, 0.1); break;
-      case 'strike': this.tone(140, 130, 0.45, 'square', 0.2); this.tone(147, 137, 0.45, 'sawtooth', 0.12); break;
-      case 'fired': [392, 330, 262, 196].forEach((f, i) => this.tone(f, f * 0.97, 0.3, 'square', 0.16, i * 0.25)); break;
+      case 'penalty': this.tone(140, 130, 0.35, 'square', 0.18); this.tone(147, 137, 0.35, 'sawtooth', 0.1); break;
       case 'bump': this.noise(0.15, 0.35, 260); this.tone(110, 60, 0.15, 'square', 0.14); break;
       case 'power': [660, 880, 1100, 1320].forEach((f, i) => this.tone(f, f, 0.06, 'square', 0.1, i * 0.05)); break;
       case 'boost': this.noise(0.6, 0.25, 900, 0, 'bandpass'); this.tone(200, 900, 0.5, 'sawtooth', 0.1); break;
@@ -2297,7 +2280,7 @@ function hintHTML() {
   if (isCoarse()) return '&#9664; &#9654; STEER &middot; GAS / BRAKE<br>HORN SCARES PEOPLE OFF THE ROAD &middot; BOOST WHEN THE METER IS FULL';
   return '&larr; &rarr; / A D STEER &middot; &uarr; / W GAS &middot; &darr; / S BRAKE<br>SPACE HORN &middot; SHIFT BOOST &middot; ESC PAUSE &middot; F FULLSCREEN';
 }
-const RULES = 'HIT PEOPLE WHO ARE BREAKING THE RULES. LEGAL PEOPLE OR ANY ANIMAL = A STRIKE. 5 STRIKES AND YOU\'RE FIRED.';
+const RULES = 'HIT PEOPLE WHO ARE BREAKING THE RULES. HITTING A LEGAL PERSON COSTS 500. ANY ANIMAL COSTS 1,000.';
 function refreshHints() {
   if ($('title').classList.contains('on')) $('titleHint').innerHTML = hintHTML() + '<br><span style="color:#ff6b6b">' + RULES + '</span>';
   if ($('pause').classList.contains('on')) $('pauseHint').innerHTML = hintHTML();
@@ -2309,7 +2292,7 @@ window.addEventListener('gamepaddisconnected', () => { if (!padKind()) Input.dev
 // MENUS + SCREENS
 // =====================================================================
 const Menu = { items: [], idx: 0, onBack: null, onLR: null };
-const SCREENS = ['title', 'garage', 'pause', 'shift', 'week', 'fired'];
+const SCREENS = ['title', 'garage', 'pause', 'shift', 'week'];
 function hideScreens() { SCREENS.forEach(s => $(s).classList.remove('on')); Menu.items = []; Menu.onBack = null; Menu.onLR = null; }
 function showMenu(screen, boxId, items, onBack, onLR) {
   hideScreens();
@@ -2413,7 +2396,7 @@ function startShift() {
   resetWorld(Math.floor(Math.random() * 1e9));
   P.z = 40; G.spawnZ = P.z + 30;
   G.state = 'playing'; G.phase = 'intro'; G.phaseT = 0; G.shiftT = 0;
-  G.strikes = 0; G.combo = 0; G.comboT = 0; G.boost = 0; G.boostT = 0; G.power = null; G.powerT = 0; G.hornCD = 0; G.strikeFlash = 0; G.strikeGrace = 0;
+  G.combo = 0; G.comboT = 0; G.boost = 0; G.boostT = 0; G.power = null; G.powerT = 0; G.hornCD = 0; G.penFlash = 0;
   G.shiftScore = 0; G.stats = freshStats();
   hideScreens(); clearEdges(); setTouchUI(true);
   // pre-populate the first stretch of road
@@ -2436,7 +2419,6 @@ function updatePlaying() {
     if (G.shiftT >= SHIFT_SECS) { G.shiftT = SHIFT_SECS; G.phase = 'outro'; G.phaseT = 0; Audio2.sfx('whistle'); }
   }
   if (G.phase === 'outro' && G.phaseT > 2.2) { endShift(); return; }
-  if (G.phase === 'fired' && G.phaseT > 2.4) { firedEnd(); return; }
   G.simT += dtw;
   updatePlayer(dtw);
   playerVsCars();
@@ -2468,9 +2450,9 @@ function statRows() {
     rows.push('<div class="row"><span>' + VIOL[key].label + (ph ? ' (PHONE x2)' : '') + ' &times; ' + n + '</span><span class="gold">+' + fmt(st.pts[k]) + '</span></div>');
   }
   if (!rows.length) rows.push('<div class="row"><span>VIOLATORS HIT</span><span>0</span></div>');
-  if (st.legal) rows.push('<div class="row"><span class="bad">LEGAL PEOPLE HIT &times; ' + st.legal + '</span><span class="bad">STRIKE' + (st.legal > 1 ? 'S' : '') + '</span></div>');
-  if (st.animal) rows.push('<div class="row"><span class="bad">ANIMALS HIT &times; ' + st.animal + '</span><span class="bad">STRIKE' + (st.animal > 1 ? 'S' : '') + '</span></div>');
-  if (st.lost) rows.push('<div class="row"><span class="bad">POINTS LOST</span><span class="bad">-' + fmt(st.lost) + '</span></div>');
+  if (st.legal) rows.push('<div class="row"><span class="bad">LEGAL PEOPLE HIT &times; ' + st.legal + '</span><span class="bad">-' + fmt(st.lostLegal) + '</span></div>');
+  if (st.animal) rows.push('<div class="row"><span class="bad">ANIMALS HIT &times; ' + st.animal + '</span><span class="bad">-' + fmt(st.lostAnimal) + '</span></div>');
+  if (st.saved) rows.push('<div class="row"><span style="color:#00e5ff">PENALTIES CANCELLED (CLEAN RECORD) &times; ' + st.saved + '</span><span style="color:#00e5ff">0</span></div>');
   rows.push('<div class="row"><span>BEST COMBO</span><span>x' + (st.bestCombo || 0) + '</span></div>');
   return rows.join('');
 }
@@ -2510,18 +2492,6 @@ function weekEnd() {
     '<div class="row"><span>CAREER CASH</span><span style="color:#00e5ff">$' + fmt(G.cash) + '</span></div>';
   showMenu('week', 'weekMenu', [
     { label: 'PLAY AGAIN', action: startWeek },
-    { label: 'QUIT TO TITLE', action: () => { G.demo = false; showTitle(); }, cls: 'mint' },
-  ]);
-  if (window.NBScores) NBScores.submit({ game: 'pedxing', score: G.score, onClose: nbClosed });
-}
-function firedEnd() {
-  G.state = 'fired'; Music.stop(); Audio2.engineOff(); releaseAllTouch();
-  const S = SHIFTS[G.shift]; bankShift();
-  $('firedMsg').textContent = 'Five strikes on ' + S.day + ' in ' + (S.name === 'DOWNTOWN' ? 'downtown' : 'the ' + S.name.toLowerCase()) + '. Turn in your keys.';
-  $('firedStats').innerHTML = finalRows() + '<div class="row tot"><span>WEEK TOTAL</span><span class="gold">' + fmt(G.score) + '</span></div>' + newBestLine() +
-    '<div class="row"><span>CAREER CASH</span><span style="color:#00e5ff">$' + fmt(G.cash) + '</span></div>';
-  showMenu('fired', 'firedMenu', [
-    { label: 'TRY AGAIN', action: startWeek },
     { label: 'QUIT TO TITLE', action: () => { G.demo = false; showTitle(); }, cls: 'mint' },
   ]);
   if (window.NBScores) NBScores.submit({ game: 'pedxing', score: G.score, onClose: nbClosed });
