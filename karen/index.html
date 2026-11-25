@@ -159,13 +159,14 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     for (let i = 0; i < 20; i++) s += a[r[i] % a.length];
     return s;
   }
-  function post(game, name, score) {
-    const id = newId();
+  function post(game, name, score, cheat) {
+    const id = newId(), fields = { game: sv(game), name: sv(name), score: { integerValue: String(score) }, week: sv(weekKey()) };
+    if (cheat) fields.cheat = { booleanValue: true };
     return req(':commit', {
       writes: [{
         update: {
           name: 'projects/' + PROJECT + '/databases/(default)/documents/scores/' + id,
-          fields: { game: sv(game), name: sv(name), score: { integerValue: String(score) }, week: sv(weekKey()) },
+          fields,
         },
         updateTransforms: [{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }],
         currentDocument: { exists: false },
@@ -175,7 +176,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   function rowsOf(res) {
     return res.filter(r => r.document).map(r => {
       const f = r.document.fields || {};
-      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
+      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0), cheat: !!(f.cheat && f.cheat.booleanValue) };
     });
   }
   function top(game, scope, limit) {
@@ -216,7 +217,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       .formatToParts(d || new Date()).forEach(x => { p[x.type] = x.value; });
     return p.year + '-' + p.month + '-' + p.day;
   }
-  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, golden: 0, runs: 0 }; }
+  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, cheats: {}, golden: 0, runs: 0 }; }
   function tkLoad() {
     try { const w = JSON.parse(localStorage.getItem(TK_KEY) || 'null'); if (w && typeof w.bal === 'number') return Object.assign(tkBlank(), w); } catch (e) { }
     return tkBlank();
@@ -238,12 +239,30 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     buy(id, price) { const w = tkLoad(); if (w.owned[id] || w.bal < price) return false; w.bal -= price; w.spent += price; w.owned[id] = Date.now(); tkSave(w); return true; },
     equipped(game, slot) { const e = tkLoad().equip[game] || {}; return slot ? e[slot] || null : e; },
     setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
-    // work out what a finished run pays (doesn't save)
-    quote(game, score, ranks, feats) {
+    // ---- cheat cards: codes live in w.owned like any prize; w.cheats[id] = switched on
+    cheatsFor(game) { return Tickets.catalog.filter(i => i.cheat && i.game === game); },
+    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !w.owned[i.id]).length; },
+    // buy an envelope: takes the tickets and reveals one code you don't have yet, at random
+    openEnvelope(game) {
+      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !w.owned[i.id]);
+      if (!env || !left.length || w.bal < env.price) return null;
+      const got = left[Math.floor(Math.random() * left.length)];
+      w.bal -= env.price; w.spent += env.price; w.owned[got.id] = Date.now(); tkSave(w); return got;
+    },
+    cheatOn(game, key) {
+      const id = 'cheat.' + game + '.' + key, w = tkLoad();
+      if (w.owned[id] && w.cheats && w.cheats[id]) return true;
+      const it = Tickets.item(id); return !!(it && it.freeDay && it.freeDay === pacificDay());   // free for everyone that day
+    },
+    setCheat(id, on) { const w = tkLoad(); w.cheats = w.cheats || {}; if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w); },
+    // a run with any gameplay (T) code switched on is tagged on the leaderboard
+    tagged(game) { return Tickets.cheatsFor(game).some(i => i.tag && Tickets.cheatOn(game, i.id.split('.')[2])); },
+    // work out what a finished run pays (doesn't save). A tagged run can't set a personal best.
+    quote(game, score, ranks, feats, tagged) {
       const w = tkLoad(), lines = [];
       const base = Math.max(TK.min, Math.min(TK.max, Math.round(score / (TK_RATE[game] || 1000))));
       lines.push({ t: 'RUN PAYOUT', n: base });
-      if (score > 0 && score > (w.best[game] || 0)) lines.push({ t: 'NEW PERSONAL BEST', n: TK.best });
+      if (!tagged && score > 0 && score > (w.best[game] || 0)) lines.push({ t: 'NEW PERSONAL BEST', n: TK.best });
       if (ranks && ranks.week && ranks.week <= 10) lines.push({ t: 'WEEKLY TOP 10', n: TK.top10 });
       if (w.day[game] !== pacificDay()) lines.push({ t: 'FIRST RUN TODAY', n: TK.firstToday });
       (feats || []).forEach(f => { if (f && f.n > 0) lines.push({ t: String(f.t), n: Math.floor(f.n) }); });
@@ -251,10 +270,10 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       return { lines, total: lines.reduce((a, l) => a + l.n, 0) };
     },
     // pay it out: one save, so closing the page during the animation loses nothing
-    payRun(game, score, q) {
+    payRun(game, score, q, tagged) {
       const w = tkLoad();
       w.bal += q.total; w.earned += q.total; w.runs++;
-      w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
+      if (!tagged) w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
       if (q.lines.some(l => l.gold)) w.golden++;
       tkSave(w); return w.bal;
     },
@@ -315,7 +334,23 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   add('pedxing', 'livery', [['student', 'STUDENT DRIVER', 300], ['stripes', 'RACING STRIPES', 400], ['camo', 'CAMO', 400], ['checker', 'CHECKERBOARD', 500], ['wood', 'WOOD PANEL', 500], ['pizza', 'PIZZA DELIVERY', 500], ['flames', 'FLAMES', 600], ['neonbread', 'NEON BREAD DELIVERY', 700], ['chrome', 'CHROME', 2000], ['gold', 'GOLD', 5000]]);
   add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
   add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
-  Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
+  // cheat cards: one envelope per game, 3 codes in each. C = cosmetic, T = gameplay (tags the run)
+  const CHEATS = {
+    yeet: [['chonx', 'CHONX BABY', 'C'], ['bighead', 'BIG HEAD BABY', 'C'], ['moon', 'MOON GRAVITY', 'T']],
+    pedxing: [['chonx', 'CHONX CROSSING', 'C'], ['clown', 'CLOWN CAR', 'C'], ['turbohorn', 'TURBO HORN', 'T']],
+    karen: [['bighead', 'BIG HEAD KAREN', 'T'], ['brayn', 'KAREN BECOMES BRAYN', 'C'], ['manager', 'CHONX IS THE MANAGER', 'C']],
+    chonx: [['bighead', 'BIG HEAD MODE', 'C'], ['paintball', 'PAINTBALL MODE', 'C'], ['jetpack', 'INFINITE JETPACK', 'T']],
+    cheekyops: [['hats', 'PARTY HATS', 'C'], ['confetti', 'CONFETTI INSTEAD OF GORE', 'C'], ['nosway', 'NO SWAY', 'T']],
+    gta: [['hamster', 'HAMSTER GRANNIES', 'C'], ['monster', 'MONSTER VAN', 'C'], ['turbo', 'TURBO VAN', 'T']],
+  };
+  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY' };
+  Tickets.CHEAT_PRICE = 750;
+  Object.keys(CHEATS).forEach(game => {
+    Tickets.catalog.push({ id: 'env.' + game, shelf: 'cheats', game, envelope: true, name: GAMES[game].title + ' CHEATS', note: '1 OF 3 CODES, AT RANDOM', price: Tickets.CHEAT_PRICE });
+    CHEATS[game].forEach(([key, name, kind]) => Tickets.catalog.push({ id: 'cheat.' + game + '.' + key, shelf: 'codes', game, cheat: true, tag: kind === 'T', name, price: 0,
+      note: kind === 'T' ? 'TAGS YOUR SCORE' : (CHEAT_NOTES[game + '.' + key] || '') }));
+  });
+  Tickets.shelves = { cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
@@ -338,6 +373,13 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   }
   Tickets.PX = IPX;
   const ICONS = {}, ICON_ART = {};
+  Object.keys(CHEATS).forEach(game => {
+    const col = (GAMES[game] && GAMES[game].color) || '#ff2bd6';
+    ICON_ART['env.' + game] = p => { p.rect(1, 3, 14, 10, '#f4ead2'); p.line(1, 3, 8, 9, '#c9b98f'); p.line(15, 3, 8, 9, '#c9b98f'); p.ell(8, 9, 2.6, 2.6, col); p.set(8, 9, '#ffffff'); };
+    CHEATS[game].forEach(([key, , kind]) => {
+      ICON_ART['cheat.' + game + '.' + key] = p => { p.rect(3, 1, 10, 14, kind === 'T' ? '#ff2bd6' : '#2bf3ff'); p.rect(4, 2, 8, 12, '#140a32'); p.rect(6, 4, 4, 1, col); p.rect(9, 5, 1, 2, col); p.rect(7, 7, 2, 1, col); p.rect(7, 8, 1, 2, col); p.rect(7, 11, 1, 1, col); };
+    });
+  });
   Tickets.icon = id => {
     if (ICONS[id]) return ICONS[id];
     const p = new IPX(16, 16), f = ICON_ART[id];
@@ -515,6 +557,8 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 .nbs-li span:last-child{text-align:right;color:#ffe14d}
 .nbs-li.me{background:var(--nbc);color:#0b0620}
 .nbs-li.me span:last-child{color:#0b0620}
+.nbs-tag{font-style:normal;font-size:13px;line-height:1;vertical-align:middle;margin-left:16px;padding:4px 6px 3px;border:2px solid #ff2bd6;color:#ff2bd6;background:#1a0630}
+.nbs-li.me .nbs-tag{color:#0b0620;border-color:#0b0620;background:transparent}
 .nbs-li.r1{color:#ffe14d}.nbs-li.r2{color:#e6e6ff}.nbs-li.r3{color:#ffa45c}
 .nbs-hint{font-size:16px;color:#7d72b8;line-height:1.9}
 .nbs-foc{outline:5px solid #fff;outline-offset:5px}
@@ -541,6 +585,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 .nbp-i canvas{width:64px;height:64px;image-rendering:pixelated;image-rendering:crisp-edges}
 .nbp-i.on{border-color:#5fe0b7;background:#10302a}
 .nbp-i b{font-weight:normal;font-size:10px;color:#5fe0b7}
+.nbp-i b.off{color:#7d72b8}
 .nbp-i em{font-style:normal;font-size:9px;color:#a99be0}
 #nbsP.portrait .nbp-list{max-height:820px}
 #nbsP.portrait .nbt-wrap{flex-direction:column;align-items:center;gap:24px}
@@ -676,7 +721,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       let last = ''; try { last = clean(localStorage.getItem(NAME_KEY)); } catch (e) { }
       const chars = (last || '').padEnd(NAME_LEN, ' ').split('');
       // last name used on this device is pre-filled; typing a new letter first replaces it
-      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [] };
+      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [], cheat: Tickets.tagged(game) };
       NB._st = st; NB._mode = 'enter';
       renderEnter();
     },
@@ -799,7 +844,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     NB._mode = 'posting';
     panel.innerHTML = '<div class="nbs-h">POSTING...</div><div class="nbs-m">' + esc(st.name) + ' &middot; ' + fmt(st.score) + '</div>';
     fit(); blip(880, 0.08);
-    post(st.game, st.name, st.score).then(id => {
+    post(st.game, st.name, st.score, st.cheat).then(id => {
       st.myId = id; st.scope = 'week'; st.view = 'top'; NB._cache = {};
       return Promise.all([rank(st.game, 'week', st.score).catch(() => null), rank(st.game, 'all', st.score).catch(() => null)]);
     }).then(r => {
@@ -864,7 +909,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   }
   function rowHtml(r, i) {
     const st = NB._st;
-    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>';
+    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + (r.cheat ? '<i class="nbs-tag" title="CHEAT CODE ON">CHEAT</i>' : '') + '</span><span>' + fmt(r.score) + '</span></div>';
   }
   function current() { const st = NB._st; return st.view === 'every' ? 'every' : st.scope; }
   function loadList() {
@@ -937,15 +982,18 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       const last = rows[rows.length - 1];
       if (last && last.title === slots[sl]) last.items = last.items.concat(items); else rows.push({ title: slots[sl], items });
     });
+    const codes = Tickets.cheatsFor(game).filter(i => w.owned[i.id]);
+    if (codes.length) rows.push({ title: 'CHEAT CODES', items: codes });
     return rows;
   }
   function renderPrizes() {
     const st = NB._st, g = GAMES[st.game] || { title: '' }, rows = prizeRows(st.game), eq = Tickets.equipped(st.game);
+    const isOn = i => i.cheat ? Tickets.cheatOn(st.game, i.id.split('.')[2]) : eq[i.slot] === i.id;
     st.flat = []; rows.forEach(r => r.items.forEach(i => st.flat.push(i)));
     if (st.foc > st.flat.length) st.foc = st.flat.length;
     let n = 0;
     const body = rows.length ? rows.map(r => '<div class="nbp-row"><div class="nbp-t">' + r.title + '</div><div class="nbp-items">' +
-      r.items.map(i => '<button class="nbp-i nbp-c' + (eq[i.slot] === i.id ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (i.note ? '<em>' + esc(i.note) + '</em>' : '') + (eq[i.slot] === i.id ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
+      r.items.map(i => '<button class="nbp-i nbp-c' + (isOn(i) ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (i.note ? '<em>' + esc(i.note) + '</em>' : '') + (i.cheat ? '<b class="' + (isOn(i) ? '' : 'off') + '">' + (isOn(i) ? 'ON' : 'OFF') + '</b>' : isOn(i) ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
       '</div></div>').join('')
       : '<div class="nbs-m">NOTHING HERE YET.<br>TRADE YOUR TICKETS FOR ' + esc(g.title) + ' PRIZES<br>AT THE PRIZE COUNTER IN THE ARCADE.</div>';
     panel.innerHTML = '<div class="nbs-k">' + esc(g.title) + '</div><div class="nbs-h">PRIZES</div>' +
@@ -963,7 +1011,9 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   function prizePress() {
     const st = NB._st;
     if (st.foc >= st.flat.length) return close();
-    const it = st.flat[st.foc], cur = Tickets.equipped(st.game, it.slot);
+    const it = st.flat[st.foc];
+    if (it.cheat) { const on = Tickets.cheatOn(st.game, it.id.split('.')[2]); Tickets.setCheat(it.id, !on); blip(on ? 420 : 880, 0.07); return renderPrizes(); }
+    const cur = Tickets.equipped(st.game, it.slot);
     Tickets.setEquip(st.game, it.slot, cur === it.id ? null : it.id);
     blip(cur === it.id ? 420 : 880, 0.07);
     renderPrizes();
@@ -997,9 +1047,9 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   function showTickets() {
     const st = NB._st;
     let q;
-    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats); } catch (e) { st.tk = false; return close(); }
+    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats, st.cheat); } catch (e) { st.tk = false; return close(); }
     const before = Tickets.balance();
-    Tickets.payRun(st.game, st.score, q);
+    Tickets.payRun(st.game, st.score, q, st.cheat);
     const gold = q.lines.some(l => l.gold);
     st.tq = { q, before, shown: 0, line: 0, t0: performance.now(), done: false };
     NB._mode = 'tickets';
@@ -1229,31 +1279,58 @@ function drawCentered(c, s, x, y, rot, flash, alpha) {
 // SPRITES — all pixel art is generated in code at load time
 // =====================================================================
 const OL = '#1a0f08';
-const SKIN = '#f6c48f', SKIN_D = '#d99a62', CHEEK = '#ff8fa8';
+const SKIN0 = '#f6c48f', SKIN_D0 = '#d99a62', CHEEK = '#ff8fa8';
+const SKIN = SKIN0, SKIN_D = SKIN_D0;
 
 // Karen: blonde, blue tee, jeans, screaming (based on the original karen.png)
-function karenPX(f) {
-  const p = new PX(26, 52);
+// Karen. Cheat codes: Big Head Karen (head drawn 1.5x, and its hit zone grows to match) and
+// Karen becomes Brayn (brain-and-skull head, flesh-red skin). The head is drawn on its own,
+// then scaled onto the body at the neck.
+function karenPX(f, mode) {
+  mode = mode || {};
+  const big = !!mode.big, brayn = !!mode.brayn, sc = big ? 1.5 : 1, ox = big ? 5 : 0, oy = big ? 8 : 0;
+  const P0 = new PX(26 + 2 * ox, 52 + oy);
+  const SKIN = brayn ? '#c8384a' : SKIN0, SKIN_D = brayn ? '#8f2232' : SKIN_D0;
   const hair = '#f2c14e', hairD = '#c9962a', shirt = '#2f6fd1', shirtD = '#2456a6', jean = '#2a3f7a', jeanD = '#1f2f5c';
   const hit = f === 'hit';
-  // hair (shoulder length)
-  p.ell(13, 9, 8, 8, hair); p.rect(5, 9, 4, 11, hair); p.rect(17, 9, 4, 11, hair);
-  p.rect(5, 17, 4, 3, hairD); p.rect(17, 17, 4, 3, hairD);
-  // face
-  p.ell(13, 11, 5.2, 6, SKIN);
-  // bangs
-  p.rect(9, 2, 8, 1, hair); p.rect(8, 3, 10, 3, hair); p.rect(7, 4, 3, 4, hair); p.rect(16, 4, 3, 3, hair); p.set(12, 5, hairD); p.set(15, 5, hairD);
-  if (hit) {
-    // X eyes, mouth wide open
-    for (const ex of [9, 14]) { p.set(ex, 9, '#111'); p.set(ex + 2, 9, '#111'); p.set(ex + 1, 10, '#111'); p.set(ex, 11, '#111'); p.set(ex + 2, 11, '#111'); }
-    p.rect(11, 13, 4, 4, '#7a1a1a'); p.rect(12, 15, 2, 1, '#e5737a');
+  // ---- head (26 x 20, same coordinates as the body)
+  let p = new PX(26, 20);
+  if (brayn) {
+    const brain = '#e85a8a', fold = '#a8325f';
+    p.ell(13, 7, 9, 7.5, brain);
+    for (let k = 0; k < 4; k++) for (let x = 4; x < 23; x++) { const y = Math.round(2 + k * 3.4 + Math.sin(x * 0.7 + k * 1.7)); if (p.get(x, y) === brain) p.set(x, y, fold); }
+    p.line(13, 0, 13, 9, fold);
+    p.ell(13, 13, 5.4, 4.6, '#efe6c8');
+    if (hit) { p.set(10, 11, '#141414'); p.set(12, 11, '#141414'); p.set(11, 12, '#141414'); p.set(14, 11, '#141414'); p.set(16, 11, '#141414'); p.set(15, 12, '#141414'); p.ell(13, 16, 2.4, 1.6, '#141414'); }
+    else { p.rect(10, 11, 2, 2, '#141414'); p.rect(15, 11, 2, 2, '#141414'); p.set(10, 11, '#7dff4a'); p.set(15, 11, '#7dff4a'); p.rect(10, 15, 7, 2, '#141414'); for (let x = 10; x < 17; x += 2) p.set(x, 15, '#efe6c8'); p.rect(15, 17, 1, 2, '#5dff3a'); }
   } else {
-    p.line(8, 7, 11, 8, '#8a5a1a'); p.line(14, 8, 17, 7, '#8a5a1a');            // angry brows
-    p.rect(9, 9, 3, 3, '#ffffff'); p.rect(14, 9, 3, 3, '#ffffff');             // wide eyes
-    p.set(10, 10, '#111'); p.set(15, 10, '#111');
-    p.rect(11, 13, 4, 3, '#7a1a1a'); p.rect(11, 13, 4, 1, '#ffffff');          // screaming
+    // hair (shoulder length)
+    p.ell(13, 9, 8, 8, hair); p.rect(5, 9, 4, 11, hair); p.rect(17, 9, 4, 11, hair);
+    p.rect(5, 17, 4, 3, hairD); p.rect(17, 17, 4, 3, hairD);
+    // face
+    p.ell(13, 11, 5.2, 6, SKIN);
+    // bangs
+    p.rect(9, 2, 8, 1, hair); p.rect(8, 3, 10, 3, hair); p.rect(7, 4, 3, 4, hair); p.rect(16, 4, 3, 3, hair); p.set(12, 5, hairD); p.set(15, 5, hairD);
+    if (hit) {
+      // X eyes, mouth wide open
+      for (const ex of [9, 14]) { p.set(ex, 9, '#111'); p.set(ex + 2, 9, '#111'); p.set(ex + 1, 10, '#111'); p.set(ex, 11, '#111'); p.set(ex + 2, 11, '#111'); }
+      p.rect(11, 13, 4, 4, '#7a1a1a'); p.rect(12, 15, 2, 1, '#e5737a');
+    } else {
+      p.line(8, 7, 11, 8, '#8a5a1a'); p.line(14, 8, 17, 7, '#8a5a1a');            // angry brows
+      p.rect(9, 9, 3, 3, '#ffffff'); p.rect(14, 9, 3, 3, '#ffffff');             // wide eyes
+      p.set(10, 10, '#111'); p.set(15, 10, '#111');
+      p.rect(11, 13, 4, 3, '#7a1a1a'); p.rect(11, 13, 4, 1, '#ffffff');          // screaming
+    }
+    p.set(8, 12, CHEEK); p.set(18, 12, CHEEK);
   }
-  p.set(8, 12, CHEEK); p.set(18, 12, CHEEK);
+  // scale the head onto the body, anchored at the neck (13, 17)
+  const H = p;
+  for (let ty = 0; ty < 17 + oy + 3 * sc + 1; ty++) for (let tx = 0; tx < P0.w; tx++) {
+    const c = H.get(Math.floor(13 + (tx + 0.5 - 13 - ox) / sc), Math.floor(17 + (ty + 0.5 - 17 - oy) / sc));
+    if (c) P0.set(tx, ty, c);
+  }
+  // ---- body (shifted by ox / oy)
+  p = { set: (x, y, c) => P0.set(x + ox, y + oy, c), rect: (x, y, w, h, c) => P0.rect(x + ox, y + oy, w, h, c) };
   p.rect(11, 17, 4, 2, SKIN_D);                                                 // neck
   p.rect(7, 19, 12, 13, shirt); p.rect(7, 19, 2, 13, shirtD); p.rect(11, 19, 4, 1, SKIN_D);
   if (hit) {
@@ -1272,13 +1349,13 @@ function karenPX(f) {
     p.rect(lx, 36, 4, 11, jean); p.rect(lx, 36, 1, 11, jeanD);
     p.rect(lx - 1, 47, 6, 4, '#2b2b2b'); p.rect(lx - 1, 51, 6, 1, '#ffffff');
   }
-  p.outline(OL);
-  return p;
+  P0.outline(OL);
+  return P0;
 }
 // hit zones in world space (Karen's feet center at kx, standing on the floor)
 function karenBoxes(kx) {
   return [
-    { z: 'head', x: kx - 8, y: FY - 51, w: 16, h: 17 },
+    KCH.bighead ? { z: 'head', x: kx - 12, y: FY - 60, w: 24, h: 26 } : { z: 'head', x: kx - 8, y: FY - 51, w: 16, h: 17 },   // Big Head Karen cheat code
     { z: 'torso', x: kx - 6, y: FY - 33, w: 12, h: 14 },
     { z: 'arm', x: kx - 10, y: FY - 33, w: 4, h: 16 },
     { z: 'arm', x: kx + 6, y: FY - 33, w: 4, h: 16 },
@@ -1349,10 +1426,37 @@ function specialPX(k) {
   p.outline(OL);
   return p;
 }
+// cheat codes (read with the prizes). Big Head Karen tags the run; the other two are looks only.
+const KCH = { bighead: false, brayn: false, manager: false };
+function buildKaren() {
+  const m = { big: KCH.bighead, brayn: KCH.brayn };
+  S.karen = [mkSprite(karenPX(0, m)), mkSprite(karenPX(1, m))];
+  S.karenHit = mkSprite(karenPX('hit', m));
+  if (S.mgrReal) S.mgr = KCH.manager ? S.mgrReal.map(() => S.chonxMgr || (S.chonxMgr = mkSprite(chonxManagerPX()))) : S.mgrReal;
+}
+// Chonx is the Manager cheat code: the hamster in his hoodie, same size as a manager
+function chonxManagerPX() {
+  const p = new PX(20, 44), fur = '#d9893b', furL = '#f6c98a', hood = '#7a3cc9', hoodD = '#5a2a99';
+  p.rect(4, 41, 5, 3, '#2ee6d6'); p.rect(11, 41, 5, 3, '#2ee6d6');                 // sneakers
+  p.rect(5, 29, 4, 12, '#2b2b44'); p.rect(11, 29, 4, 12, '#2b2b44');                // pants
+  p.rect(3, 14, 14, 16, hood); p.rect(3, 14, 3, 16, hoodD); p.rect(3, 28, 14, 1, '#2ee6d6');
+  p.rect(1, 15, 3, 10, hood); p.rect(16, 15, 3, 10, hood); p.rect(1, 25, 3, 2, fur); p.rect(16, 25, 3, 2, fur);
+  p.line(6, 14, 9, 19, '#7dff4a'); p.line(14, 14, 11, 19, '#7dff4a');               // hoodie strings
+  p.rect(11, 17, 4, 2, '#ffffff'); p.set(12, 17, '#1565c0');                        // a manager badge, obviously
+  p.ell(10, 8, 6.4, 6, fur); p.ell(10, 10.5, 3.6, 3, furL);
+  p.ell(5, 2.4, 2, 2, fur); p.set(5, 2, '#ff9fb0'); p.ell(15, 2.4, 2, 2, fur); p.set(15, 2, '#ff9fb0');
+  p.set(7, 7, '#111'); p.set(13, 7, '#111'); p.set(7, 6, '#fff'); p.set(13, 6, '#fff');
+  p.rect(9, 9, 2, 1, '#ff6f8f'); p.set(10, 11, '#7a3b1a');
+  p.outline(OL);
+  return p;
+}
 // prize counter cosmetics equipped on this device (read at the start of every level)
 let KEQ = {};
 function refreshKEQ() {
   KEQ = {};
+  const was = KCH.bighead + '' + KCH.brayn + KCH.manager;
+  Object.keys(KCH).forEach(k => { try { KCH[k] = !!(window.NBTickets && NBTickets.cheatOn('karen', k)); } catch (e) { KCH[k] = false; } });
+  if (S.karen && was !== KCH.bighead + '' + KCH.brayn + KCH.manager) buildKaren();
   try { const e = (window.NBTickets && NBTickets.equipped('karen')) || {}; Object.keys(e).forEach(k => { KEQ[k] = (e[k] || '').split('.')[2]; }); } catch (err) {}
 }
 function levelItems() {
@@ -1458,20 +1562,20 @@ function itemPX(id) {
 
 const S = {};
 function buildSprites() {
-  S.karen = [mkSprite(karenPX(0)), mkSprite(karenPX(1))];
-  S.karenHit = mkSprite(karenPX('hit'));
+  buildKaren();
   S.sling = mkSprite(slingPX());
   S.slingGold = mkSprite(slingPX(true));
   S.items = {};
   for (const it of ITEMS) S.items[it.id] = mkSprite(itemPX(it.id));
   for (const k in SPECIALS) { S.items['sp_' + k] = mkSprite(specialPX(k)); ITEM_COLORS['sp_' + k] = SPECIALS[k].colors; }   // prize counter throwables
-  S.mgr = [
+  S.mgrReal = [
     mkSprite(managerPX({ shirt: '#ffffff', tie: '#1565c0', hair: '#5d4037', badge: true })),
     mkSprite(managerPX({ shirt: '#455a64', tie: '#2e7d32', hair: '#212121', badge: true })),
     mkSprite(managerPX({ shirt: '#ffffff', tie: '#8e2448', badge: true, glasses: true })),
     mkSprite(managerPX({ shirt: '#ec407a', hair: '#8d6e63', badge: true })),
     mkSprite(managerPX({ suit: '#212121', tie: '#c62828', hair: '#9e9e9e', glasses: true })),
   ];
+  refreshKEQ(); buildKaren();
 }
 
 // =====================================================================
@@ -2402,7 +2506,7 @@ function drawKaren(c, kx, ox, oy, t) {
   if (karen.ko > 0) {
     const a = -Math.PI / 2 * karen.ko;   // tips over backwards, toward the manager
     c.save(); c.translate(Math.round(kx + ox), Math.round(FY - 13 * karen.ko + oy)); c.rotate(-a);
-    c.drawImage(fl ? S.karenHit.flash : S.karenHit.img, -13, -52); c.restore();
+    c.drawImage(fl ? S.karenHit.flash : S.karenHit.img, -Math.round(S.karenHit.w / 2), -S.karenHit.h); c.restore();
     return;
   }
   if (karen.flinch > 0) { drawSprite(c, S.karenHit, kx + ox + (karen.flinch % 4 < 2 ? 1 : -1), FY + oy, { flash: fl }); return; }

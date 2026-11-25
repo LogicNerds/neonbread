@@ -1,6 +1,6 @@
 rules_version = '2';
 // Neon Bread Arcade — global leaderboards. Anyone can read. Anyone can add a score,
-// but only a well-formed one. Nobody can edit or delete through the API.
+// but only a well-formed one (optionally tagged cheat: true). Nobody can edit or delete through the API.
 service cloud.firestore {
   match /databases/{database}/documents {
     match /scores/{id} {
@@ -23,13 +23,14 @@ service cloud.firestore {
         && request.time < timestamp.date(int(w[0:4]), int(w[5:7]), int(w[8:10])) + duration.value(8, 'd');
     }
     function validScore(d) {
-      return d.keys().hasOnly(['game', 'name', 'score', 'week', 'ts'])
+      return d.keys().hasOnly(['game', 'name', 'score', 'week', 'ts', 'cheat'])
         && d.keys().hasAll(['game', 'name', 'score', 'week', 'ts'])
         && d.game in ['chonx', 'yeet', 'gta', 'karen', 'cheekyops', 'pedxing']
         && okName(d.name)
         && d.score is int && d.score >= 0 && d.score <= maxScore(d.game)
         && okWeek(d.week)
-        && d.ts == request.time;
+        && d.ts == request.time
+        && (!('cheat' in d) || d.cheat == true);   // a run with a gameplay cheat code on is tagged
     }
   }
 }

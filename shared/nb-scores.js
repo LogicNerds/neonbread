@@ -74,13 +74,14 @@
     for (let i = 0; i < 20; i++) s += a[r[i] % a.length];
     return s;
   }
-  function post(game, name, score) {
-    const id = newId();
+  function post(game, name, score, cheat) {
+    const id = newId(), fields = { game: sv(game), name: sv(name), score: { integerValue: String(score) }, week: sv(weekKey()) };
+    if (cheat) fields.cheat = { booleanValue: true };
     return req(':commit', {
       writes: [{
         update: {
           name: 'projects/' + PROJECT + '/databases/(default)/documents/scores/' + id,
-          fields: { game: sv(game), name: sv(name), score: { integerValue: String(score) }, week: sv(weekKey()) },
+          fields,
         },
         updateTransforms: [{ fieldPath: 'ts', setToServerValue: 'REQUEST_TIME' }],
         currentDocument: { exists: false },
@@ -90,7 +91,7 @@
   function rowsOf(res) {
     return res.filter(r => r.document).map(r => {
       const f = r.document.fields || {};
-      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0) };
+      return { id: r.document.name.split('/').pop(), ref: r.document.name, name: (f.name && f.name.stringValue) || '???', score: +((f.score && f.score.integerValue) || 0), cheat: !!(f.cheat && f.cheat.booleanValue) };
     });
   }
   function top(game, scope, limit) {
@@ -131,7 +132,7 @@
       .formatToParts(d || new Date()).forEach(x => { p[x.type] = x.value; });
     return p.year + '-' + p.month + '-' + p.day;
   }
-  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, golden: 0, runs: 0 }; }
+  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, cheats: {}, golden: 0, runs: 0 }; }
   function tkLoad() {
     try { const w = JSON.parse(localStorage.getItem(TK_KEY) || 'null'); if (w && typeof w.bal === 'number') return Object.assign(tkBlank(), w); } catch (e) { }
     return tkBlank();
@@ -153,12 +154,30 @@
     buy(id, price) { const w = tkLoad(); if (w.owned[id] || w.bal < price) return false; w.bal -= price; w.spent += price; w.owned[id] = Date.now(); tkSave(w); return true; },
     equipped(game, slot) { const e = tkLoad().equip[game] || {}; return slot ? e[slot] || null : e; },
     setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
-    // work out what a finished run pays (doesn't save)
-    quote(game, score, ranks, feats) {
+    // ---- cheat cards: codes live in w.owned like any prize; w.cheats[id] = switched on
+    cheatsFor(game) { return Tickets.catalog.filter(i => i.cheat && i.game === game); },
+    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !w.owned[i.id]).length; },
+    // buy an envelope: takes the tickets and reveals one code you don't have yet, at random
+    openEnvelope(game) {
+      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !w.owned[i.id]);
+      if (!env || !left.length || w.bal < env.price) return null;
+      const got = left[Math.floor(Math.random() * left.length)];
+      w.bal -= env.price; w.spent += env.price; w.owned[got.id] = Date.now(); tkSave(w); return got;
+    },
+    cheatOn(game, key) {
+      const id = 'cheat.' + game + '.' + key, w = tkLoad();
+      if (w.owned[id] && w.cheats && w.cheats[id]) return true;
+      const it = Tickets.item(id); return !!(it && it.freeDay && it.freeDay === pacificDay());   // free for everyone that day
+    },
+    setCheat(id, on) { const w = tkLoad(); w.cheats = w.cheats || {}; if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w); },
+    // a run with any gameplay (T) code switched on is tagged on the leaderboard
+    tagged(game) { return Tickets.cheatsFor(game).some(i => i.tag && Tickets.cheatOn(game, i.id.split('.')[2])); },
+    // work out what a finished run pays (doesn't save). A tagged run can't set a personal best.
+    quote(game, score, ranks, feats, tagged) {
       const w = tkLoad(), lines = [];
       const base = Math.max(TK.min, Math.min(TK.max, Math.round(score / (TK_RATE[game] || 1000))));
       lines.push({ t: 'RUN PAYOUT', n: base });
-      if (score > 0 && score > (w.best[game] || 0)) lines.push({ t: 'NEW PERSONAL BEST', n: TK.best });
+      if (!tagged && score > 0 && score > (w.best[game] || 0)) lines.push({ t: 'NEW PERSONAL BEST', n: TK.best });
       if (ranks && ranks.week && ranks.week <= 10) lines.push({ t: 'WEEKLY TOP 10', n: TK.top10 });
       if (w.day[game] !== pacificDay()) lines.push({ t: 'FIRST RUN TODAY', n: TK.firstToday });
       (feats || []).forEach(f => { if (f && f.n > 0) lines.push({ t: String(f.t), n: Math.floor(f.n) }); });
@@ -166,10 +185,10 @@
       return { lines, total: lines.reduce((a, l) => a + l.n, 0) };
     },
     // pay it out: one save, so closing the page during the animation loses nothing
-    payRun(game, score, q) {
+    payRun(game, score, q, tagged) {
       const w = tkLoad();
       w.bal += q.total; w.earned += q.total; w.runs++;
-      w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
+      if (!tagged) w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
       if (q.lines.some(l => l.gold)) w.golden++;
       tkSave(w); return w.bal;
     },
@@ -230,7 +249,23 @@
   add('pedxing', 'livery', [['student', 'STUDENT DRIVER', 300], ['stripes', 'RACING STRIPES', 400], ['camo', 'CAMO', 400], ['checker', 'CHECKERBOARD', 500], ['wood', 'WOOD PANEL', 500], ['pizza', 'PIZZA DELIVERY', 500], ['flames', 'FLAMES', 600], ['neonbread', 'NEON BREAD DELIVERY', 700], ['chrome', 'CHROME', 2000], ['gold', 'GOLD', 5000]]);
   add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
   add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
-  Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
+  // cheat cards: one envelope per game, 3 codes in each. C = cosmetic, T = gameplay (tags the run)
+  const CHEATS = {
+    yeet: [['chonx', 'CHONX BABY', 'C'], ['bighead', 'BIG HEAD BABY', 'C'], ['moon', 'MOON GRAVITY', 'T']],
+    pedxing: [['chonx', 'CHONX CROSSING', 'C'], ['clown', 'CLOWN CAR', 'C'], ['turbohorn', 'TURBO HORN', 'T']],
+    karen: [['bighead', 'BIG HEAD KAREN', 'T'], ['brayn', 'KAREN BECOMES BRAYN', 'C'], ['manager', 'CHONX IS THE MANAGER', 'C']],
+    chonx: [['bighead', 'BIG HEAD MODE', 'C'], ['paintball', 'PAINTBALL MODE', 'C'], ['jetpack', 'INFINITE JETPACK', 'T']],
+    cheekyops: [['hats', 'PARTY HATS', 'C'], ['confetti', 'CONFETTI INSTEAD OF GORE', 'C'], ['nosway', 'NO SWAY', 'T']],
+    gta: [['hamster', 'HAMSTER GRANNIES', 'C'], ['monster', 'MONSTER VAN', 'C'], ['turbo', 'TURBO VAN', 'T']],
+  };
+  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY' };
+  Tickets.CHEAT_PRICE = 750;
+  Object.keys(CHEATS).forEach(game => {
+    Tickets.catalog.push({ id: 'env.' + game, shelf: 'cheats', game, envelope: true, name: GAMES[game].title + ' CHEATS', note: '1 OF 3 CODES, AT RANDOM', price: Tickets.CHEAT_PRICE });
+    CHEATS[game].forEach(([key, name, kind]) => Tickets.catalog.push({ id: 'cheat.' + game + '.' + key, shelf: 'codes', game, cheat: true, tag: kind === 'T', name, price: 0,
+      note: kind === 'T' ? 'TAGS YOUR SCORE' : (CHEAT_NOTES[game + '.' + key] || '') }));
+  });
+  Tickets.shelves = { cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
@@ -253,6 +288,13 @@
   }
   Tickets.PX = IPX;
   const ICONS = {}, ICON_ART = {};
+  Object.keys(CHEATS).forEach(game => {
+    const col = (GAMES[game] && GAMES[game].color) || '#ff2bd6';
+    ICON_ART['env.' + game] = p => { p.rect(1, 3, 14, 10, '#f4ead2'); p.line(1, 3, 8, 9, '#c9b98f'); p.line(15, 3, 8, 9, '#c9b98f'); p.ell(8, 9, 2.6, 2.6, col); p.set(8, 9, '#ffffff'); };
+    CHEATS[game].forEach(([key, , kind]) => {
+      ICON_ART['cheat.' + game + '.' + key] = p => { p.rect(3, 1, 10, 14, kind === 'T' ? '#ff2bd6' : '#2bf3ff'); p.rect(4, 2, 8, 12, '#140a32'); p.rect(6, 4, 4, 1, col); p.rect(9, 5, 1, 2, col); p.rect(7, 7, 2, 1, col); p.rect(7, 8, 1, 2, col); p.rect(7, 11, 1, 1, col); };
+    });
+  });
   Tickets.icon = id => {
     if (ICONS[id]) return ICONS[id];
     const p = new IPX(16, 16), f = ICON_ART[id];
@@ -430,6 +472,8 @@
 .nbs-li span:last-child{text-align:right;color:#ffe14d}
 .nbs-li.me{background:var(--nbc);color:#0b0620}
 .nbs-li.me span:last-child{color:#0b0620}
+.nbs-tag{font-style:normal;font-size:13px;line-height:1;vertical-align:middle;margin-left:16px;padding:4px 6px 3px;border:2px solid #ff2bd6;color:#ff2bd6;background:#1a0630}
+.nbs-li.me .nbs-tag{color:#0b0620;border-color:#0b0620;background:transparent}
 .nbs-li.r1{color:#ffe14d}.nbs-li.r2{color:#e6e6ff}.nbs-li.r3{color:#ffa45c}
 .nbs-hint{font-size:16px;color:#7d72b8;line-height:1.9}
 .nbs-foc{outline:5px solid #fff;outline-offset:5px}
@@ -456,6 +500,7 @@
 .nbp-i canvas{width:64px;height:64px;image-rendering:pixelated;image-rendering:crisp-edges}
 .nbp-i.on{border-color:#5fe0b7;background:#10302a}
 .nbp-i b{font-weight:normal;font-size:10px;color:#5fe0b7}
+.nbp-i b.off{color:#7d72b8}
 .nbp-i em{font-style:normal;font-size:9px;color:#a99be0}
 #nbsP.portrait .nbp-list{max-height:820px}
 #nbsP.portrait .nbt-wrap{flex-direction:column;align-items:center;gap:24px}
@@ -591,7 +636,7 @@
       let last = ''; try { last = clean(localStorage.getItem(NAME_KEY)); } catch (e) { }
       const chars = (last || '').padEnd(NAME_LEN, ' ').split('');
       // last name used on this device is pre-filled; typing a new letter first replaces it
-      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [] };
+      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [], cheat: Tickets.tagged(game) };
       NB._st = st; NB._mode = 'enter';
       renderEnter();
     },
@@ -714,7 +759,7 @@
     NB._mode = 'posting';
     panel.innerHTML = '<div class="nbs-h">POSTING...</div><div class="nbs-m">' + esc(st.name) + ' &middot; ' + fmt(st.score) + '</div>';
     fit(); blip(880, 0.08);
-    post(st.game, st.name, st.score).then(id => {
+    post(st.game, st.name, st.score, st.cheat).then(id => {
       st.myId = id; st.scope = 'week'; st.view = 'top'; NB._cache = {};
       return Promise.all([rank(st.game, 'week', st.score).catch(() => null), rank(st.game, 'all', st.score).catch(() => null)]);
     }).then(r => {
@@ -779,7 +824,7 @@
   }
   function rowHtml(r, i) {
     const st = NB._st;
-    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + '</span><span>' + fmt(r.score) + '</span></div>';
+    return '<div class="nbs-li' + (r.id === st.myId ? ' me' : i < 3 ? ' r' + (i + 1) : '') + '"><span>' + (i + 1) + '.</span><span>' + esc(r.name) + (r.cheat ? '<i class="nbs-tag" title="CHEAT CODE ON">CHEAT</i>' : '') + '</span><span>' + fmt(r.score) + '</span></div>';
   }
   function current() { const st = NB._st; return st.view === 'every' ? 'every' : st.scope; }
   function loadList() {
@@ -852,15 +897,18 @@
       const last = rows[rows.length - 1];
       if (last && last.title === slots[sl]) last.items = last.items.concat(items); else rows.push({ title: slots[sl], items });
     });
+    const codes = Tickets.cheatsFor(game).filter(i => w.owned[i.id]);
+    if (codes.length) rows.push({ title: 'CHEAT CODES', items: codes });
     return rows;
   }
   function renderPrizes() {
     const st = NB._st, g = GAMES[st.game] || { title: '' }, rows = prizeRows(st.game), eq = Tickets.equipped(st.game);
+    const isOn = i => i.cheat ? Tickets.cheatOn(st.game, i.id.split('.')[2]) : eq[i.slot] === i.id;
     st.flat = []; rows.forEach(r => r.items.forEach(i => st.flat.push(i)));
     if (st.foc > st.flat.length) st.foc = st.flat.length;
     let n = 0;
     const body = rows.length ? rows.map(r => '<div class="nbp-row"><div class="nbp-t">' + r.title + '</div><div class="nbp-items">' +
-      r.items.map(i => '<button class="nbp-i nbp-c' + (eq[i.slot] === i.id ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (i.note ? '<em>' + esc(i.note) + '</em>' : '') + (eq[i.slot] === i.id ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
+      r.items.map(i => '<button class="nbp-i nbp-c' + (isOn(i) ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (i.note ? '<em>' + esc(i.note) + '</em>' : '') + (i.cheat ? '<b class="' + (isOn(i) ? '' : 'off') + '">' + (isOn(i) ? 'ON' : 'OFF') + '</b>' : isOn(i) ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
       '</div></div>').join('')
       : '<div class="nbs-m">NOTHING HERE YET.<br>TRADE YOUR TICKETS FOR ' + esc(g.title) + ' PRIZES<br>AT THE PRIZE COUNTER IN THE ARCADE.</div>';
     panel.innerHTML = '<div class="nbs-k">' + esc(g.title) + '</div><div class="nbs-h">PRIZES</div>' +
@@ -878,7 +926,9 @@
   function prizePress() {
     const st = NB._st;
     if (st.foc >= st.flat.length) return close();
-    const it = st.flat[st.foc], cur = Tickets.equipped(st.game, it.slot);
+    const it = st.flat[st.foc];
+    if (it.cheat) { const on = Tickets.cheatOn(st.game, it.id.split('.')[2]); Tickets.setCheat(it.id, !on); blip(on ? 420 : 880, 0.07); return renderPrizes(); }
+    const cur = Tickets.equipped(st.game, it.slot);
     Tickets.setEquip(st.game, it.slot, cur === it.id ? null : it.id);
     blip(cur === it.id ? 420 : 880, 0.07);
     renderPrizes();
@@ -912,9 +962,9 @@
   function showTickets() {
     const st = NB._st;
     let q;
-    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats); } catch (e) { st.tk = false; return close(); }
+    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats, st.cheat); } catch (e) { st.tk = false; return close(); }
     const before = Tickets.balance();
-    Tickets.payRun(st.game, st.score, q);
+    Tickets.payRun(st.game, st.score, q, st.cheat);
     const gold = q.lines.some(l => l.gold);
     st.tq = { q, before, shown: 0, line: 0, t0: performance.now(), done: false };
     NB._mode = 'tickets';
