@@ -214,9 +214,18 @@
   add('gta', 'body', [['leopard', 'LEOPARD CARDIGAN', 500]]);
   add('gta', 'livery', [['wood', 'WOOD-PANEL VAN', 500], ['bingo', '"BINGO EXPRESS" CHURCH BUS', 600], ['icecream', 'ICE CREAM TRUCK', 700], ['flames', 'FLAMES VAN', 800]]);
   add('gta', 'horn', [['goose', 'GOOSE-HONK HORN', 300], ['bell', 'CHURCH-BELL HORN', 400]]);
+  // Karen: each special throwable takes one regular item's place, with that item's damage
+  [['cone', 'TRAFFIC CONE', 400, 'bottle'], ['dentures', "GRANDMA'S DENTURES", 400, 'pencil'], ['clanker', 'CLANKER HEAD', 500, 'laptop'],
+   ['casserole', "GRANDMA'S CASSEROLE DISH", 600, 'pan'], ['review', '"ONE-STAR REVIEW" NEWSPAPER', 600, 'book'], ['rat', '6-7 RAT', 700, 'shoe'],
+   ['plush', 'CHONX PLUSH', 800, 'pizza'], ['brain', "BRAYN'S BRAIN", 900, 'sandwich'], ['monocle', "CHAIRMAN MITTENS' MONOCLE", 1000, 'phone'], ['baby', 'THE BABY', 1500, 'bat']]
+    .forEach(([key, name, price, rep]) => Tickets.catalog.push({ id: 'karen.' + key + '.' + key, shelf: 'karen', game: 'karen', slot: key, name, price, replaces: rep, note: 'TAKES THE ' + rep.toUpperCase() + "'S PLACE" }));
+  add('karen', 'band', [['rainbow', 'RAINBOW BAND', 400]]);
+  add('karen', 'pouch', [['paw', 'HAMSTER-PAW POUCH', 500]]);
+  add('karen', 'frame', [['gold', 'GOLD SLINGSHOT', 1000]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
+    karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
   };
   Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
@@ -316,6 +325,22 @@
     'gta.horn.goose': p => { p.ell(9, 10, 5, 4, '#f4f4f4'); p.rect(4, 3, 2, 7, '#f4f4f4'); p.ell(5, 3, 2, 1.5, '#f4f4f4'); p.rect(1, 3, 2, 1, '#ff9800'); p.set(5, 2, '#111'); p.line(13, 3, 15, 1, '#ffe14d'); p.line(13, 6, 15, 6, '#ffe14d'); },
     'gta.horn.bell': p => { p.ell(8, 9, 5, 5, '#ffcc00'); p.rect(3, 9, 10, 4, '#ffcc00'); p.rect(2, 12, 12, 1, '#d4a800'); p.rect(7, 2, 2, 2, '#d4a800'); p.ell(8, 14, 1.4, 1.2, '#8a6a00'); },
   });
+  // Body The Karen: the special throwables and slingshot parts
+  Object.assign(ICON_ART, {
+    'karen.cone.cone': p => { for (let r = 0; r < 11; r++) p.rect(8 - Math.floor(r / 2), 2 + r, 1 + Math.floor(r / 2) * 2, 1, '#ff6d00'); p.rect(5, 7, 6, 2, '#ffffff'); p.rect(2, 13, 12, 2, '#ff6d00'); },
+    'karen.dentures.dentures': p => { p.ell(8, 7, 6, 3, '#ff8fa8'); p.ell(8, 11, 6, 3, '#ff8fa8'); for (let k = 0; k < 5; k++) { p.rect(3 + k * 2, 7, 1, 2, '#ffffff'); p.rect(3 + k * 2, 10, 1, 2, '#ffffff'); } },
+    'karen.clanker.clanker': p => { p.rect(3, 4, 10, 10, '#858c99'); p.rect(4, 7, 3, 2, '#ff2a2a'); p.rect(9, 7, 3, 2, '#ff2a2a'); p.rect(5, 11, 6, 1, '#2b2b2b'); p.rect(7, 1, 2, 3, '#cfd4de'); p.set(8, 0, '#ff2a2a'); },
+    'karen.casserole.casserole': p => { p.rect(2, 8, 12, 5, '#3f7fd6'); p.rect(0, 9, 2, 2, '#3f7fd6'); p.rect(14, 9, 2, 2, '#3f7fd6'); p.ell(8, 8, 6, 2, '#bfe0ff'); p.rect(7, 5, 2, 1, '#3f7fd6'); p.set(5, 3, '#ffffff'); p.set(10, 2, '#ffffff'); },
+    'karen.review.review': p => { p.rect(2, 4, 12, 8, '#e0e0e0'); p.rect(2, 4, 12, 1, '#bdbdbd'); p.ell(5, 8, 2, 2, '#ffcc00'); for (let k = 0; k < 3; k++) p.rect(8, 6 + k * 2, 5, 1, '#757575'); },
+    'karen.rat.rat': p => { p.ell(8, 10, 6, 4, '#8a8f99'); p.ell(12.5, 7, 2, 2, '#8a8f99'); p.ell(4, 6, 1.5, 1.5, '#8a8f99'); p.set(12, 7, '#ff2a2a'); p.line(1, 12, 2, 10, '#c98aa0'); },
+    'karen.plush.plush': p => { p.ell(8, 10, 6, 5, '#d9893b'); p.ell(8, 11, 3, 3, '#f6c98a'); p.ell(3.5, 3.5, 1.8, 1.8, '#d9893b'); p.ell(12.5, 3.5, 1.8, 1.8, '#d9893b'); p.ell(8, 6, 5, 4, '#d9893b'); p.set(6, 6, '#111'); p.set(10, 6, '#111'); p.rect(3, 12, 10, 2, '#7a3cc9'); },
+    'karen.brain.brain': p => { p.ell(8, 8, 6.5, 5, '#ff9fc0'); p.line(8, 3, 8, 13, '#d9608a'); p.line(4, 6, 6, 8, '#d9608a'); p.line(11, 6, 12, 9, '#d9608a'); },
+    'karen.monocle.monocle': p => { p.ell(7, 7, 5, 5, '#ffd23a'); p.ell(7, 7, 3.4, 3.4, '#cfefff'); p.line(11, 10, 14, 15, '#ffd23a'); },
+    'karen.baby.baby': p => { p.ell(9, 6, 4.5, 4.4, '#f6c48f'); p.ell(7, 12, 4, 3, '#f6c48f'); p.ell(7, 13, 3.6, 2.4, '#ffffff'); p.set(10, 5, '#111'); p.set(12, 5, '#111'); p.rect(11, 8, 2, 1, '#c0392b'); p.set(9, 1, '#c98a3a'); },
+    'karen.band.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1 + i * 2, 6 + Math.round(Math.sin(i) * 2), 2, 3, c)); p.rect(1, 3, 2, 10, '#8b5a2b'); p.rect(13, 3, 2, 10, '#8b5a2b'); },
+    'karen.pouch.paw': p => { p.ell(8, 9, 6, 5, '#d9893b'); p.ell(8, 10, 3, 2.4, '#ff9fb0'); p.ell(4, 5, 1.4, 1.4, '#ff9fb0'); p.ell(7, 4, 1.4, 1.4, '#ff9fb0'); p.ell(10, 4, 1.4, 1.4, '#ff9fb0'); p.ell(13, 5, 1.4, 1.4, '#ff9fb0'); },
+    'karen.frame.gold': p => { p.rect(7, 7, 3, 9, '#ffcc00'); p.line(8, 8, 2, 1, '#ffcc00'); p.line(9, 8, 14, 1, '#ffcc00'); p.line(8, 9, 3, 2, '#d4a800'); p.line(9, 9, 13, 2, '#d4a800'); p.set(8, 12, '#fff3a0'); },
+  });
   window.NBTickets = Tickets;
 
   // ---------------------------------------------------------------- styles
@@ -376,6 +401,7 @@
 .nbp-i canvas{width:64px;height:64px;image-rendering:pixelated;image-rendering:crisp-edges}
 .nbp-i.on{border-color:#5fe0b7;background:#10302a}
 .nbp-i b{font-weight:normal;font-size:10px;color:#5fe0b7}
+.nbp-i em{font-style:normal;font-size:9px;color:#a99be0}
 #nbsP.portrait .nbp-list{max-height:820px}
 #nbsP.portrait .nbt-wrap{flex-direction:column;align-items:center;gap:24px}
 #nbsP.portrait .nbt-side{min-width:0;width:100%}
@@ -767,7 +793,9 @@
     const w = Tickets.wallet(), slots = (Tickets.slots[game] || {}), rows = [];
     Object.keys(slots).forEach(sl => {
       const items = Tickets.catalog.filter(i => i.game === game && i.slot === sl && w.owned[i.id]);
-      if (items.length) rows.push({ slot: sl, title: slots[sl], items });
+      if (!items.length) return;
+      const last = rows[rows.length - 1];
+      if (last && last.title === slots[sl]) last.items = last.items.concat(items); else rows.push({ title: slots[sl], items });
     });
     return rows;
   }
@@ -777,7 +805,7 @@
     if (st.foc > st.flat.length) st.foc = st.flat.length;
     let n = 0;
     const body = rows.length ? rows.map(r => '<div class="nbp-row"><div class="nbp-t">' + r.title + '</div><div class="nbp-items">' +
-      r.items.map(i => '<button class="nbp-i nbp-c' + (eq[r.slot] === i.id ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (eq[r.slot] === i.id ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
+      r.items.map(i => '<button class="nbp-i nbp-c' + (eq[i.slot] === i.id ? ' on' : '') + '" data-k="' + (n++) + '"><canvas width="16" height="16" data-icon="' + i.id + '"></canvas><span>' + esc(i.name) + '</span>' + (i.note ? '<em>' + esc(i.note) + '</em>' : '') + (eq[i.slot] === i.id ? '<b>EQUIPPED</b>' : '') + '</button>').join('') +
       '</div></div>').join('')
       : '<div class="nbs-m">NOTHING HERE YET.<br>TRADE YOUR TICKETS FOR ' + esc(g.title) + ' PRIZES<br>AT THE PRIZE COUNTER IN THE ARCADE.</div>';
     panel.innerHTML = '<div class="nbs-k">' + esc(g.title) + '</div><div class="nbs-h">PRIZES</div>' +
