@@ -23,6 +23,9 @@ body{position:fixed;inset:0}
 .logo b{display:block;font-size:110px;color:var(--gold);font-weight:normal;text-shadow:8px 8px 0 #000,0 0 50px rgba(255,210,58,.5);margin-top:16px}
 .tag{font-size:26px;line-height:1.8;color:var(--cyan);margin:34px 0 40px;text-shadow:4px 4px 0 rgba(0,0,0,.8);letter-spacing:6px}
 .menu{display:flex;flex-direction:column;gap:20px;align-items:center}
+#titleMenu{gap:9px}
+#titleMenu .btn{padding:9px 44px;font-size:26px}
+#title .hint{margin-top:14px}
 .btn{font-family:inherit;font-size:32px;padding:20px 44px;min-width:640px;background:rgba(0,0,0,.78);color:var(--red);border:6px solid var(--red);cursor:pointer;letter-spacing:2px;box-shadow:inset 0 0 22px rgba(255,42,61,.25),0 0 20px rgba(255,42,61,.45)}
 .btn.sel,.btn:hover{background:var(--red);color:#000;box-shadow:0 0 40px var(--red)}
 .btn.mint{color:var(--cyan);border-color:var(--cyan);box-shadow:inset 0 0 22px rgba(0,229,255,.25),0 0 20px rgba(0,229,255,.45)}
@@ -309,10 +312,14 @@ h1.big{font-size:72px;color:var(--red);text-shadow:0 0 20px var(--red);margin-bo
   add('karen', 'frame', [['gold', 'GOLD SLINGSHOT', 1000]]);
   add('chonx', 'skin', [['pajama', 'PAJAMA CHONX', 600], ['green', 'HANDHELD-GREEN CHONX', 700], ['retro', 'RETRO 2025 CHONX', 800], ['ghost', 'GHOST CHONX', 900], ['tactical', 'TACTICAL CHONX', 1000], ['golden', 'GOLDEN CHONX', 3000]]);
   add('chonx', 'shots', [['rainbow', 'RAINBOW PELLETS', 300]]);
+  add('cheekyops', 'reticle', [['paw', 'HAMSTER-PAW RETICLE', 300], ['heart', 'HEART RETICLE', 300], ['skull', 'SKULL RETICLE', 400], ['sixseven', '"6 7" RETICLE', 400], ['gold', 'GOLD RETICLE', 800]]);
+  add('cheekyops', 'rifle', [['camo', 'CAMO RIFLE', 400], ['wood', 'WOOD-STOCK RIFLE', 500], ['neon', 'NEON RIFLE', 600], ['gold', 'GOLD RIFLE', 2500]]);
+  add('cheekyops', 'outfit', [['tux', 'SPY TUXEDO', 1200]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
+    cheekyops: { reticle: 'SCOPE RETICLE', rifle: 'RIFLE', outfit: 'OUTFIT' },
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
   };
@@ -440,6 +447,21 @@ h1.big{font-size:72px;color:var(--red);text-shadow:0 0 20px var(--red);margin-bo
     'chonx.skin.tactical': p => { miniChonx(p, Object.assign({}, CH, { hood: '#4b5320', hoodD: '#353b17', teal: '#1d1d1d' })); p.rect(5, 4, 9, 1, '#1d1d1d'); p.rect(9, 3, 4, 2, '#3fae1f'); },
     'chonx.skin.golden': p => { miniChonx(p, { fur: '#e0a800', furL: '#fff3a0', hood: '#ffcc00', hoodD: '#d4a800', teal: '#fff3a0', nose: '#d4a800' }); p.set(4, 4, '#ffffff'); p.set(14, 9, '#ffffff'); },
     'chonx.shots.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1 + i * 2.4, 6, 2, 4, c)); },
+  });
+  // Cheeky Ops: reticles, rifles, the tux
+  const scopeRing = (p, line) => { p.ell(8, 8, 7.5, 7.5, '#0a0a0a'); p.ell(8, 8, 6.5, 6.5, '#9fd3c7'); p.rect(1, 8, 14, 1, line || '#0a0a0a'); p.rect(8, 1, 1, 14, line || '#0a0a0a'); };
+  const rifleArt = (p, body, stock, accent) => { p.rect(1, 7, 14, 2, body); p.rect(0, 7, 4, 4, stock); p.rect(8, 9, 2, 3, body); p.rect(6, 5, 5, 2, accent || body); p.set(15, 7, body); };
+  Object.assign(ICON_ART, {
+    'cheekyops.reticle.paw': p => { scopeRing(p); p.ell(8, 9, 2, 1.6, '#ff9fb0'); p.set(6, 6, '#ff9fb0'); p.set(8, 5, '#ff9fb0'); p.set(10, 6, '#ff9fb0'); },
+    'cheekyops.reticle.heart': p => { scopeRing(p); p.rect(6, 6, 2, 2, '#ff2a3d'); p.rect(9, 6, 2, 2, '#ff2a3d'); p.rect(6, 7, 5, 2, '#ff2a3d'); p.rect(7, 9, 3, 1, '#ff2a3d'); p.set(8, 10, '#ff2a3d'); },
+    'cheekyops.reticle.skull': p => { scopeRing(p); p.ell(8, 7.5, 2.6, 2.4, '#ffffff'); p.rect(7, 10, 3, 1, '#ffffff'); p.set(7, 7, '#0a0a0a'); p.set(9, 7, '#0a0a0a'); },
+    'cheekyops.reticle.sixseven': p => { scopeRing(p); [[3, 5], [3, 6], [3, 7], [4, 7], [3, 8], [4, 9], [3, 9], [4, 5]].forEach(([x, y]) => p.set(x, y, '#ff2bd6')); [[11, 5], [12, 5], [13, 5], [13, 6], [12, 7], [12, 8], [12, 9]].forEach(([x, y]) => p.set(x, y, '#ff2bd6')); },
+    'cheekyops.reticle.gold': p => { scopeRing(p, '#ffcc00'); p.set(8, 8, '#ff2a3d'); },
+    'cheekyops.rifle.camo': p => { rifleArt(p, '#5d7a3a', '#3e5226', '#8a6a3a'); p.set(4, 7, '#8a6a3a'); p.set(11, 8, '#3e5226'); },
+    'cheekyops.rifle.wood': p => { rifleArt(p, '#2a2d36', '#8d5524', '#2a2d36'); },
+    'cheekyops.rifle.neon': p => { rifleArt(p, '#ff2bd6', '#00e5ff', '#00e5ff'); },
+    'cheekyops.rifle.gold': p => { rifleArt(p, '#ffcc00', '#d4a800', '#fff3a0'); },
+    'cheekyops.outfit.tux': p => { p.rect(3, 3, 10, 12, '#111111'); p.rect(7, 3, 2, 12, '#ffffff'); p.rect(6, 3, 4, 2, '#e53935'); p.set(8, 7, '#111'); p.set(8, 10, '#111'); p.line(4, 3, 7, 8, '#2a2a2a'); p.line(12, 3, 9, 8, '#2a2a2a'); },
   });
   window.NBTickets = Tickets;
 
@@ -1496,19 +1518,36 @@ const C = {
   suit: '#1c1f2b', suitL: '#343a52', strap: '#3d4460', eye: '#111111', white: '#ffffff', gun: '#2a2d36', gunL: '#5a6070', red: '#ff2a3d',
 };
 
+// ---------- prize counter cosmetics (equipped in PRIZES on the title menu) ----------
+let OEQ = {};
+const RIFLES = { camo: ['#5d7a3a', '#8a6a3a'], wood: ['#2a2d36', '#8d5524'], neon: ['#ff2bd6', '#00e5ff'], gold: ['#ffcc00', '#fff3a0'] };
+function refreshOEQ() {
+  OEQ = {};
+  try { const e = (window.NBTickets && NBTickets.equipped('cheekyops')) || {}; Object.keys(e).forEach(k => { OEQ[k] = (e[k] || '').split('.')[2]; }); } catch (err) {}
+}
+function rebuildChonxOps() {
+  refreshOEQ();
+  S.chonx = {};
+  ['idle', 'run1', 'run2', 'jump', 'crouch', 'crouch2'].forEach(f => S.chonx[f] = mkSprite(chonxSidePX(f)));
+  const tux = OEQ.outfit === 'tux';
+  S.chonxTop = topSet({ body: tux ? '#111111' : C.suit, head: C.fur, ear: C.furD, snout: C.furL, band: tux ? '#e53935' : C.strap, gun: true, feet: '#2a2d36' });
+}
+
 // ---------- CHONX (side view, black tactical suit, rifle on his back) ----------
 function chonxSidePX(f = 'idle') {
   const w = 22, h = 24, p = new PX(w, h);
   const crouch = f === 'crouch' || f === 'crouch2';
   const dy = crouch ? 4 : 0;
   // rifle slung on his back
-  p.line(2, 7 + dy, 9, 2 + dy, C.gun, 1); p.rect(1, 7 + dy, 2, 2, C.gunL); p.set(5, 4 + dy, C.gunL);
+  const rf = RIFLES[OEQ.rifle] || [C.gun, C.gunL];
+  p.line(2, 7 + dy, 9, 2 + dy, rf[0], 1); p.rect(1, 7 + dy, 2, 2, rf[1]); p.set(5, 4 + dy, rf[1]);
   const ox = 1;
   p.ell(11.5 + ox, 16.2 + dy * 0.5, 6.4, 6.4 - dy * 0.3, C.fur);
   // tactical suit over the body
-  for (let y = 11 + dy; y < 22; y++) for (let x = 4; x < 20; x++) if (p.get(x, y)) p.set(x, y, C.suit);
-  p.rect(5, 15 + dy, 14, 1, C.strap); p.rect(14 + ox, 12 + dy, 1, 7, C.suitL);
-  p.rect(9, 17 + dy, 3, 2, C.strap);
+  const tux = OEQ.outfit === 'tux';
+  for (let y = 11 + dy; y < 22; y++) for (let x = 4; x < 20; x++) if (p.get(x, y)) p.set(x, y, tux ? '#0d0d0f' : C.suit);
+  if (tux) { p.rect(14 + ox, 12 + dy, 3, 8, '#ffffff'); p.rect(14 + ox, 12 + dy, 3, 1, '#e53935'); p.set(15 + ox, 15 + dy, '#111'); p.set(15 + ox, 17 + dy, '#111'); }   // shirt front, bow tie, studs
+  else { p.rect(5, 15 + dy, 14, 1, C.strap); p.rect(14 + ox, 12 + dy, 1, 7, C.suitL); p.rect(9, 17 + dy, 3, 2, C.strap); }
   // head
   p.ell(14 + ox, 8 + dy, 5.6, 5.1, C.fur);
   p.ell(16.5 + ox, 10.2 + dy, 2.6, 2.1, C.furL);
@@ -1617,9 +1656,7 @@ function snakeSprites(col = '#3a9a3a', band = '#111') {
 
 const S = {};
 function buildSprites() {
-  S.chonx = {};
-  ['idle', 'run1', 'run2', 'jump', 'crouch', 'crouch2'].forEach(f => S.chonx[f] = mkSprite(chonxSidePX(f)));
-  S.chonxTop = topSet({ body: C.suit, head: C.fur, ear: C.furD, snout: C.furL, band: C.strap, gun: true, feet: '#2a2d36' });
+  rebuildChonxOps();
   S.guardTop = topSet({ size: 14, body: '#1a1a1a', head: '#b88a4a', ear: '#8a6030', snout: '#f0e0c0', band: '#ff2a3d', gun: true, feet: '#111' });
   const sp = (o) => critter(Object.assign({ headH: 6 }, o));
   S.cr = {
@@ -3019,8 +3056,8 @@ function renderScope() {
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.75)');
   c.fillStyle = g; c.fillRect(cx - R, cy - R, R * 2, R * 2);
   c.fillStyle = 'rgba(120,200,255,.05)'; c.fillRect(cx - R, cy - R, R * 2, R * 2);
-  // reticle with mil-dots
-  c.fillStyle = '#000';
+  // reticle with mil-dots (gold reticle prize recolours it)
+  c.fillStyle = OEQ.reticle === 'gold' ? '#ffcc00' : '#000';
   c.fillRect(cx - R, cy, R - 6, 1); c.fillRect(cx + 6, cy, R - 6, 1);
   c.fillRect(cx, cy - R, 1, R - 6); c.fillRect(cx, cy + 6, 1, R - 6);
   c.fillRect(cx - R, cy - 1, R - 50, 3); c.fillRect(cx + 50, cy - 1, R - 50, 3); c.fillRect(cx - 1, cy + 50, 3, R - 50);
@@ -3031,9 +3068,22 @@ function renderScope() {
     c.fillRect(cx + d, cy - big, 1, big * 2 + 1); c.fillRect(cx - d, cy - big, 1, big * 2 + 1);
     c.fillRect(cx - big, cy + d, big * 2 + 1, 1); c.fillRect(cx - big, cy - d, big * 2 + 1, 1);
   }
-  c.fillStyle = '#ff2a3d'; c.fillRect(cx, cy, 1, 1);
+  drawReticleMark(c, cx, cy);
   c.restore();
   c.strokeStyle = '#1a1a1a'; c.lineWidth = 3; c.beginPath(); c.arc(cx, cy, R + 1, 0, Math.PI * 2); c.stroke();
+}
+// the centre mark: a red dot, or a reticle prize drawn around the exact centre pixel
+function drawReticleMark(c, cx, cy) {
+  const R = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(cx + x, cy + y, w, h); };
+  const k = OEQ.reticle;
+  if (k === 'paw') { R(-2, 2, 5, 3, '#ff9fb0'); R(-4, -1, 2, 2, '#ff9fb0'); R(-1, -4, 2, 2, '#ff9fb0'); R(2, -4, 2, 2, '#ff9fb0'); R(4, -1, 2, 2, '#ff9fb0'); }
+  else if (k === 'heart') { R(-4, -4, 3, 2, '#ff2a3d'); R(2, -4, 3, 2, '#ff2a3d'); R(-5, -2, 11, 2, '#ff2a3d'); R(-4, 0, 9, 1, '#ff2a3d'); R(-3, 1, 7, 1, '#ff2a3d'); R(-2, 2, 5, 1, '#ff2a3d'); R(-1, 3, 3, 1, '#ff2a3d'); }
+  else if (k === 'skull') { R(-3, -5, 7, 5, '#ffffff'); R(-2, 0, 5, 2, '#ffffff'); R(-2, -3, 1, 2, '#000'); R(2, -3, 1, 2, '#000'); R(-1, 1, 1, 1, '#000'); R(1, 1, 1, 1, '#000'); }
+  else if (k === 'sixseven') { // "6" left of centre, "7" right, both 3x5
+    R(-7, -2, 3, 1, '#ff2bd6'); R(-7, -2, 1, 5, '#ff2bd6'); R(-7, 0, 3, 1, '#ff2bd6'); R(-5, 0, 1, 3, '#ff2bd6'); R(-7, 2, 3, 1, '#ff2bd6');
+    R(5, -2, 3, 1, '#ff2bd6'); R(7, -2, 1, 2, '#ff2bd6'); R(6, 0, 1, 3, '#ff2bd6');
+  }
+  c.fillStyle = '#ff2a3d'; c.fillRect(cx, cy, 1, 1);   // the true aim point always shows
 }
 function drawScopeHUD() {
   const S = SC, Z = S.zooms[S.zi], m = S.m;
@@ -3715,6 +3765,11 @@ function clearEdges() {
 }
 
 // ---------------------------------------------------------------- title
+// PRIZES: equip what you've bought at the arcade's prize counter
+function openPrizes() {
+  if (!window.NBScores || !NBScores.prizes) return;
+  NBScores.prizes({ game: 'cheekyops', onClose: () => { rebuildChonxOps(); showTitle(); } });
+}
 function showTitle() {
   G.state = 'title'; Audio2.stopMusic(); releaseLock();
   const sv = loadSave();
@@ -3725,6 +3780,7 @@ function showTitle() {
     newGame();
   } });
   items.push({ label: goreLabel, action: b => { toggleGore(); b.textContent = goreLabel(); }, cls: 'mint' });
+  items.push({ label: 'PRIZES', action: openPrizes, cls: 'mint' });
   items.push({ label: 'FULLSCREEN', action: toggleFullscreen, cls: 'mint' });
   items.push({ label: 'EXIT TO ARCADE', action: exitToArcade, cls: 'mint' });
   showMenu('title', 'titleMenu', items);

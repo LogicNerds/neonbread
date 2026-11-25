@@ -327,10 +327,14 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
   add('karen', 'frame', [['gold', 'GOLD SLINGSHOT', 1000]]);
   add('chonx', 'skin', [['pajama', 'PAJAMA CHONX', 600], ['green', 'HANDHELD-GREEN CHONX', 700], ['retro', 'RETRO 2025 CHONX', 800], ['ghost', 'GHOST CHONX', 900], ['tactical', 'TACTICAL CHONX', 1000], ['golden', 'GOLDEN CHONX', 3000]]);
   add('chonx', 'shots', [['rainbow', 'RAINBOW PELLETS', 300]]);
+  add('cheekyops', 'reticle', [['paw', 'HAMSTER-PAW RETICLE', 300], ['heart', 'HEART RETICLE', 300], ['skull', 'SKULL RETICLE', 400], ['sixseven', '"6 7" RETICLE', 400], ['gold', 'GOLD RETICLE', 800]]);
+  add('cheekyops', 'rifle', [['camo', 'CAMO RIFLE', 400], ['wood', 'WOOD-STOCK RIFLE', 500], ['neon', 'NEON RIFLE', 600], ['gold', 'GOLD RIFLE', 2500]]);
+  add('cheekyops', 'outfit', [['tux', 'SPY TUXEDO', 1200]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
+    cheekyops: { reticle: 'SCOPE RETICLE', rifle: 'RIFLE', outfit: 'OUTFIT' },
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
   };
@@ -458,6 +462,21 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     'chonx.skin.tactical': p => { miniChonx(p, Object.assign({}, CH, { hood: '#4b5320', hoodD: '#353b17', teal: '#1d1d1d' })); p.rect(5, 4, 9, 1, '#1d1d1d'); p.rect(9, 3, 4, 2, '#3fae1f'); },
     'chonx.skin.golden': p => { miniChonx(p, { fur: '#e0a800', furL: '#fff3a0', hood: '#ffcc00', hoodD: '#d4a800', teal: '#fff3a0', nose: '#d4a800' }); p.set(4, 4, '#ffffff'); p.set(14, 9, '#ffffff'); },
     'chonx.shots.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1 + i * 2.4, 6, 2, 4, c)); },
+  });
+  // Cheeky Ops: reticles, rifles, the tux
+  const scopeRing = (p, line) => { p.ell(8, 8, 7.5, 7.5, '#0a0a0a'); p.ell(8, 8, 6.5, 6.5, '#9fd3c7'); p.rect(1, 8, 14, 1, line || '#0a0a0a'); p.rect(8, 1, 1, 14, line || '#0a0a0a'); };
+  const rifleArt = (p, body, stock, accent) => { p.rect(1, 7, 14, 2, body); p.rect(0, 7, 4, 4, stock); p.rect(8, 9, 2, 3, body); p.rect(6, 5, 5, 2, accent || body); p.set(15, 7, body); };
+  Object.assign(ICON_ART, {
+    'cheekyops.reticle.paw': p => { scopeRing(p); p.ell(8, 9, 2, 1.6, '#ff9fb0'); p.set(6, 6, '#ff9fb0'); p.set(8, 5, '#ff9fb0'); p.set(10, 6, '#ff9fb0'); },
+    'cheekyops.reticle.heart': p => { scopeRing(p); p.rect(6, 6, 2, 2, '#ff2a3d'); p.rect(9, 6, 2, 2, '#ff2a3d'); p.rect(6, 7, 5, 2, '#ff2a3d'); p.rect(7, 9, 3, 1, '#ff2a3d'); p.set(8, 10, '#ff2a3d'); },
+    'cheekyops.reticle.skull': p => { scopeRing(p); p.ell(8, 7.5, 2.6, 2.4, '#ffffff'); p.rect(7, 10, 3, 1, '#ffffff'); p.set(7, 7, '#0a0a0a'); p.set(9, 7, '#0a0a0a'); },
+    'cheekyops.reticle.sixseven': p => { scopeRing(p); [[3, 5], [3, 6], [3, 7], [4, 7], [3, 8], [4, 9], [3, 9], [4, 5]].forEach(([x, y]) => p.set(x, y, '#ff2bd6')); [[11, 5], [12, 5], [13, 5], [13, 6], [12, 7], [12, 8], [12, 9]].forEach(([x, y]) => p.set(x, y, '#ff2bd6')); },
+    'cheekyops.reticle.gold': p => { scopeRing(p, '#ffcc00'); p.set(8, 8, '#ff2a3d'); },
+    'cheekyops.rifle.camo': p => { rifleArt(p, '#5d7a3a', '#3e5226', '#8a6a3a'); p.set(4, 7, '#8a6a3a'); p.set(11, 8, '#3e5226'); },
+    'cheekyops.rifle.wood': p => { rifleArt(p, '#2a2d36', '#8d5524', '#2a2d36'); },
+    'cheekyops.rifle.neon': p => { rifleArt(p, '#ff2bd6', '#00e5ff', '#00e5ff'); },
+    'cheekyops.rifle.gold': p => { rifleArt(p, '#ffcc00', '#d4a800', '#fff3a0'); },
+    'cheekyops.outfit.tux': p => { p.rect(3, 3, 10, 12, '#111111'); p.rect(7, 3, 2, 12, '#ffffff'); p.rect(6, 3, 4, 2, '#e53935'); p.set(8, 7, '#111'); p.set(8, 10, '#111'); p.line(4, 3, 7, 8, '#2a2a2a'); p.line(12, 3, 9, 8, '#2a2a2a'); },
   });
   window.NBTickets = Tickets;
 
