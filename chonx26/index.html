@@ -197,6 +197,64 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     }).then(r => 1 + +(((r[0] || {}).result || {}).aggregateFields || {}).n.integerValue || 0);
   }
 
+  // ---------------------------------------------------------------- tickets
+  // One wallet per device, shared by every game on neonbreadent.com (they all share localStorage).
+  // A run pays score / rate (aiming for ~20-40 on an average run, min 5, max 150) plus bonuses.
+  // Party mode never calls submit(), so party runs earn nothing.
+  const TK_KEY = 'nb_tickets_v1';
+  const TK_RATE = { chonx: 1000, cheekyops: 2000, yeet: 600, gta: 1500, karen: 400, pedxing: 1500 };
+  const TK = { min: 5, max: 150, best: 25, top10: 50, firstToday: 10, golden: 500, goldenOdds: 1 / 40 };
+  function pacificDay(d) {
+    const p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' })
+      .formatToParts(d || new Date()).forEach(x => { p[x.type] = x.value; });
+    return p.year + '-' + p.month + '-' + p.day;
+  }
+  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, golden: 0, runs: 0 }; }
+  function tkLoad() {
+    try { const w = JSON.parse(localStorage.getItem(TK_KEY) || 'null'); if (w && typeof w.bal === 'number') return Object.assign(tkBlank(), w); } catch (e) { }
+    return tkBlank();
+  }
+  function tkSave(w) { try { localStorage.setItem(TK_KEY, JSON.stringify(w)); } catch (e) { } tkFire(w); }
+  const tkListeners = [];
+  function tkFire(w) { tkListeners.forEach(f => { try { f(w); } catch (e) { } }); }
+  // other tabs (the arcade open in one tab, a game in another) see changes too
+  window.addEventListener('storage', e => { if (e.key === TK_KEY) tkFire(tkLoad()); });
+  const Tickets = {
+    rates: TK_RATE, rules: TK, today: pacificDay,
+    wallet: tkLoad,
+    balance() { return tkLoad().bal; },
+    onChange(f) { tkListeners.push(f); },
+    add(n) { const w = tkLoad(); n = Math.max(0, Math.floor(n)); w.bal += n; w.earned += n; tkSave(w); return w.bal; },
+    spend(n) { const w = tkLoad(); n = Math.max(0, Math.floor(n)); if (w.bal < n) return false; w.bal -= n; w.spent += n; tkSave(w); return true; },
+    owns(id) { return !!tkLoad().owned[id]; },
+    // buy a prize: takes the tickets and records it in one save
+    buy(id, price) { const w = tkLoad(); if (w.owned[id] || w.bal < price) return false; w.bal -= price; w.spent += price; w.owned[id] = Date.now(); tkSave(w); return true; },
+    equipped(game, slot) { const e = tkLoad().equip[game] || {}; return slot ? e[slot] || null : e; },
+    setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
+    // work out what a finished run pays (doesn't save)
+    quote(game, score, ranks, feats) {
+      const w = tkLoad(), lines = [];
+      const base = Math.max(TK.min, Math.min(TK.max, Math.round(score / (TK_RATE[game] || 1000))));
+      lines.push({ t: 'RUN PAYOUT', n: base });
+      if (score > 0 && score > (w.best[game] || 0)) lines.push({ t: 'NEW PERSONAL BEST', n: TK.best });
+      if (ranks && ranks.week && ranks.week <= 10) lines.push({ t: 'WEEKLY TOP 10', n: TK.top10 });
+      if (w.day[game] !== pacificDay()) lines.push({ t: 'FIRST RUN TODAY', n: TK.firstToday });
+      (feats || []).forEach(f => { if (f && f.n > 0) lines.push({ t: String(f.t), n: Math.floor(f.n) }); });
+      if (Math.random() < TK.goldenOdds) lines.push({ t: 'GOLDEN TICKET!', n: TK.golden, gold: true });
+      return { lines, total: lines.reduce((a, l) => a + l.n, 0) };
+    },
+    // pay it out: one save, so closing the page during the animation loses nothing
+    payRun(game, score, q) {
+      const w = tkLoad();
+      w.bal += q.total; w.earned += q.total; w.runs++;
+      w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
+      if (q.lines.some(l => l.gold)) w.golden++;
+      tkSave(w); return w.bal;
+    },
+  };
+  window.NBTickets = Tickets;
+
   // ---------------------------------------------------------------- styles
   const CSS = `
 #nbs{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(6,0,18,.9);font-family:'Press Start 2P',monospace;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation}
@@ -233,6 +291,23 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
 .nbs-hint{font-size:16px;color:#7d72b8;line-height:1.9}
 .nbs-foc{outline:5px solid #fff;outline-offset:5px}
 .nbs-more{font-size:18px;color:#7d72b8;text-align:center;line-height:2.4}
+.nbt-wrap{display:flex;gap:44px;align-items:flex-start;justify-content:center;width:100%}
+.nbt-mach{display:flex;flex-direction:column;align-items:center;width:250px}
+.nbt-slot{width:230px;height:34px;background:#05010e;border:6px solid #3a2f78;border-radius:8px;box-shadow:inset 0 6px 10px #000}
+.nbt-strip{width:150px;height:0;overflow:hidden;margin-top:-10px;position:relative;border-left:4px dotted #06010d;border-right:4px dotted #06010d;
+  background:repeating-linear-gradient(180deg,#ff8a2b 0 54px,#06010d 54px 56px,#ff8a2b 56px 60px)}
+.nbt-strip span{display:block;height:60px;line-height:56px;font-size:13px;color:#5a1f00;letter-spacing:1px;text-align:center}
+.nbt-strip.gold{background:repeating-linear-gradient(180deg,#ffe14d 0 54px,#06010d 54px 56px,#ffe14d 56px 60px)}
+.nbt-side{display:flex;flex-direction:column;gap:18px;min-width:520px;text-align:left}
+.nbt-count{font-size:84px;color:#ffe14d;text-shadow:0 0 22px #ffb000;text-align:left}
+.nbt-lines{display:flex;flex-direction:column;gap:12px;min-height:260px}
+.nbt-l{display:flex;justify-content:space-between;gap:24px;font-size:22px;color:#d9d0ff;opacity:0;transform:translateX(-20px);transition:opacity .2s,transform .2s}
+.nbt-l.on{opacity:1;transform:none}
+.nbt-l b{color:#ffe14d;font-weight:normal}
+.nbt-l.gold{color:#ffe14d;text-shadow:0 0 14px #ffb000;font-size:26px}
+.nbt-bal{font-size:20px;color:#00e5ff}
+#nbsP.portrait .nbt-wrap{flex-direction:column;align-items:center;gap:24px}
+#nbsP.portrait .nbt-side{min-width:0;width:100%}
 `;
   let root, panel, dims = { w: 1280, h: 820 };
   function ensureDom() {
@@ -354,7 +429,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
   // ---------------------------------------------------------------- the overlay
   const NB = {
     active: false, _mode: null, _dev: null, _cache: {},
-    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, page, rank,
+    GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, page, rank, tickets: Tickets,
     exitToArcade() { location.href = ARCADE_URL; },
 
     // After every run: name entry -> post -> board. onClose fires when the player continues.
@@ -364,7 +439,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
       let last = ''; try { last = clean(localStorage.getItem(NAME_KEY)); } catch (e) { }
       const chars = (last || '').padEnd(NAME_LEN, ' ').split('');
       // last name used on this device is pre-filled; typing a new letter first replaces it
-      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last };
+      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [] };
       NB._st = st; NB._mode = 'enter';
       renderEnter();
     },
@@ -382,6 +457,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
       if (NB._mode === 'enter') return actEnter(a);
       if (NB._mode === 'board') return actBoard(a);
       if (NB._mode === 'error') return actError(a);
+      if (NB._mode === 'tickets') return actTickets(a);
     },
   };
   window.NBScores = NB;
@@ -397,6 +473,8 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     fit();
   }
   function close() {
+    const s0 = NB._st;
+    if (s0 && s0.tk && !s0.tkShown && s0.score != null) { s0.tkShown = true; return showTickets(); }
     root.classList.remove('on'); NB.active = false; NB._mode = null;
     const cb = NB._st && NB._st.onClose; NB._st = null; panel.innerHTML = '';
     if (cb) setTimeout(cb, 0);
@@ -602,6 +680,83 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     if (a === 'a') { const c = panel.querySelectorAll('.nbs-c')[st.foc]; if (c) c.click(); return; }
     if (a === 'b') { if (st.view === 'every') return toggleEvery(); return close(); }
     if (a === 'start') return close();
+  }
+
+  // ---- ticket payout: a strip pours out of the slot while the counter ticks up
+  function tkSound(kind) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime;
+      if (kind === 'tick') { // printer: a short burst of filtered noise
+        const len = Math.floor(actx.sampleRate * 0.035), buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+        const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+        f.type = 'bandpass'; f.frequency.value = 2400; g.gain.value = 0.09; src.buffer = buf;
+        src.connect(f); f.connect(g); g.connect(actx.destination); src.start(t);
+      } else {
+        const seq = kind === 'gold' ? [784, 988, 1175, 1568, 1976] : kind === 'done' ? [880, 1319] : [1047];
+        seq.forEach((fr, i) => { const o = actx.createOscillator(), g = actx.createGain(); o.type = 'square'; o.frequency.value = fr; g.gain.setValueAtTime(0.05, t + i * 0.08); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.08 + 0.14); o.connect(g); g.connect(actx.destination); o.start(t + i * 0.08); o.stop(t + i * 0.08 + 0.16); });
+      }
+    } catch (e) { }
+  }
+  function showTickets() {
+    const st = NB._st;
+    let q;
+    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats); } catch (e) { st.tk = false; return close(); }
+    const before = Tickets.balance();
+    Tickets.payRun(st.game, st.score, q);
+    const gold = q.lines.some(l => l.gold);
+    st.tq = { q, before, shown: 0, line: 0, t0: performance.now(), done: false };
+    NB._mode = 'tickets';
+    panel.innerHTML =
+      '<div class="nbs-k">' + esc((GAMES[st.game] || {}).title || '') + '</div>' +
+      '<div class="nbs-h">TICKETS!</div>' +
+      '<div class="nbt-wrap"><div class="nbt-mach"><div class="nbt-slot"></div><div class="nbt-strip' + (gold ? ' gold' : '') + '"></div></div>' +
+      '<div class="nbt-side"><div class="nbt-count">0</div><div class="nbt-lines">' +
+      q.lines.map(l => '<div class="nbt-l' + (l.gold ? ' gold' : '') + '"><span>' + esc(l.t) + '</span><b>+' + fmt(l.n) + '</b></div>').join('') +
+      '</div><div class="nbt-bal">TICKETS ON THIS DEVICE: ' + fmt(before) + '</div></div></div>' +
+      '<div class="nbs-row"><button class="nbs-b sel" data-c="1">SKIP</button></div>' +
+      '<div class="nbs-hint">' + tkHint() + '</div>';
+    const strip = panel.querySelector('.nbt-strip');
+    strip.innerHTML = Array.from({ length: 40 }, () => '<span>NEON BREAD</span>').join('');
+    panel.querySelector('[data-c]').onclick = () => actTickets('a');
+    fit(); tkSound('start');
+    requestAnimationFrame(tkStep);
+  }
+  function tkHint() { const d = dev(); return d === 'pad' ? P('CROSS', 'A') + ' SKIP / CONTINUE' : d === 'touch' ? 'TAP TO SKIP / CONTINUE' : 'ENTER SKIP / CONTINUE'; }
+  // lines appear one after another; the counter runs up to the running total of the lines shown so far
+  function tkStep(now) {
+    const st = NB._st; if (!st || NB._mode !== 'tickets' || !st.tq || st.tq.done) return;
+    const tq = st.tq, lines = tq.q.lines, el = panel.querySelectorAll('.nbt-l');
+    const per = 650, k = Math.max(0, (now - tq.t0) / per);  // a frame's timestamp can be a hair before t0
+    const li = Math.min(lines.length, Math.floor(k) + 1);
+    for (let i = 0; i < li; i++) if (!el[i].classList.contains('on')) { el[i].classList.add('on'); if (lines[i].gold) tkSound('gold'); }
+    let target = 0; for (let i = 0; i < li; i++) target += lines[i].n;
+    const prevTarget = target - lines[li - 1].n, frac = Math.min(1, (k - (li - 1)) * 1.6);
+    const val = Math.round(prevTarget + (target - prevTarget) * frac);
+    if (val !== tq.shown) { if (now - (tq.tick || 0) > 45) { tq.tick = now; tkSound('tick'); } tq.shown = val; tkPaint(val); }
+    if (li === lines.length && frac >= 1) return tkFinish();
+    requestAnimationFrame(tkStep);
+  }
+  function tkPaint(val) {
+    const st = NB._st, c = panel.querySelector('.nbt-count'), strip = panel.querySelector('.nbt-strip');
+    if (c) c.textContent = fmt(val);
+    if (strip) strip.style.height = Math.min(480, 12 + val * 6) + 'px';
+  }
+  function tkFinish() {
+    const st = NB._st, tq = st.tq; tq.done = true;
+    panel.querySelectorAll('.nbt-l').forEach(e => e.classList.add('on'));
+    tkPaint(tq.q.total);
+    const bal = panel.querySelector('.nbt-bal'); if (bal) bal.textContent = 'TICKETS ON THIS DEVICE: ' + fmt(tq.before + tq.q.total);
+    const b = panel.querySelector('[data-c]'); if (b) b.textContent = 'CONTINUE';
+    tkSound('done');
+  }
+  function actTickets(a) {
+    const st = NB._st; if (!st || !st.tq) return;
+    if (!(a === 'a' || a === 'start' || a === 'b')) return;
+    if (!st.tq.done) return tkFinish();
+    close();
   }
 })();
 /* NB-SCORES END */
@@ -3013,7 +3168,7 @@ const G = {
   state: 'boot', levelIndex: 0, lives: START_LIVES, cells: 0, jetUnlocked: false,
   stats: null, levelState: null, banner: null, clearT: 0, endT: 0, family: [], titleT: 0,
 };
-const freshStats = () => ({ kills: 0, charge: 0, jet: 0, time: 0, deaths: 0, cells: 0, score: 0 });
+const freshStats = () => ({ kills: 0, charge: 0, jet: 0, time: 0, deaths: 0, cells: 0, score: 0, bosses: 0 });
 // score: 10 per brain cell, 100 per kill, 1,000 per mini-boss, 10,000 for Brayn, +10 per second left when a level is cleared
 const SCORE = { cell: 10, kill: 100, miniBoss: 1000, brayn: 10000, perSecond: 10 };
 function addScore(n) { G.stats.score = (G.stats.score || 0) + n; }
@@ -3147,7 +3302,7 @@ function startBoss() {
 }
 
 function levelClear() {
-  G.state = 'clear'; G.clearT = 0;
+  G.state = 'clear'; G.clearT = 0; G.stats.bosses = (G.stats.bosses || 0) + 1;
   addScore(SCORE.miniBoss + SCORE.perSecond * Math.ceil(Math.max(0, L.time)));
   Audio2.jet(false); Audio2.sfx('clear');
   eshots.length = 0; hazards = hazards.filter(h => !(h instanceof Laser) && !(h instanceof Puddle));
@@ -3542,7 +3697,10 @@ function showStats(victory) {
   // global leaderboard first (once per run), then the stats screen
   if (window.NBScores && !G.posted) {
     G.posted = true; G.state = 'scores'; hideScreens();
-    NBScores.submit({ game: 'chonx', score: G.stats.score || 0, onClose: () => showStats(victory) });
+    const feats = [];
+    if (G.stats.bosses) feats.push({ t: 'MINI-BOSS x' + G.stats.bosses, n: 20 * G.stats.bosses });
+    if (victory) feats.push({ t: 'BRAYN DEFEATED', n: 100 });
+    NBScores.submit({ game: 'chonx', score: G.stats.score || 0, feats, onClose: () => showStats(victory) });
     return;
   }
   G.state = 'stats'; G.lastVictory = victory;
