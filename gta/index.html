@@ -234,9 +234,12 @@ img{max-width:100%}
   add('karen', 'band', [['rainbow', 'RAINBOW BAND', 400]]);
   add('karen', 'pouch', [['paw', 'HAMSTER-PAW POUCH', 500]]);
   add('karen', 'frame', [['gold', 'GOLD SLINGSHOT', 1000]]);
+  add('chonx', 'skin', [['pajama', 'PAJAMA CHONX', 600], ['green', 'HANDHELD-GREEN CHONX', 700], ['retro', 'RETRO 2025 CHONX', 800], ['ghost', 'GHOST CHONX', 900], ['tactical', 'TACTICAL CHONX', 1000], ['golden', 'GOLDEN CHONX', 3000]]);
+  add('chonx', 'shots', [['rainbow', 'RAINBOW PELLETS', 300]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
+    chonx: { skin: 'SKINS', shots: 'SHOTS' },
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
   };
@@ -352,6 +355,18 @@ img{max-width:100%}
     'karen.band.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1 + i * 2, 6 + Math.round(Math.sin(i) * 2), 2, 3, c)); p.rect(1, 3, 2, 10, '#8b5a2b'); p.rect(13, 3, 2, 10, '#8b5a2b'); },
     'karen.pouch.paw': p => { p.ell(8, 9, 6, 5, '#d9893b'); p.ell(8, 10, 3, 2.4, '#ff9fb0'); p.ell(4, 5, 1.4, 1.4, '#ff9fb0'); p.ell(7, 4, 1.4, 1.4, '#ff9fb0'); p.ell(10, 4, 1.4, 1.4, '#ff9fb0'); p.ell(13, 5, 1.4, 1.4, '#ff9fb0'); },
     'karen.frame.gold': p => { p.rect(7, 7, 3, 9, '#ffcc00'); p.line(8, 8, 2, 1, '#ffcc00'); p.line(9, 8, 14, 1, '#ffcc00'); p.line(8, 9, 3, 2, '#d4a800'); p.line(9, 9, 13, 2, '#d4a800'); p.set(8, 12, '#fff3a0'); },
+  });
+  // Chonx '26: a little Chonx in each skin
+  const miniChonx = (p, c) => { p.ell(8, 11, 5, 4.6, c.fur); p.rect(3, 9, 10, 5, c.hood); p.rect(3, 9, 2, 5, c.hoodD); p.rect(3, 13, 10, 1, c.teal); p.ell(9, 6, 4.4, 4, c.fur); p.ell(10.6, 7.6, 2, 1.6, c.furL); p.ell(6, 2.4, 1.3, 1.4, c.fur); p.ell(11, 2.2, 1.3, 1.4, c.fur); p.set(10, 5, c.eye || '#111'); p.set(13, 7, c.nose || '#ff6f8f'); };
+  const CH = { fur: '#d9893b', furL: '#f6c98a', hood: '#7a3cc9', hoodD: '#5a2a99', teal: '#2ee6d6' };
+  Object.assign(ICON_ART, {
+    'chonx.skin.pajama': p => { miniChonx(p, Object.assign({}, CH, { hood: '#9fd3ff', hoodD: '#6fa8d6', teal: '#ffffff' })); p.set(5, 11, '#ffffff'); p.set(8, 12, '#ffffff'); p.set(11, 10, '#ffffff'); for (let r = 0; r < 4; r++) p.rect(7 - r, 1 + r, 2 + r, 1, '#9fd3ff'); p.set(10, 0, '#ffffff'); },
+    'chonx.skin.green': p => { miniChonx(p, { fur: '#8bac0f', furL: '#9bbc0f', hood: '#306230', hoodD: '#0f380f', teal: '#9bbc0f', eye: '#0f380f', nose: '#306230' }); },
+    'chonx.skin.retro': p => { miniChonx(p, Object.assign({}, CH, { hood: '#d9893b', hoodD: '#b06a26', teal: '#d9893b' })); p.rect(5, 9, 8, 2, '#e53935'); p.rect(4, 11, 2, 3, '#e53935'); },
+    'chonx.skin.ghost': p => { miniChonx(p, { fur: '#dfe9f5', furL: '#ffffff', hood: '#c9d8ee', hoodD: '#a9bdd8', teal: '#ffffff', eye: '#5a6f8a', nose: '#c9d8ee' }); },
+    'chonx.skin.tactical': p => { miniChonx(p, Object.assign({}, CH, { hood: '#4b5320', hoodD: '#353b17', teal: '#1d1d1d' })); p.rect(5, 4, 9, 1, '#1d1d1d'); p.rect(9, 3, 4, 2, '#3fae1f'); },
+    'chonx.skin.golden': p => { miniChonx(p, { fur: '#e0a800', furL: '#fff3a0', hood: '#ffcc00', hoodD: '#d4a800', teal: '#fff3a0', nose: '#d4a800' }); p.set(4, 4, '#ffffff'); p.set(14, 9, '#ffffff'); },
+    'chonx.shots.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1 + i * 2.4, 6, 2, 4, c)); },
   });
   window.NBTickets = Tickets;
 
