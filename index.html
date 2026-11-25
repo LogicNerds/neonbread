@@ -406,6 +406,9 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   add('cheekyops', 'reticle', [['paw', 'HAMSTER-PAW RETICLE', 300], ['heart', 'HEART RETICLE', 300], ['skull', 'SKULL RETICLE', 400], ['sixseven', '"6 7" RETICLE', 400], ['gold', 'GOLD RETICLE', 800]]);
   add('cheekyops', 'rifle', [['camo', 'CAMO RIFLE', 400], ['wood', 'WOOD-STOCK RIFLE', 500], ['neon', 'NEON RIFLE', 600], ['gold', 'GOLD RIFLE', 2500]]);
   add('cheekyops', 'outfit', [['tux', 'SPY TUXEDO', 1200]]);
+  add('pedxing', 'livery', [['student', 'STUDENT DRIVER', 300], ['stripes', 'RACING STRIPES', 400], ['camo', 'CAMO', 400], ['checker', 'CHECKERBOARD', 500], ['wood', 'WOOD PANEL', 500], ['pizza', 'PIZZA DELIVERY', 500], ['flames', 'FLAMES', 600], ['neonbread', 'NEON BREAD DELIVERY', 700], ['chrome', 'CHROME', 2000], ['gold', 'GOLD', 5000]]);
+  add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
+  add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
@@ -413,6 +416,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     cheekyops: { reticle: 'SCOPE RETICLE', rifle: 'RIFLE', outfit: 'OUTFIT' },
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
+    pedxing: { livery: 'LIVERY', horn: 'HORN', dash: 'DASHBOARD' },
   };
   Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   // ---- prize icons: 16x16 pixel art drawn in code (shown at the counter and in each game's PRIZES menu)
@@ -490,6 +494,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   });
   // Grandma Theft Automatic: a grandma head / van, with the item
   const granHead = p => { p.ell(8, 10, 4.6, 4.4, '#f2c39a'); p.ell(8, 7, 5, 3, '#e6e3ef'); p.set(6, 10, '#2a1f2e'); p.set(10, 10, '#2a1f2e'); p.rect(7, 12, 2, 1, '#e06a7a'); };
+  const carBack = (p, col) => { p.rect(4, 2, 8, 6, '#2a3646'); p.rect(5, 3, 6, 4, '#16202e'); p.rect(2, 7, 12, 6, col); p.rect(2, 13, 12, 1, '#2a2a2a'); p.rect(3, 14, 3, 2, '#111'); p.rect(10, 14, 3, 2, '#111'); p.set(2, 8, '#ff3b3b'); p.set(13, 8, '#ff3b3b'); };
   const vanTop = (p, Y, W, R) => { p.rect(4, 1, 8, 14, Y); p.rect(5, 2, 6, 2, '#9fe3ff'); p.rect(5, 5, 6, 9, W); p.rect(5, 8, 6, 1, R); p.rect(5, 12, 6, 1, R); p.rect(3, 3, 1, 2, '#1c1820'); p.rect(12, 3, 1, 2, '#1c1820'); p.rect(3, 11, 1, 2, '#1c1820'); p.rect(12, 11, 1, 2, '#1c1820'); };
   Object.assign(ICON_ART, {
     'gta.hat.curlers': p => { granHead(p); [[4, 5], [7, 3], [10, 3], [12, 5]].forEach(([x, y]) => p.rect(x, y, 2, 2, '#ff8fc0')); },
@@ -508,6 +513,22 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     'gta.livery.bingo': p => { vanTop(p, '#f4f4f4', '#c62828', '#ffcc00'); },
     'gta.livery.icecream': p => { vanTop(p, '#ff8fc0', '#ffffff', '#5fd3f3'); p.set(6, 6, '#ff2bd6'); p.set(9, 7, '#43a047'); p.set(7, 10, '#1e88e5'); p.set(10, 11, '#ffcc00'); },
     'gta.livery.flames': p => { vanTop(p, '#212121', '#212121', '#ff5722'); p.rect(5, 9, 6, 1, '#ff9800'); p.set(6, 7, '#ffeb3b'); p.set(9, 6, '#ff9800'); p.set(7, 6, '#ff5722'); },
+    'pedxing.livery.student': p => { carBack(p, '#5fa8ff'); p.rect(5, 9, 6, 3, '#ffd600'); p.rect(6, 10, 4, 1, '#111'); },
+    'pedxing.livery.stripes': p => { carBack(p, '#1e5bd6'); p.rect(6, 3, 1, 10, '#f4f4f4'); p.rect(9, 3, 1, 10, '#f4f4f4'); },
+    'pedxing.livery.camo': p => { carBack(p, '#5b6b2e'); p.rect(3, 9, 3, 2, '#3b4520'); p.rect(8, 10, 3, 2, '#8a7a4a'); p.rect(11, 8, 2, 2, '#3b4520'); },
+    'pedxing.livery.checker': p => { carBack(p, '#f4f4f4'); for (let y = 8; y < 13; y++) for (let x = 2; x < 14; x++) if (((x >> 1) + (y >> 1)) % 2) p.set(x, y, '#111'); },
+    'pedxing.livery.wood': p => { carBack(p, '#8d5524'); p.rect(3, 8, 10, 4, '#a0692f'); p.rect(3, 9, 10, 1, '#7a4a1c'); p.rect(3, 11, 10, 1, '#7a4a1c'); },
+    'pedxing.livery.pizza': p => { carBack(p, '#d32f2f'); p.rect(2, 9, 12, 2, '#f4f4f4'); p.rect(7, 8, 3, 4, '#ffcc4d'); p.set(8, 9, '#c62828'); },
+    'pedxing.livery.flames': p => { carBack(p, '#1c1c1c'); [3, 6, 9, 12].forEach((x, i) => { p.rect(x, 12 - 2 - i % 2, 2, 2 + i % 2, '#ff5722'); p.set(x, 12 - i % 2, '#ffc107'); }); },
+    'pedxing.livery.neonbread': p => { carBack(p, '#1a1030'); p.rect(2, 9, 12, 1, '#ff2bd6'); p.rect(2, 11, 12, 1, '#2bf3ff'); p.rect(6, 9, 4, 3, '#e0a050'); },
+    'pedxing.livery.chrome': p => { carBack(p, '#b9c3cc'); p.rect(3, 8, 2, 5, '#ffffff'); p.rect(11, 8, 1, 5, '#7d8892'); },
+    'pedxing.livery.gold': p => { carBack(p, '#e8b923'); p.rect(3, 8, 2, 5, '#fff3b0'); p.rect(11, 8, 1, 5, '#a8820f'); },
+    'pedxing.horn.duck': p => { p.ell(8, 10, 5, 4, '#ffd600'); p.ell(5, 5, 3, 3, '#ffd600'); p.rect(1, 5, 2, 2, '#ff9800'); p.set(5, 4, '#111'); p.line(13, 3, 15, 1, '#2bf3ff'); p.line(13, 6, 15, 6, '#2bf3ff'); },
+    'pedxing.horn.clown': p => { p.ell(4, 8, 3.5, 3.5, '#e53935'); p.rect(7, 7, 2, 2, '#ffd600'); p.line(9, 8, 12, 5, '#ffd600'); p.line(9, 8, 12, 11, '#ffd600'); p.rect(12, 5, 2, 7, '#ffd600'); },
+    'pedxing.horn.goose': p => { p.ell(9, 10, 5, 4, '#9e9e9e'); p.rect(4, 3, 2, 7, '#212121'); p.ell(5, 3, 2, 1.5, '#212121'); p.rect(1, 3, 2, 1, '#111'); p.rect(4, 6, 2, 1, '#f4f4f4'); p.line(13, 3, 15, 1, '#ffe14d'); },
+    'pedxing.horn.train': p => { p.rect(2, 7, 12, 3, '#c0c6cc'); p.rect(2, 6, 3, 5, '#90979e'); p.rect(6, 5, 3, 7, '#90979e'); p.rect(10, 4, 3, 9, '#90979e'); p.rect(7, 12, 2, 3, '#555'); },
+    'pedxing.dash.dice': p => { p.line(5, 1, 5, 4, '#ddd'); p.line(10, 1, 10, 6, '#ddd'); p.rect(2, 5, 6, 6, '#ff4fa3'); p.set(3, 6, '#fff'); p.set(6, 9, '#fff'); p.rect(8, 7, 6, 6, '#f4f4f4'); p.set(10, 9, '#111'); p.set(12, 11, '#111'); p.set(11, 10, '#111'); },
+    'pedxing.dash.bobble': p => { p.rect(5, 12, 6, 3, '#555'); p.rect(7, 9, 2, 3, '#777'); p.ell(8, 6, 5, 4, '#e0a060'); p.ell(4, 2.5, 1.5, 1.5, '#e0a060'); p.ell(12, 2.5, 1.5, 1.5, '#e0a060'); p.ell(8, 7, 3, 2.5, '#fff1dc'); p.set(6, 5, '#111'); p.set(10, 5, '#111'); p.set(8, 7, '#ff8fb0'); },
     'gta.horn.goose': p => { p.ell(9, 10, 5, 4, '#f4f4f4'); p.rect(4, 3, 2, 7, '#f4f4f4'); p.ell(5, 3, 2, 1.5, '#f4f4f4'); p.rect(1, 3, 2, 1, '#ff9800'); p.set(5, 2, '#111'); p.line(13, 3, 15, 1, '#ffe14d'); p.line(13, 6, 15, 6, '#ffe14d'); },
     'gta.horn.bell': p => { p.ell(8, 9, 5, 5, '#ffcc00'); p.rect(3, 9, 10, 4, '#ffcc00'); p.rect(2, 12, 12, 1, '#d4a800'); p.rect(7, 2, 2, 2, '#d4a800'); p.ell(8, 14, 1.4, 1.2, '#8a6a00'); },
   });
