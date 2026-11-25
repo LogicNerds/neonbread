@@ -217,7 +217,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       .formatToParts(d || new Date()).forEach(x => { p[x.type] = x.value; });
     return p.year + '-' + p.month + '-' + p.day;
   }
-  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, cheats: {}, golden: 0, runs: 0 }; }
+  function tkBlank() { return { v: 1, bal: 0, earned: 0, spent: 0, best: {}, day: {}, owned: {}, equip: {}, cheats: {}, chal: {}, golden: 0, runs: 0 }; }
   function tkLoad() {
     try { const w = JSON.parse(localStorage.getItem(TK_KEY) || 'null'); if (w && typeof w.bal === 'number') return Object.assign(tkBlank(), w); } catch (e) { }
     return tkBlank();
@@ -236,7 +236,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     spend(n) { const w = tkLoad(); n = Math.max(0, Math.floor(n)); if (w.bal < n) return false; w.bal -= n; w.spent += n; tkSave(w); return true; },
     owns(id) { return !!tkLoad().owned[id]; },
     // buy a prize: takes the tickets and records it in one save
-    buy(id, price) { const w = tkLoad(); if (w.owned[id] || w.bal < price) return false; w.bal -= price; w.spent += price; w.owned[id] = Date.now(); tkSave(w); return true; },
+    buy(id, price) { const w = tkLoad(), it = Tickets.item(id); if (w.owned[id] || w.bal < price || (it && !Tickets.inSeason(it))) return false; w.bal -= price; w.spent += price; w.owned[id] = Date.now(); tkSave(w); return true; },
     equipped(game, slot) { const e = tkLoad().equip[game] || {}; return slot ? e[slot] || null : e; },
     setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
     // ---- cheat cards: codes live in w.owned like any prize; w.cheats[id] = switched on
@@ -258,7 +258,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     // a run with any gameplay (T) code switched on is tagged on the leaderboard
     tagged(game) { return Tickets.cheatsFor(game).some(i => i.tag && Tickets.cheatOn(game, i.id.split('.')[2])); },
     // work out what a finished run pays (doesn't save). A tagged run can't set a personal best.
-    quote(game, score, ranks, feats, tagged) {
+    quote(game, score, ranks, feats, tagged, stats) {
       const w = tkLoad(), lines = [];
       const base = Math.max(TK.min, Math.min(TK.max, Math.round(score / (TK_RATE[game] || 1000))));
       lines.push({ t: 'RUN PAYOUT', n: base });
@@ -266,6 +266,8 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       if (ranks && ranks.week && ranks.week <= 10) lines.push({ t: 'WEEKLY TOP 10', n: TK.top10 });
       if (w.day[game] !== pacificDay()) lines.push({ t: 'FIRST RUN TODAY', n: TK.firstToday });
       (feats || []).forEach(f => { if (f && f.n > 0) lines.push({ t: String(f.t), n: Math.floor(f.n) }); });
+      const ch = Tickets.challenge(game);
+      if (ch && !ch.done && !tagged) { let ok = false; try { ok = !!ch.ok(Object.assign({ score }, stats || {})); } catch (e) { } if (ok) lines.push({ t: 'DAILY CHALLENGE: ' + ch.t, n: ch.n, chal: true }); }
       if (Math.random() < TK.goldenOdds) lines.push({ t: 'GOLDEN TICKET!', n: TK.golden, gold: true });
       return { lines, total: lines.reduce((a, l) => a + l.n, 0) };
     },
@@ -275,6 +277,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       w.bal += q.total; w.earned += q.total; w.runs++;
       if (!tagged) w.best[game] = Math.max(w.best[game] || 0, score); w.day[game] = pacificDay();
       if (q.lines.some(l => l.gold)) w.golden++;
+      if (q.lines.some(l => l.chal)) w.chal[game] = pacificDay();
       tkSave(w); return w.bal;
     },
   };
@@ -335,6 +338,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
   add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
   // cheat cards: one envelope per game, 3 codes in each. C = cosmetic, T = gameplay (tags the run)
+  const KAREN_REPLACES = { cone: 'bottle', dentures: 'pencil', clanker: 'laptop', casserole: 'pan', review: 'book', rat: 'shoe', plush: 'pizza', brain: 'sandwich', monocle: 'phone', baby: 'bat' };
   const CHEATS = {
     yeet: [['chonx', 'CHONX BABY', 'C'], ['bighead', 'BIG HEAD BABY', 'C'], ['moon', 'MOON GRAVITY', 'T']],
     pedxing: [['chonx', 'CHONX CROSSING', 'C'], ['clown', 'CLOWN CAR', 'C'], ['turbohorn', 'TURBO HORN', 'T']],
@@ -350,7 +354,68 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     CHEATS[game].forEach(([key, name, kind]) => Tickets.catalog.push({ id: 'cheat.' + game + '.' + key, shelf: 'codes', game, cheat: true, tag: kind === 'T', name, price: 0,
       note: kind === 'T' ? 'TAGS YOUR SCORE' : (CHEAT_NOTES[game + '.' + key] || '') }));
   });
-  Tickets.shelves = { cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
+  // ---- seasonal: sold only in their window (Pacific dates, from the device clock), kept forever, equipped like anything else
+  const SEASONS = {
+    holidays: ['2026-12-01', '2026-12-31', 'HOLIDAYS'], newyear: ['2026-12-31', '2027-01-02', "NEW YEAR'S"],
+    valentines: ['2027-02-01', '2027-02-14', "VALENTINE'S"], lunar: ['2027-02-06', '2027-02-12', 'LUNAR NEW YEAR'],
+    stpats: ['2027-03-10', '2027-03-17', "ST. PATRICK'S"], easter: ['2027-03-21', '2027-04-04', 'EASTER'],
+    fools: ['2027-04-01', '2027-04-01', 'APRIL FOOLS'], mothers: ['2027-05-03', '2027-05-09', "MOTHER'S DAY"],
+    summer: ['2027-05-28', '2027-08-31', 'SUMMER'], fathers: ['2027-06-14', '2027-06-20', "FATHER'S DAY"],
+    july4: ['2027-07-01', '2027-07-07', 'FOURTH OF JULY'],
+  };
+  Tickets.SEASONS = SEASONS;
+  // [season, game, slot, key, name, price]. Karen throwables use the slot of the regular special that
+  // replaces the same item, so the two can't both be equipped (and they copy that item's damage).
+  [['holidays', 'yeet', 'hat', 'santa', 'SANTA HAT', 300], ['holidays', 'gta', 'hat', 'elf', 'ELF HAT', 300], ['holidays', 'chonx', 'skin', 'sweater', 'UGLY SWEATER CHONX', 600],
+   ['holidays', 'karen', 'cone', 'giftbox', 'GIFT BOX', 400], ['holidays', 'cheekyops', 'reticle', 'candycane', 'CANDY-CANE RETICLE', 300],
+   ['holidays', 'pedxing', 'livery', 'lights', 'STRING LIGHTS', 500], ['holidays', 'gta', 'horn', 'sleigh', 'SLEIGH-BELL HORN', 300],
+   ['newyear', 'yeet', 'face', 'y2027', '"2027" GLASSES', 250], ['newyear', 'pedxing', 'horn', 'partyhorn', 'PARTY HORN', 250], ['newyear', 'yeet', 'trail', 'confetti', 'CONFETTI TRAIL', 400],
+   ['valentines', 'yeet', 'outfit', 'wings', 'CUPID WINGS', 500], ['valentines', 'yeet', 'face', 'hearts', 'HEART SHADES', 250],
+   ['valentines', 'karen', 'review', 'chocolate', 'BOX OF CHOCOLATES', 400], ['valentines', 'cheekyops', 'reticle', 'cupid', "CUPID'S-ARROW RETICLE", 300],
+   ['lunar', 'yeet', 'trail', 'lantern', 'LANTERN TRAIL', 400], ['lunar', 'pedxing', 'livery', 'redgold', 'RED AND GOLD', 500],
+   ['stpats', 'yeet', 'hat', 'leprechaun', 'LEPRECHAUN HAT', 300], ['stpats', 'pedxing', 'livery', 'shamrock', 'SHAMROCK', 400], ['stpats', 'karen', 'casserole', 'potgold', "POT O' GOLD", 500],
+   ['easter', 'yeet', 'hat', 'bunny', 'BUNNY EARS', 250], ['easter', 'karen', 'dentures', 'egg', 'EASTER EGG', 300], ['easter', 'pedxing', 'livery', 'pastel', 'PASTEL', 400], ['easter', 'gta', 'hat', 'bonnet', 'EASTER BONNET', 300],
+   ['mothers', 'gta', 'neck', 'corsage', 'CORSAGE', 250], ['mothers', 'gta', 'body', 'sash', '"WORLD\'S BEST GRANDMA" SASH', 300],
+   ['summer', 'gta', 'hat', 'sunhat', 'SUN HAT', 250], ['summer', 'yeet', 'face', 'sunscreen', 'SUNSCREEN NOSE', 200], ['summer', 'karen', 'clanker', 'noodle', 'POOL NOODLE', 400],
+   ['summer', 'karen', 'plush', 'beachball', 'BEACH BALL', 400], ['summer', 'cheekyops', 'reticle', 'watergun', 'WATER-GUN RETICLE', 300], ['summer', 'pedxing', 'livery', 'icecream', 'ICE CREAM TRUCK', 600],
+   ['fathers', 'yeet', 'hat', 'dadcap', 'DAD CAP', 200], ['fathers', 'karen', 'brain', 'tongs', 'GRILL TONGS', 400], ['fathers', 'pedxing', 'horn', 'dad', 'DAD HORN', 300],
+   ['july4', 'yeet', 'face', 'flag', 'FLAG SHADES', 250], ['july4', 'yeet', 'trail', 'firework', 'FIREWORK TRAIL', 500], ['july4', 'karen', 'monocle', 'sparkler', 'SPARKLER', 400],
+   ['july4', 'pedxing', 'livery', 'stars', 'STARS AND STRIPES', 600]]
+    .forEach(([season, game, slot, key, name, price]) => {
+      const se = SEASONS[season], it = { id: game + '.' + slot + '.' + key, shelf: 'seasonal', game, slot, name, price, season, from: se[0], to: se[1] };
+      if (game === 'karen') { it.replaces = KAREN_REPLACES[slot]; it.note = 'TAKES THE ' + it.replaces.toUpperCase() + "'S PLACE"; }
+      Tickets.catalog.push(it);
+    });
+  // April Fools: a box of nothing, 1 ticket. And Chonx Baby works in Yeet for everyone that day.
+  Tickets.catalog.push({ id: 'junk.nothing', shelf: 'seasonal', name: 'A BOX OF NOTHING', price: 1, season: 'fools', from: SEASONS.fools[0], to: SEASONS.fools[1], note: 'IT\'S EMPTY. WE CHECKED.' });
+  Tickets.catalog.find(i => i.id === 'cheat.yeet.chonx').freeDay = SEASONS.fools[0];
+  Tickets.inSeason = it => !it.season || (pacificDay() >= it.from && pacificDay() <= it.to);
+  Tickets.seasonLabel = it => { if (!it.season) return ''; const f = d => ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][+d.slice(5, 7) - 1] + ' ' + +d.slice(8); return SEASONS[it.season][2] + ' &middot; ' + (it.from === it.to ? f(it.from) : f(it.from) + '-' + f(it.to)); };
+
+  // ---- daily challenges: one per game, the same for everyone that day (picked from the date), reset midnight Pacific.
+  // Each checks the run's score and the stats the game hands to submit(). Tagged runs can't complete them.
+  const CHALLENGES = {
+    yeet: [['THROW 500 FT', 75, s => s.longest >= 500], ['THROW 750 FT', 100, s => s.longest >= 750], ['THROW 1,000 FT', 150, s => s.longest >= 1000],
+      ['SCORE 20,000', 75, s => s.score >= 20000], ['SCORE 30,000', 125, s => s.score >= 30000], ['EVERY THROW OVER 200 FT', 100, s => s.shortest >= 200]],
+    chonx: [['BEAT A MINI-BOSS', 75, s => s.bosses >= 1], ['BEAT 2 MINI-BOSSES', 125, s => s.bosses >= 2], ['40 KILLS IN ONE RUN', 75, s => s.kills >= 40],
+      ['SCORE 30,000', 75, s => s.score >= 30000], ['SCORE 60,000', 125, s => s.score >= 60000], ['BEAT BRAYN', 150, s => s.victory]],
+    cheekyops: [['FINISH 3 MISSIONS', 75, s => s.missions >= 3], ['FINISH 5 MISSIONS', 100, s => s.missions >= 5], ['3 HEADSHOTS', 75, s => s.heads >= 3],
+      ['6 HEADSHOTS', 125, s => s.heads >= 6], ['SCORE 60,000', 100, s => s.score >= 60000], ['GET THE GOOD ENDING', 150, s => s.good]],
+    gta: [['SCORE 40,000', 75, s => s.score >= 40000], ['SCORE 70,000', 125, s => s.score >= 70000], ['FILL 60 SEATS', 100, s => s.seats >= 60],
+      ['FILL 80 SEATS', 125, s => s.seats >= 80], ['BEAT BIG BERTHA', 150, s => s.bertha], ['FILL ALL 100 SEATS', 150, s => s.seats >= 100]],
+    karen: [['CLEAR 2 STORES', 75, s => s.stores >= 2], ['CLEAR 3 STORES', 100, s => s.stores >= 3], ['3 HEADSHOTS', 75, s => s.heads >= 3],
+      ['6 HEADSHOTS', 125, s => s.heads >= 6], ['SCORE 12,000', 75, s => s.score >= 12000], ['CLEAR ALL 5 STORES', 150, s => s.stores >= 5]],
+    pedxing: [['x3 COMBO', 50, s => s.combo >= 3], ['x4 COMBO', 75, s => s.combo >= 4], ['x5 COMBO', 125, s => s.combo >= 5],
+      ['A CLEAN SHIFT', 100, s => s.clean], ['SCORE 40,000', 75, s => s.score >= 40000], ['SCORE 70,000', 125, s => s.score >= 70000]],
+  };
+  Tickets.challenge = (game, day) => {
+    const list = CHALLENGES[game]; if (!list) return null;
+    const d = day || pacificDay(); let h = 2166136261;
+    for (const ch of d + game) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    const [t, n, ok] = list[h % list.length];
+    return { t, n, ok, done: tkLoad().chal[game] === d };
+  };
+  Tickets.shelves = { seasonal: 'SEASONAL', cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
@@ -380,6 +445,8 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       ICON_ART['cheat.' + game + '.' + key] = p => { p.rect(3, 1, 10, 14, kind === 'T' ? '#ff2bd6' : '#2bf3ff'); p.rect(4, 2, 8, 12, '#140a32'); p.rect(6, 4, 4, 1, col); p.rect(9, 5, 1, 2, col); p.rect(7, 7, 2, 1, col); p.rect(7, 8, 1, 2, col); p.rect(7, 11, 1, 1, col); };
     });
   });
+  // the raw art (no outline) for games that draw a prize in-world
+  Tickets.iconPX = id => { const p = new IPX(16, 16), f = ICON_ART[id]; if (f) f(p); return p; };
   Tickets.icon = id => {
     if (ICONS[id]) return ICONS[id];
     const p = new IPX(16, 16), f = ICON_ART[id];
@@ -422,9 +489,13 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     else if (key === 'chef') { R(-3, -1, 7, 2, '#ffffff'); R(-4, -5, 9, 4, '#ffffff'); R(-3, -6, 3, 1, '#ffffff'); R(1, -6, 3, 1, '#ffffff'); R(-3, -1, 7, 1, '#dcdcdc'); }
     else if (key === 'cowboy') { R(-6, 0, 13, 1, '#8d5524'); R(-3, -3, 7, 3, '#a0692f'); R(-3, -1, 7, 1, '#3e2723'); R(-1, -4, 3, 1, '#a0692f'); }
     else if (key === 'viking') { R(-4, -2, 9, 3, '#9aa3ad'); R(-3, -3, 7, 1, '#9aa3ad'); R(0, -3, 1, 4, '#d4af37'); L(-5, -1, -7, -5, '#fff3c4'); L(5, -1, 7, -5, '#fff3c4'); }
+    else if (key === 'santa') { R(-4, -1, 9, 2, '#ffffff'); R(-3, -3, 7, 2, '#e53935'); R(-1, -4, 5, 1, '#e53935'); R(2, -5, 3, 1, '#e53935'); R(4, -4, 2, 2, '#ffffff'); }
+    else if (key === 'leprechaun') { R(-5, 0, 11, 1, '#1b5e20'); R(-3, -5, 7, 5, '#2e9d4a'); R(-3, -2, 7, 1, '#111'); R(0, -2, 1, 1, '#ffcc00'); }
+    else if (key === 'bunny') { R(-4, -1, 9, 1, '#ff8fc0'); R(-3, -7, 2, 6, '#ffffff'); R(2, -7, 2, 6, '#ffffff'); S(-2, -5, '#ff8fc0'); S(-2, -4, '#ff8fc0'); S(3, -5, '#ff8fc0'); S(3, -4, '#ff8fc0'); }
+    else if (key === 'dadcap') { R(-3, -2, 7, 3, '#f4f4f4'); R(-3, -2, 7, 1, '#1e3a8a'); R(4, 0, 4, 1, '#1e3a8a'); S(0, -1, '#e53935'); }
     else if (key === 'crown') { R(-3, -2, 7, 3, '#ffcc00'); S(-3, -3, '#ffcc00'); S(0, -4, '#ffcc00'); S(0, -3, '#ffcc00'); S(3, -3, '#ffcc00'); S(0, -1, '#e53935'); S(-2, -1, '#1e88e5'); S(2, -1, '#1e88e5'); }
   };
-  ['party', 'beanie', 'cap', 'helmet', 'chef', 'cowboy', 'viking', 'crown'].forEach(k => ICON_ART['yeet.hat.' + k] = p => { babyHead(p); Tickets.yeetHat(p, k, 8, 6); });
+  ['party', 'beanie', 'cap', 'helmet', 'chef', 'cowboy', 'viking', 'crown', 'santa', 'leprechaun', 'bunny', 'dadcap'].forEach(k => ICON_ART['yeet.hat.' + k] = p => { babyHead(p); Tickets.yeetHat(p, k, 8, 6); });
   Object.assign(ICON_ART, {
     'yeet.face.shades': p => { babyHead(p); p.rect(4, 9, 10, 1, '#111'); p.rect(9, 9, 3, 2, '#111'); p.rect(12, 9, 2, 2, '#111'); },
     'yeet.face.stache': p => { babyHead(p); p.rect(9, 12, 5, 1, '#4e2a12'); p.set(8, 13, '#4e2a12'); p.set(14, 13, '#4e2a12'); },
@@ -522,6 +593,45 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     'cheekyops.rifle.neon': p => { rifleArt(p, '#ff2bd6', '#00e5ff', '#00e5ff'); },
     'cheekyops.rifle.gold': p => { rifleArt(p, '#ffcc00', '#d4a800', '#fff3a0'); },
     'cheekyops.outfit.tux': p => { p.rect(3, 3, 10, 12, '#111111'); p.rect(7, 3, 2, 12, '#ffffff'); p.rect(6, 3, 4, 2, '#e53935'); p.set(8, 7, '#111'); p.set(8, 10, '#111'); p.line(4, 3, 7, 8, '#2a2a2a'); p.line(12, 3, 9, 8, '#2a2a2a'); },
+  });
+  // ---- seasonal icons
+  const heart = (p, x, y, c) => { p.rect(x, y, 2, 2, c); p.rect(x + 3, y, 2, 2, c); p.rect(x, y + 1, 5, 2, c); p.rect(x + 1, y + 3, 3, 1, c); p.set(x + 2, y + 4, c); };
+  Object.assign(ICON_ART, {
+    'gta.hat.elf': p => { granHead(p); p.rect(3, 6, 10, 2, '#e53935'); for (let r = 0; r < 5; r++) p.rect(4 + r, 5 - r, 7 - r, 1, '#2e9d4a'); p.ell(13, 2, 1.5, 1.5, '#ffe14d'); },
+    'gta.hat.bonnet': p => { granHead(p); p.ell(8, 6, 7, 3, '#ffe9a8'); p.rect(2, 7, 12, 1, '#ff8fc0'); p.set(4, 5, '#9fe3ff'); p.set(12, 5, '#c8a8ff'); p.set(8, 4, '#ff8fc0'); },
+    'gta.hat.sunhat': p => { granHead(p); p.ell(8, 6.5, 7.5, 2, '#f2d38a'); p.ell(8, 4.5, 4, 2.5, '#f2d38a'); p.rect(4, 5, 8, 1, '#e53935'); },
+    'gta.horn.sleigh': p => { [[4, 9], [8, 6], [12, 9]].forEach(([x, y]) => { p.ell(x, y, 2.6, 2.6, '#ffcc00'); p.set(x, y + 1, '#8a6a00'); }); p.line(1, 9, 15, 9, '#c62828'); p.rect(1, 9, 14, 1, '#c62828'); },
+    'gta.neck.corsage': p => { p.ell(8, 8, 4, 4, '#ff8fc0'); p.ell(8, 8, 2, 2, '#ffe14d'); p.ell(4, 11, 2.5, 1.5, '#43a047'); p.ell(12, 11, 2.5, 1.5, '#43a047'); },
+    'gta.body.sash': p => { p.rect(3, 3, 10, 12, '#9b6bd6'); for (let k = 0; k < 12; k++) p.rect(3 + Math.floor(k * 0.8), 3 + k, 3, 1, '#ffcc00'); p.set(8, 8, '#e53935'); },
+    'yeet.face.y2027': p => { babyHead(p); p.rect(3, 8, 11, 3, '#ffcc00'); p.set(4, 9, '#111'); p.set(6, 9, '#111'); p.set(10, 9, '#111'); p.set(12, 9, '#111'); },
+    'yeet.face.hearts': p => { babyHead(p); heart(p, 4, 8, '#ff2a3d'); heart(p, 10, 8, '#ff2a3d'); },
+    'yeet.face.sunscreen': p => { babyHead(p); p.rect(11, 9, 3, 3, '#ffffff'); p.set(12, 10, '#dff6ff'); },
+    'yeet.face.flag': p => { babyHead(p); p.rect(3, 8, 5, 3, '#1e3a8a'); p.rect(9, 8, 5, 3, '#c62828'); p.rect(9, 9, 5, 1, '#ffffff'); p.set(4, 9, '#ffffff'); p.set(6, 9, '#ffffff'); },
+    'yeet.outfit.wings': p => { p.ell(4, 8, 3.5, 5, '#ffffff'); p.ell(12, 8, 3.5, 5, '#ffffff'); p.ell(4, 9, 2, 3, '#ffe0ef'); p.ell(12, 9, 2, 3, '#ffe0ef'); heart(p, 6, 3, '#ff2a3d'); },
+    'yeet.trail.confetti': p => { [[2, 12, '#ff2bd6'], [5, 8, '#2bf3ff'], [8, 11, '#ffe14d'], [10, 5, '#7dff4a'], [13, 3, '#ff2bd6'], [12, 9, '#ff7a1a'], [6, 3, '#2bf3ff']].forEach(([x, y, c]) => p.rect(x, y, 2, 1, c)); },
+    'yeet.trail.lantern': p => { p.line(8, 0, 8, 3, '#ffcc00'); p.ell(8, 8, 5, 5, '#e53935'); p.rect(4, 4, 9, 1, '#ffcc00'); p.rect(4, 12, 9, 1, '#ffcc00'); p.ell(8, 8, 2, 2.5, '#ff7a1a'); p.line(8, 13, 8, 15, '#ffcc00'); },
+    'yeet.trail.firework': p => { for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; p.line(8, 7, 8 + Math.round(Math.cos(a) * 6), 7 + Math.round(Math.sin(a) * 6), k % 2 ? '#2bf3ff' : '#ff2bd6'); } p.set(8, 7, '#ffffff'); p.line(8, 10, 8, 15, '#ffe14d'); },
+    'chonx.skin.sweater': p => { miniChonx(p, Object.assign({}, CH, { hood: '#c62828', hoodD: '#8e1b1b', teal: '#ffffff' })); p.set(5, 11, '#ffffff'); p.set(8, 10, '#2e9d4a'); p.set(11, 11, '#ffffff'); p.set(7, 12, '#ffffff'); },
+    'cheekyops.reticle.candycane': p => { scopeRing(p); p.rect(8, 6, 1, 6, '#ffffff'); p.set(8, 7, '#e53935'); p.set(8, 9, '#e53935'); p.set(8, 11, '#e53935'); p.set(9, 5, '#e53935'); p.set(10, 6, '#ffffff'); p.set(10, 7, '#e53935'); },
+    'cheekyops.reticle.cupid': p => { scopeRing(p); p.line(4, 12, 12, 4, '#ffcc00'); p.rect(11, 3, 2, 2, '#ff2a3d'); p.set(4, 12, '#ffffff'); p.set(3, 11, '#ffffff'); },
+    'cheekyops.reticle.watergun': p => { scopeRing(p); p.ell(8, 8, 2.4, 2.4, '#2bf3ff'); p.set(8, 4, '#2bf3ff'); p.set(8, 12, '#2bf3ff'); p.set(4, 8, '#2bf3ff'); p.set(12, 8, '#2bf3ff'); },
+    'pedxing.livery.lights': p => { carBack(p, '#2e7d32'); p.line(2, 8, 13, 8, '#111'); [[3, '#e53935'], [6, '#ffe14d'], [9, '#2bf3ff'], [12, '#ff2bd6']].forEach(([x, c]) => p.rect(x, 9, 1, 2, c)); },
+    'pedxing.livery.redgold': p => { carBack(p, '#c62828'); p.rect(2, 9, 12, 1, '#ffcc00'); p.rect(2, 11, 12, 1, '#ffcc00'); p.rect(7, 8, 2, 4, '#ffcc00'); },
+    'pedxing.livery.shamrock': p => { carBack(p, '#2e9d4a'); p.ell(7, 9, 1.3, 1.3, '#a5f28a'); p.ell(9, 9, 1.3, 1.3, '#a5f28a'); p.ell(8, 8, 1.3, 1.3, '#a5f28a'); p.set(8, 11, '#a5f28a'); },
+    'pedxing.livery.pastel': p => { carBack(p, '#ffc8e6'); p.rect(2, 9, 12, 1, '#b8f0d8'); p.rect(2, 11, 12, 1, '#c8d8ff'); p.ell(8, 10, 1.5, 2, '#fff3a0'); },
+    'pedxing.livery.icecream': p => { carBack(p, '#ffffff'); p.rect(2, 8, 12, 1, '#ff8fc0'); p.rect(7, 9, 3, 2, '#ff8fc0'); p.rect(8, 11, 1, 2, '#e0a050'); p.set(4, 10, '#5fd3f3'); p.set(12, 10, '#ffcc00'); },
+    'pedxing.livery.stars': p => { carBack(p, '#c62828'); p.rect(2, 7, 5, 3, '#1e3a8a'); p.set(3, 8, '#ffffff'); p.set(5, 8, '#ffffff'); p.rect(7, 9, 7, 1, '#ffffff'); p.rect(2, 11, 12, 1, '#ffffff'); },
+    'pedxing.horn.partyhorn': p => { p.line(2, 12, 10, 4, '#ff2bd6'); p.line(3, 12, 11, 4, '#ffe14d'); p.ell(12, 3, 2.5, 2.5, '#2bf3ff'); p.line(13, 8, 15, 10, '#ffe14d'); },
+    'pedxing.horn.dad': p => { p.rect(3, 6, 4, 5, '#555'); for (let r = 0; r < 6; r++) p.rect(7 + r, 6 - Math.floor(r / 2), 1, 5 + Math.floor(r / 2) * 2, '#8a8f99'); p.rect(4, 3, 3, 2, '#1e88e5'); },
+    'karen.cone.giftbox': p => { p.rect(3, 5, 10, 9, '#e53935'); p.rect(7, 5, 2, 9, '#ffcc00'); p.rect(3, 8, 10, 2, '#ffcc00'); p.ell(6, 3.5, 2, 1.5, '#ffcc00'); p.ell(10, 3.5, 2, 1.5, '#ffcc00'); },
+    'karen.review.chocolate': p => { heart(p, 3, 4, '#c62828'); p.rect(3, 5, 10, 6, '#c62828'); p.rect(4, 11, 8, 1, '#c62828'); p.rect(6, 12, 4, 1, '#c62828'); p.rect(5, 6, 2, 2, '#5d3a1a'); p.rect(9, 6, 2, 2, '#5d3a1a'); p.rect(7, 9, 2, 2, '#5d3a1a'); },
+    'karen.casserole.potgold': p => { p.ell(8, 10, 6, 4.5, '#212121'); p.rect(2, 7, 12, 2, '#3a3a3a'); p.ell(8, 6, 5, 2.4, '#ffcc00'); p.set(6, 5, '#fff3a0'); p.set(10, 6, '#fff3a0'); },
+    'karen.dentures.egg': p => { p.ell(8, 8.5, 4.6, 6, '#c8a8ff'); p.rect(4, 7, 9, 1, '#ffe14d'); p.rect(4, 10, 9, 1, '#7dff4a'); p.set(6, 5, '#ffffff'); },
+    'karen.clanker.noodle': p => { p.line(2, 14, 13, 2, '#ff8f2b'); p.line(3, 14, 14, 2, '#ff8f2b'); p.line(2, 13, 13, 1, '#ff8f2b'); p.line(4, 14, 14, 3, '#ffb36b'); },
+    'karen.plush.beachball': p => { p.ell(8, 8, 6, 6, '#ffffff'); p.rect(2, 7, 12, 2, '#e53935'); p.rect(7, 2, 2, 12, '#1e88e5'); p.ell(8, 8, 1.4, 1.4, '#ffcc00'); },
+    'karen.brain.tongs': p => { p.line(2, 14, 12, 2, '#cfd4de'); p.line(4, 14, 14, 4, '#cfd4de'); p.rect(1, 12, 4, 3, '#212121'); p.set(12, 1, '#9aa3ad'); p.set(15, 4, '#9aa3ad'); },
+    'karen.monocle.sparkler': p => { p.line(3, 14, 10, 6, '#9aa3ad'); [[11, 3], [13, 5], [10, 2], [14, 7], [12, 1], [9, 4], [12, 4]].forEach(([x, y], i) => p.set(x, y, i % 2 ? '#ffe14d' : '#ffffff')); p.set(11, 5, '#ff7a1a'); },
+    'junk.nothing': p => { p.rect(2, 6, 12, 8, '#c9a46a'); p.rect(2, 6, 12, 1, '#a07c44'); p.rect(4, 8, 8, 5, '#3a2a14'); p.line(2, 6, 5, 2, '#c9a46a'); p.line(14, 6, 11, 2, '#c9a46a'); },
   });
   window.NBTickets = Tickets;
 
@@ -721,7 +831,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
       let last = ''; try { last = clean(localStorage.getItem(NAME_KEY)); } catch (e) { }
       const chars = (last || '').padEnd(NAME_LEN, ' ').split('');
       // last name used on this device is pre-filled; typing a new letter first replaces it
-      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [], cheat: Tickets.tagged(game) };
+      const st = { game, score, chars, cur: 0, onClose: opt.onClose, err: '', fresh: !!last, tk: opt.tickets !== false, feats: opt.feats || [], stats: opt.stats || {}, cheat: Tickets.tagged(game) };
       NB._st = st; NB._mode = 'enter';
       renderEnter();
     },
@@ -1047,7 +1157,7 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
   function showTickets() {
     const st = NB._st;
     let q;
-    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats, st.cheat); } catch (e) { st.tk = false; return close(); }
+    try { q = Tickets.quote(st.game, st.score, st.ranks, st.feats, st.cheat, st.stats); } catch (e) { st.tk = false; return close(); }
     const before = Tickets.balance();
     Tickets.payRun(st.game, st.score, q, st.cheat);
     const gold = q.lines.some(l => l.gold);
@@ -1410,7 +1520,18 @@ const SPECIALS = {
   brain:     { name: "BRAYN'S BRAIN", replaces: 'sandwich', colors: ['#ff9fc0', '#d9608a'] },
   monocle:   { name: "MITTENS' MONOCLE", replaces: 'phone', colors: ['#ffd23a', '#cfefff'] },
   baby:      { name: 'THE BABY', replaces: 'bat', colors: ['#f6c48f', '#ffffff'] },
+  // seasonal (art comes from the prize counter icons)
+  giftbox:   { name: 'GIFT BOX', replaces: 'bottle', colors: ['#e53935', '#ffcc00'] },
+  chocolate: { name: 'BOX OF CHOCOLATES', replaces: 'book', colors: ['#c62828', '#5d3a1a'] },
+  potgold:   { name: "POT O' GOLD", replaces: 'pan', colors: ['#212121', '#ffcc00'] },
+  egg:       { name: 'EASTER EGG', replaces: 'pencil', colors: ['#c8a8ff', '#ffe14d'] },
+  noodle:    { name: 'POOL NOODLE', replaces: 'laptop', colors: ['#ff8f2b', '#ffb36b'] },
+  beachball: { name: 'BEACH BALL', replaces: 'pizza', colors: ['#ffffff', '#1e88e5'] },
+  tongs:     { name: 'GRILL TONGS', replaces: 'sandwich', colors: ['#cfd4de', '#212121'] },
+  sparkler:  { name: 'SPARKLER', replaces: 'phone', colors: ['#ffe14d', '#ffffff'] },
 };
+// the slot each seasonal throwable shares (the regular special that replaces the same item)
+const SPECIAL_SLOT = { giftbox: 'cone', chocolate: 'review', potgold: 'casserole', egg: 'dentures', noodle: 'clanker', beachball: 'plush', tongs: 'brain', sparkler: 'monocle' };
 function specialPX(k) {
   let p;
   if (k === 'cone') { p = new PX(11, 13); for (let r = 0; r < 10; r++) p.rect(5 - Math.floor(r / 2), r, 1 + Math.floor(r / 2) * 2, 1, '#ff6d00'); p.rect(3, 5, 5, 2, '#ffffff'); p.rect(0, 10, 11, 3, '#ff6d00'); }
@@ -1422,6 +1543,13 @@ function specialPX(k) {
   else if (k === 'plush') { p = new PX(11, 11); p.ell(5.5, 6.5, 4.4, 4, '#d9893b'); p.ell(5.5, 7.5, 2.2, 2.2, '#f6c98a'); p.ell(2, 2, 1.4, 1.4, '#d9893b'); p.ell(9, 2, 1.4, 1.4, '#d9893b'); p.set(4, 5, '#111'); p.set(7, 5, '#111'); p.rect(1, 9, 9, 2, '#7a3cc9'); }
   else if (k === 'brain') { p = new PX(11, 9); p.ell(5.5, 4.5, 5, 4, '#ff9fc0'); p.line(5, 1, 5, 8, '#d9608a'); p.line(2, 3, 3, 5, '#d9608a'); p.line(8, 3, 9, 6, '#d9608a'); }
   else if (k === 'monocle') { p = new PX(9, 11); p.ell(4, 4, 3.6, 3.6, '#ffd23a'); p.ell(4, 4, 2.2, 2.2, '#cfefff'); p.line(7, 7, 8, 10, '#ffd23a'); }
+  else if (SPECIAL_SLOT[k]) {   // seasonal: copy the prize icon's pixels, cropped to what's drawn
+    const src = (window.NBTickets && NBTickets.iconPX) ? NBTickets.iconPX('karen.' + SPECIAL_SLOT[k] + '.' + k) : null;
+    let x0 = 16, y0 = 16, x1 = -1, y1 = -1;
+    if (src) for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) if (src.get(x, y)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    if (x1 < 0) { p = new PX(8, 8); p.rect(0, 0, 8, 8, SPECIALS[k].colors[0]); }
+    else { p = new PX(x1 - x0 + 1, y1 - y0 + 1); for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const c = src.get(x, y); if (c) p.set(x - x0, y - y0, c); } }
+  }
   else { p = new PX(13, 14); p.ell(7.5, 4.5, 4, 4, '#f6c48f'); p.ell(5.5, 10, 3.6, 3, '#f6c48f'); p.ell(5.5, 11, 3.2, 2.2, '#ffffff'); p.set(8, 4, '#111'); p.set(10, 4, '#111'); p.rect(9, 6, 2, 1, '#c0392b'); p.set(7, 0, '#c98a3a'); p.line(9, 9, 12, 7, '#f6c48f'); p.line(3, 9, 0, 7, '#f6c48f'); }
   p.outline(OL);
   return p;
@@ -1462,7 +1590,7 @@ function refreshKEQ() {
 function levelItems() {
   refreshKEQ();
   return ITEMS.map(it => {
-    const k = Object.keys(SPECIALS).find(key => KEQ[key] && SPECIALS[key].replaces === it.id);
+    const slot = Object.keys(SPECIALS).find(key => KEQ[key] && SPECIALS[key].replaces === it.id), k = slot && SPECIALS[KEQ[slot]] ? KEQ[slot] : null;
     return k ? { ...it, id: 'sp_' + k, name: SPECIALS[k].name, used: false } : { ...it, used: false };
   });
 }
@@ -2247,7 +2375,7 @@ function gameOver(kind) {
     { label: 'TRY AGAIN', action: newGame },
     { label: 'QUIT TO TITLE', action: showTitle },
   ]);
-  if (window.NBScores) NBScores.submit({ game: 'karen', score: G.score, feats: karenFeats(G.level - 1) });
+  if (window.NBScores) NBScores.submit({ game: 'karen', score: G.score, feats: karenFeats(G.level - 1), stats: { stores: G.level - 1, heads: G.headshots } });
 }
 // tickets: +10 per store cleared, +50 more for all five
 function karenFeats(cleared) {
@@ -2266,7 +2394,7 @@ function victory() {
     { label: 'PLAY AGAIN', action: newGame },
     { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' },
   ]);
-  if (window.NBScores) NBScores.submit({ game: 'karen', score: G.score, feats: karenFeats(5) });
+  if (window.NBScores) NBScores.submit({ game: 'karen', score: G.score, feats: karenFeats(5), stats: { stores: 5, heads: G.headshots } });
 }
 
 // =====================================================================
