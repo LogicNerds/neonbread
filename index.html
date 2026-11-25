@@ -384,8 +384,20 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   add('yeet', 'face', [['shades', 'SUNGLASSES', 250], ['stache', 'FAKE MUSTACHE', 300], ['goggles', 'AVIATOR GOGGLES', 400], ['paci', 'BLING PACIFIER', 500]]);
   add('yeet', 'outfit', [['tutu', 'TUTU', 300], ['floaties', 'FLOATIES', 350], ['camo', 'CAMO DIAPER', 400], ['cape', 'SUPERHERO CAPE', 700], ['gold', 'GOLD DIAPER', 1500]]);
   add('yeet', 'trail', [['glitter', 'GLITTER TRAIL', 500], ['tp', 'TOILET-PAPER STREAMER', 600], ['rainbow', 'RAINBOW TRAIL', 800], ['fire', 'FIRE TRAIL', 1200]]);
+  add('gta', 'hat', [['curlers', 'CURLERS', 200], ['visor', 'SUN VISOR', 200], ['helmet', 'BIKE HELMET', 250], ['church', 'FLOWERED CHURCH HAT', 300], ['tiara', 'TIARA', 800]]);
+  add('gta', 'eyes', [['cateye', 'CAT-EYE GLASSES', 250]]);
+  add('gta', 'feet', [['slippers', 'FUZZY SLIPPERS', 200]]);
+  add('gta', 'neck', [['pearls', 'PEARLS', 300]]);
+  add('gta', 'bag', [['handbag', 'GIANT HANDBAG', 350]]);
+  add('gta', 'walker', [['tennis', 'TENNIS-BALL WALKER', 400], ['flame', 'FLAME-DECAL WALKER', 700]]);
+  add('gta', 'body', [['leopard', 'LEOPARD CARDIGAN', 500]]);
+  add('gta', 'livery', [['wood', 'WOOD-PANEL VAN', 500], ['bingo', '"BINGO EXPRESS" CHURCH BUS', 600], ['icecream', 'ICE CREAM TRUCK', 700], ['flames', 'FLAMES VAN', 800]]);
+  add('gta', 'horn', [['goose', 'GOOSE-HONK HORN', 300], ['bell', 'CHURCH-BELL HORN', 400]]);
   Tickets.shelves = { junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
-  Tickets.slots = { yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' } };
+  Tickets.slots = {
+    yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
+    gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
+  };
   Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   // ---- prize icons: 16x16 pixel art drawn in code (shown at the counter and in each game's PRIZES menu)
   class IPX {
@@ -459,6 +471,29 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     'yeet.trail.tp': p => { for (let k = 0; k < 14; k++) p.rect(1 + k, 9 + Math.round(Math.sin(k / 2) * 3), 1, 3, '#ffffff'); p.ell(13, 4, 2.5, 2.5, '#ffffff'); p.ell(13, 4, 1, 1, '#cfcfcf'); },
     'yeet.trail.rainbow': p => { ['#e53935', '#fb8c00', '#fdd835', '#43a047', '#1e88e5', '#8e24aa'].forEach((c, i) => p.rect(1, 4 + i * 2, 14, 2, c)); },
     'yeet.trail.fire': p => { p.ell(8, 11, 6, 4, '#ff5722'); p.ell(8, 9, 4, 4, '#ff9800'); p.ell(8, 9, 2, 2.5, '#ffeb3b'); p.set(5, 4, '#ff9800'); p.set(11, 3, '#ff5722'); p.set(8, 2, '#ffeb3b'); },
+  });
+  // Grandma Theft Automatic: a grandma head / van, with the item
+  const granHead = p => { p.ell(8, 10, 4.6, 4.4, '#f2c39a'); p.ell(8, 7, 5, 3, '#e6e3ef'); p.set(6, 10, '#2a1f2e'); p.set(10, 10, '#2a1f2e'); p.rect(7, 12, 2, 1, '#e06a7a'); };
+  const vanTop = (p, Y, W, R) => { p.rect(4, 1, 8, 14, Y); p.rect(5, 2, 6, 2, '#9fe3ff'); p.rect(5, 5, 6, 9, W); p.rect(5, 8, 6, 1, R); p.rect(5, 12, 6, 1, R); p.rect(3, 3, 1, 2, '#1c1820'); p.rect(12, 3, 1, 2, '#1c1820'); p.rect(3, 11, 1, 2, '#1c1820'); p.rect(12, 11, 1, 2, '#1c1820'); };
+  Object.assign(ICON_ART, {
+    'gta.hat.curlers': p => { granHead(p); [[4, 5], [7, 3], [10, 3], [12, 5]].forEach(([x, y]) => p.rect(x, y, 2, 2, '#ff8fc0')); },
+    'gta.hat.visor': p => { granHead(p); p.rect(3, 6, 10, 2, '#43a047'); p.rect(9, 8, 6, 1, '#2e7d32'); },
+    'gta.hat.helmet': p => { granHead(p); p.ell(8, 6, 6, 3.5, '#1e88e5'); p.rect(6, 3, 1, 3, '#0d47a1'); p.rect(9, 3, 1, 3, '#0d47a1'); },
+    'gta.hat.church': p => { granHead(p); p.rect(1, 6, 14, 2, '#7a3cc9'); p.rect(4, 2, 8, 4, '#7a3cc9'); p.ell(11, 3, 1.6, 1.6, '#ff8fc0'); p.set(11, 3, '#ffe14d'); },
+    'gta.hat.tiara': p => { granHead(p); p.rect(5, 5, 6, 1, '#cfd4de'); p.set(5, 4, '#cfd4de'); p.set(8, 3, '#cfd4de'); p.set(8, 4, '#cfd4de'); p.set(11, 4, '#cfd4de'); p.set(8, 5, '#ff2bd6'); },
+    'gta.eyes.cateye': p => { granHead(p); p.rect(4, 9, 4, 2, '#111'); p.rect(9, 9, 4, 2, '#111'); p.set(3, 8, '#111'); p.set(13, 8, '#111'); p.set(5, 9, '#ff8fc0'); p.set(10, 9, '#ff8fc0'); },
+    'gta.feet.slippers': p => { p.ell(5, 11, 4, 2.5, '#ff8fc0'); p.ell(11, 11, 4, 2.5, '#ff8fc0'); p.ell(4, 9, 2.5, 1.6, '#ffffff'); p.ell(10, 9, 2.5, 1.6, '#ffffff'); },
+    'gta.neck.pearls': p => { for (let k = 0; k < 9; k++) { const a = Math.PI * (0.1 + k / 10); p.ell(8 + Math.cos(a) * 6, 5 + Math.sin(a) * 6, 1.1, 1.1, '#f8f4ec'); } },
+    'gta.bag.handbag': p => { p.rect(3, 6, 10, 8, '#7a3b2a'); p.rect(4, 7, 8, 1, '#c0763c'); p.line(5, 6, 6, 2, '#5a2a1a'); p.line(10, 6, 9, 2, '#5a2a1a'); p.rect(6, 2, 4, 1, '#5a2a1a'); p.rect(7, 9, 2, 2, '#ffcc00'); },
+    'gta.walker.tennis': p => { p.rect(3, 3, 10, 1, '#cfd4de'); p.rect(3, 3, 1, 10, '#cfd4de'); p.rect(12, 3, 1, 10, '#cfd4de'); p.ell(3.5, 13, 1.8, 1.8, '#c6ff00'); p.ell(12.5, 13, 1.8, 1.8, '#c6ff00'); },
+    'gta.walker.flame': p => { p.rect(3, 3, 10, 1, '#cfd4de'); p.rect(3, 3, 1, 11, '#ff5722'); p.rect(12, 3, 1, 11, '#ff5722'); p.set(3, 6, '#ffeb3b'); p.set(12, 8, '#ffeb3b'); p.set(3, 10, '#ffeb3b'); p.set(12, 12, '#ffeb3b'); },
+    'gta.body.leopard': p => { p.rect(3, 3, 10, 11, '#d6a35c'); p.rect(7, 3, 2, 11, '#e06a7a'); [[4, 5], [5, 9], [4, 12], [11, 4], [10, 8], [11, 11]].forEach(([x, y]) => { p.set(x, y, '#3a2410'); p.set(x + 1, y, '#3a2410'); }); },
+    'gta.livery.wood': p => { vanTop(p, '#ffcc4d', '#8d5524', '#5d3a1a'); p.rect(5, 6, 6, 1, '#a0692f'); p.rect(5, 10, 6, 1, '#a0692f'); },
+    'gta.livery.bingo': p => { vanTop(p, '#f4f4f4', '#c62828', '#ffcc00'); },
+    'gta.livery.icecream': p => { vanTop(p, '#ff8fc0', '#ffffff', '#5fd3f3'); p.set(6, 6, '#ff2bd6'); p.set(9, 7, '#43a047'); p.set(7, 10, '#1e88e5'); p.set(10, 11, '#ffcc00'); },
+    'gta.livery.flames': p => { vanTop(p, '#212121', '#212121', '#ff5722'); p.rect(5, 9, 6, 1, '#ff9800'); p.set(6, 7, '#ffeb3b'); p.set(9, 6, '#ff9800'); p.set(7, 6, '#ff5722'); },
+    'gta.horn.goose': p => { p.ell(9, 10, 5, 4, '#f4f4f4'); p.rect(4, 3, 2, 7, '#f4f4f4'); p.ell(5, 3, 2, 1.5, '#f4f4f4'); p.rect(1, 3, 2, 1, '#ff9800'); p.set(5, 2, '#111'); p.line(13, 3, 15, 1, '#ffe14d'); p.line(13, 6, 15, 6, '#ffe14d'); },
+    'gta.horn.bell': p => { p.ell(8, 9, 5, 5, '#ffcc00'); p.rect(3, 9, 10, 4, '#ffcc00'); p.rect(2, 12, 12, 1, '#d4a800'); p.rect(7, 2, 2, 2, '#d4a800'); p.ell(8, 14, 1.4, 1.2, '#8a6a00'); },
   });
   window.NBTickets = Tickets;
 
