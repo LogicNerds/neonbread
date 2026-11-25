@@ -186,6 +186,32 @@ img{max-width:100%}
       tkSave(w); return w.bal;
     },
   };
+  // ---- prize catalog (prices approved Nov 25 2026). Later stages add game cosmetics, cheat cards and seasonal items.
+  // shelf: junk | collect | top. Every item here can be bought at the counter.
+  Tickets.catalog = [
+    { id: 'junk.spider', shelf: 'junk', name: 'SPIDER RING', price: 10 },
+    { id: 'junk.trap', shelf: 'junk', name: 'FINGER TRAP', price: 15 },
+    { id: 'junk.ball', shelf: 'junk', name: 'BOUNCY BALL', price: 20 },
+    { id: 'junk.candy', shelf: 'junk', name: 'CANDY NECKLACE', price: 25 },
+    { id: 'junk.pencil', shelf: 'junk', name: '"WORLD\'S OK-EST GAMER" PENCIL', price: 30 },
+    { id: 'junk.sticky', shelf: 'junk', name: 'STICKY HAND', price: 35 },
+    { id: 'junk.kazoo', shelf: 'junk', name: 'KAZOO', price: 40 },
+    { id: 'junk.whoopee', shelf: 'junk', name: 'WHOOPEE CUSHION', price: 50 },
+    { id: 'junk.slap', shelf: 'junk', name: 'SLAP BRACELET', price: 60 },
+    { id: 'junk.mood', shelf: 'junk', name: 'MOOD RING', price: 75 },
+    { id: 'junk.clanker', shelf: 'junk', name: 'MINI CLANKER KEYCHAIN', price: 120 },
+    { id: 'junk.rat', shelf: 'junk', name: '6-7 RAT SQUISHY', price: 150 },
+    { id: 'col.grandma', shelf: 'collect', name: 'GRANDMA KEYCHAIN', price: 400 },
+    { id: 'col.brain', shelf: 'collect', name: 'BRAYN BRAIN STRESS BALL', price: 500 },
+    { id: 'col.babybob', shelf: 'collect', name: 'BABY BOBBLEHEAD', price: 600 },
+    { id: 'col.karenbob', shelf: 'collect', name: 'KAREN BOBBLEHEAD', price: 600 },
+    { id: 'col.chonx', shelf: 'collect', name: 'CHONX PLUSH', price: 800 },
+    { id: 'col.gerb', shelf: 'collect', name: 'GERB PLUSH', price: 900 },
+    { id: 'col.mittens', shelf: 'collect', name: 'CHAIRMAN MITTENS PLUSH', price: 1200 },
+    { id: 'top.giant', shelf: 'top', name: 'GIANT CHONX PLUSH', price: 10000 },
+    { id: 'top.token', shelf: 'top', name: 'GOLD ARCADE TOKEN', price: 25000 },
+  ];
+  Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   window.NBTickets = Tickets;
 
   // ---------------------------------------------------------------- styles

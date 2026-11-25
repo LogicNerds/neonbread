@@ -98,6 +98,54 @@ body.port #ring{padding:24px 0 10px}
 .hs.ghost{visibility:hidden}
 .unit.soon .scr{filter:saturate(.7)}
 .unit.shake .cab{animation:shk .35s}
+/* ---------- prize counter screen ---------- */
+#pc{position:fixed;inset:0;z-index:90;display:none;background:rgba(6,0,18,.92)}
+#pc.on{display:block}
+#pcP{position:absolute;left:50%;top:50%;transform-origin:50% 50%;display:flex;flex-direction:column;gap:22px;padding:34px 40px;background:#0b0620;border:6px solid #ffb13b;box-shadow:0 0 40px #ffb13b,inset 0 0 40px rgba(0,0,0,.6);font-family:'Press Start 2P',monospace;color:#fff}
+#pcP *{box-sizing:border-box;font-family:inherit}
+.pc-top{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.pc-h{font-size:40px;color:#fff1c9;text-shadow:0 0 6px #fff,0 0 18px #ffb13b,0 0 40px #ff8a2b}
+.pc-bal{font-size:22px;color:#ffe14d;padding:14px 18px;border:4px solid #5a3a90;background:#0d0420;text-shadow:0 0 10px #ffb000;white-space:nowrap}
+.pc-tabs{display:flex;gap:12px;flex-wrap:wrap}
+.pc-tab{font-size:18px;padding:14px 18px;background:transparent;color:#a99be0;border:4px solid #3a2f78;cursor:pointer}
+.pc-tab.on{color:#0b0620;background:#ffb13b;border-color:#ffb13b;box-shadow:0 0 16px #ffb13b}
+.pc-body{display:flex;gap:28px;align-items:stretch;min-height:0;flex:1}
+.pc-clerk{width:250px;flex:none;display:flex;flex-direction:column;align-items:center;gap:16px}
+.pc-clerk canvas{width:250px;image-rendering:pixelated;image-rendering:crisp-edges;border:4px solid #ffb13b}
+.pc-say{position:relative;width:250px;min-height:96px;background:#fff;color:#1a0f08;font-size:14px;line-height:1.7;padding:12px 14px;border:4px solid #1a0f08}
+.pc-say::before{content:'';position:absolute;top:-16px;left:40px;border:8px solid transparent;border-bottom-color:#1a0f08}
+.pc-grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-content:start;overflow-y:auto;overscroll-behavior:contain;padding:6px;scrollbar-width:thin;scrollbar-color:#ffb13b transparent}
+.pc-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 8px 12px;background:#140a32;border:4px solid #3a2f78;cursor:pointer;min-height:206px}
+.pc-card canvas{width:80px;height:80px;image-rendering:pixelated;image-rendering:crisp-edges}
+.pc-card .n{font-size:12px;line-height:1.6;text-align:center;color:#e6deff;min-height:40px}
+.pc-card .pr{font-size:16px;color:#ffe14d}
+.pc-card.own .pr{color:#5fe0b7}
+.pc-card.poor .pr{color:#8a7bd8}
+.pc-card.foc{border-color:#ffb13b;box-shadow:0 0 18px #ffb13b;background:#20104a}
+.pc-card .tagn{position:absolute;top:8px;right:8px;font-size:10px;padding:4px 6px;background:#5fe0b7;color:#0b0620}
+.pc-shelf{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:14px 10px;align-items:flex-end;padding:12px 14px 8px;background:linear-gradient(transparent calc(100% - 12px),#7a4a24 calc(100% - 12px),#7a4a24 calc(100% - 4px),#4a2810 calc(100% - 4px))}
+.pc-shelf canvas{width:64px;height:64px;image-rendering:pixelated;image-rendering:crisp-edges}
+.pc-empty{grid-column:1/-1;font-size:18px;line-height:2;color:#a99be0;text-align:center;padding:40px 10px}
+.pc-foot{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.pc-hint{font-size:13px;color:#7d72b8;line-height:1.9}
+.pc-b{font-size:20px;padding:16px 26px;background:rgba(0,0,0,.4);color:#00e5ff;border:5px solid #00e5ff;cursor:pointer;box-shadow:0 0 14px #00e5ff}
+.pc-b:hover,.pc-b.foc{background:#00e5ff;color:#0b0620}
+.pc-modal{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(6,0,18,.82)}
+.pc-modal.on{display:flex}
+.pc-mbox{display:flex;flex-direction:column;align-items:center;gap:24px;padding:36px 44px;background:#0b0620;border:6px solid #ffb13b;box-shadow:0 0 30px #ffb13b;text-align:center;max-width:820px}
+.pc-mbox canvas{width:128px;height:128px;image-rendering:pixelated;image-rendering:crisp-edges}
+.pc-mq{font-size:24px;line-height:1.7}
+.pc-mrow{display:flex;gap:22px}
+.pc-mb{font-size:24px;padding:18px 34px;background:transparent;color:#ffb13b;border:5px solid #ffb13b;cursor:pointer}
+.pc-mb.foc,.pc-mb:hover{background:#ffb13b;color:#0b0620}
+#pcP.portrait .pc-body{flex-direction:column}
+#pcP.portrait .pc-clerk{width:100%;flex-direction:row;justify-content:center}
+#pcP.portrait .pc-clerk canvas{width:170px}
+#pcP.portrait .pc-say{width:auto;flex:1}
+#pcP.portrait .pc-grid{grid-template-columns:repeat(3,1fr)}
+#pcP.portrait .pc-top{flex-direction:column;align-items:flex-start}
+.pc-shake{animation:shk .35s}
+
 /* ---------- the prize counter (7th spot on the ring) ---------- */
 .ctr{position:relative;width:var(--cw);cursor:pointer;transition:transform .18s;filter:drop-shadow(0 18px 18px rgba(0,0,0,.6))}
 .unit.sel .ctr{transform:translateY(calc(var(--cw) * -.04)) scale(1.04)}
@@ -305,6 +353,32 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
       tkSave(w); return w.bal;
     },
   };
+  // ---- prize catalog (prices approved Nov 25 2026). Later stages add game cosmetics, cheat cards and seasonal items.
+  // shelf: junk | collect | top. Every item here can be bought at the counter.
+  Tickets.catalog = [
+    { id: 'junk.spider', shelf: 'junk', name: 'SPIDER RING', price: 10 },
+    { id: 'junk.trap', shelf: 'junk', name: 'FINGER TRAP', price: 15 },
+    { id: 'junk.ball', shelf: 'junk', name: 'BOUNCY BALL', price: 20 },
+    { id: 'junk.candy', shelf: 'junk', name: 'CANDY NECKLACE', price: 25 },
+    { id: 'junk.pencil', shelf: 'junk', name: '"WORLD\'S OK-EST GAMER" PENCIL', price: 30 },
+    { id: 'junk.sticky', shelf: 'junk', name: 'STICKY HAND', price: 35 },
+    { id: 'junk.kazoo', shelf: 'junk', name: 'KAZOO', price: 40 },
+    { id: 'junk.whoopee', shelf: 'junk', name: 'WHOOPEE CUSHION', price: 50 },
+    { id: 'junk.slap', shelf: 'junk', name: 'SLAP BRACELET', price: 60 },
+    { id: 'junk.mood', shelf: 'junk', name: 'MOOD RING', price: 75 },
+    { id: 'junk.clanker', shelf: 'junk', name: 'MINI CLANKER KEYCHAIN', price: 120 },
+    { id: 'junk.rat', shelf: 'junk', name: '6-7 RAT SQUISHY', price: 150 },
+    { id: 'col.grandma', shelf: 'collect', name: 'GRANDMA KEYCHAIN', price: 400 },
+    { id: 'col.brain', shelf: 'collect', name: 'BRAYN BRAIN STRESS BALL', price: 500 },
+    { id: 'col.babybob', shelf: 'collect', name: 'BABY BOBBLEHEAD', price: 600 },
+    { id: 'col.karenbob', shelf: 'collect', name: 'KAREN BOBBLEHEAD', price: 600 },
+    { id: 'col.chonx', shelf: 'collect', name: 'CHONX PLUSH', price: 800 },
+    { id: 'col.gerb', shelf: 'collect', name: 'GERB PLUSH', price: 900 },
+    { id: 'col.mittens', shelf: 'collect', name: 'CHAIRMAN MITTENS PLUSH', price: 1200 },
+    { id: 'top.giant', shelf: 'top', name: 'GIANT CHONX PLUSH', price: 10000 },
+    { id: 'top.token', shelf: 'top', name: 'GOLD ARCADE TOKEN', price: 25000 },
+  ];
+  Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   window.NBTickets = Tickets;
 
   // ---------------------------------------------------------------- styles
@@ -826,6 +900,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   <footer><span>NEON BREAD STUDIOS &copy; 2026</span></footer>
 </div>
 <div id="bar"><button class="chip" id="snd">SOUND: ON</button></div>
+<div id="pc" aria-hidden="true"><div id="pcP"></div></div>
 <div id="vignette"></div><div id="scan"></div><div id="flash"></div><div id="toast"></div>
 
 <script>
@@ -1479,7 +1554,7 @@ function tag(x, px, py, str) {
   pixText(x, str, px + 2, py + 1, '#c4001d');
   return w;
 }
-function counterScene(x, t) {
+function counterScene(x, t, quiet) {
   counterArt();
   // back wall: pegboard
   x.fillStyle = '#c28a52'; x.fillRect(0, 0, CW, CH);
@@ -1501,7 +1576,7 @@ function counterScene(x, t) {
   const blink = (t % 4) > 3.85;
   x.save(); x.translate(30, 48 + bob); x.scale(2, 2); x.drawImage(blink ? CS.blink : CS.chonx, 0, 0); x.restore();
   // speech bubble now and then
-  if ((t % 9) < 3) {
+  if (!quiet && (t % 9) < 3) {
     const line = ['TICKETS?', 'NICE.', 'NEXT!'][Math.floor(t / 9) % 3];
     const w = textW(line) + 6;
     x.fillStyle = '#1a0f08'; x.fillRect(80, 55, w + 2, 11); x.fillStyle = '#ffffff'; x.fillRect(81, 56, w, 9);
@@ -1571,10 +1646,166 @@ function insertCoin() {
   setTimeout(() => { location.href = g.url; }, 640);
   setTimeout(() => { leaving = false; $('flash').classList.remove('on'); }, 2500);  // if navigation was blocked
 }
-// stage 1: the counter isn't stocked yet
+// ---------------------------------------------------------------- prize counter screen
+// Shelves: JUNK, COLLECTIBLES, TOP SHELF, MY PRIZES. D-pad / arrows move, L1 R1 / Q E switch shelves,
+// Cross / Enter buy, Circle / Esc back. Tap a shelf tab or a prize on touch.
+const PC = { open: false, tab: 0, foc: 0, zone: 'grid', modal: null, mfoc: 0 };
+const PC_TABS = [{ k: 'junk', t: 'JUNK' }, { k: 'collect', t: 'COLLECTIBLES' }, { k: 'top', t: 'TOP SHELF' }, { k: 'mine', t: 'MY PRIZES' }];
+const PC_HELLO = ['WHAT CAN I GET YOU?', 'TICKETS ON THE COUNTER, BRO.', 'NO REFUNDS. NO EXCEPTIONS.', 'THE SPIDER RINGS ARE FLYING OFF THE SHELF.'];
+const PC_BUY = ['PLEASURE DOING BUSINESS.', 'GOOD CHOICE. PROBABLY.', 'BAGGING IT UP.', 'ENJOY. NO REFUNDS.'];
+function pcItems() { const k = PC_TABS[PC.tab].k; return k === 'mine' ? [] : NBTickets.catalog.filter(i => i.shelf === k); }
 function openCounter() {
-  Snd.blip(660, .06);
-  toast('THE PRIZE COUNTER OPENS SOON. KEEP THOSE TICKETS.');
+  if (!window.NBTickets) return;
+  PC.open = true; PC.tab = 0; PC.foc = 0; PC.zone = 'grid'; PC.modal = null;
+  $('pc').classList.add('on'); $('pc').setAttribute('aria-hidden', 'false');
+  Snd.tone(660, .08, 'square', .5); Snd.tone(990, .12, 'square', .5, .08);
+  pcRender(PC_HELLO[(Math.random() * PC_HELLO.length) | 0]);
+}
+function closeCounter() {
+  PC.open = false; $('pc').classList.remove('on'); $('pc').setAttribute('aria-hidden', 'true'); $('pcP').innerHTML = '';
+  padReset(); paintBalance(); Snd.blip(440, .06);
+}
+let pcSay = '';
+function pcRender(say) {
+  if (say) pcSay = say;
+  const P = $('pcP'), w = NBTickets.wallet(), tabK = PC_TABS[PC.tab].k;
+  let grid = '';
+  if (tabK === 'mine') {
+    const own = NBTickets.catalog.filter(i => w.owned[i.id]);
+    grid = own.length ? '<div class="pc-shelf">' + own.map(i => '<canvas data-icon="' + i.id + '" width="16" height="16" title="' + i.name + '"></canvas>').join('') + '</div>' +
+      '<div class="pc-empty" style="padding:16px">' + own.length + ' OF ' + NBTickets.catalog.length + ' COLLECTED</div>'
+      : '<div class="pc-empty">NOTHING ON YOUR SHELF YET.<br>PLAY A GAME, GRAB SOME TICKETS.</div>';
+  } else {
+    grid = pcItems().map((i, n) => {
+      const own = !!w.owned[i.id], poor = !own && w.bal < i.price;
+      return '<div class="pc-card' + (own ? ' own' : '') + (poor ? ' poor' : '') + '" data-n="' + n + '">' + (own ? '<span class="tagn">OWNED</span>' : '') +
+        '<canvas data-icon="' + i.id + '" width="16" height="16"></canvas><div class="n">' + i.name + '</div><div class="pr">' + (own ? 'OWNED' : i.price.toLocaleString('en-US') + ' TIX') + '</div></div>';
+    }).join('');
+  }
+  const ps = padConnected();
+  P.innerHTML =
+    '<div class="pc-top"><div class="pc-h">PRIZE COUNTER</div><div class="pc-bal">TICKETS: ' + w.bal.toLocaleString('en-US') + '</div></div>' +
+    '<div class="pc-tabs">' + PC_TABS.map((t, n) => '<button class="pc-tab' + (n === PC.tab ? ' on' : '') + '" data-t="' + n + '">' + t.t + '</button>').join('') + '</div>' +
+    '<div class="pc-body"><div class="pc-clerk"><canvas class="pc-chonx" width="' + CW + '" height="' + CH + '"></canvas><div class="pc-say">' + pcSay + '</div></div>' +
+    '<div class="pc-grid">' + grid + '</div></div>' +
+    '<div class="pc-foot"><div class="pc-hint">' + (ps ? '&#9664;&#9650;&#9660;&#9654; PICK &middot; ' + ps.ok + ' BUY &middot; ' + ps.lr + ' SHELVES &middot; ' + ps.back + ' BACK'
+      : matchMedia('(pointer: coarse)').matches ? 'TAP A PRIZE TO BUY IT &middot; TAP A SHELF TO SWITCH' : 'ARROWS PICK &middot; ENTER BUY &middot; Q / E SHELVES &middot; ESC BACK') + '</div>' +
+    '<button class="pc-b" data-close="1">BACK TO THE ARCADE</button></div>' +
+    '<div class="pc-modal"><div class="pc-mbox"></div></div>';
+  P.querySelectorAll('canvas[data-icon]').forEach(c => { const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(prizeIcon(c.dataset.icon), 0, 0); });
+  P.querySelectorAll('.pc-tab').forEach(b => b.onclick = () => { Snd.unlock(); pcTab(+b.dataset.t); });
+  P.querySelectorAll('.pc-card').forEach(c => c.onclick = () => { Snd.unlock(); PC.foc = +c.dataset.n; PC.zone = 'grid'; pcPaint(); pcAsk(); });
+  P.querySelector('[data-close]').onclick = closeCounter;
+  pcFit(); pcPaint();
+}
+function padConnected() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = null; for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+  if (!gp) return null;
+  const ps = /054c|dualsense|dualshock|playstation/i.test(gp.id) || (/wireless controller/i.test(gp.id) && !/xbox|045e/i.test(gp.id));
+  return ps ? { ok: 'CROSS', back: 'CIRCLE', lr: 'L1 R1' } : { ok: 'A', back: 'B', lr: 'LB RB' };
+}
+function pcFit() {
+  const P = $('pcP'), vw = innerWidth, vh = innerHeight, port = vh > vw * 1.05;
+  const d = port ? { w: 760, h: 1240 } : { w: 1280, h: 820 };
+  P.style.width = d.w - 40 + 'px'; P.style.height = d.h - 40 + 'px';
+  P.style.transform = 'translate(-50%,-50%) scale(' + Math.min(vw / d.w, vh / d.h) + ')';
+  P.classList.toggle('portrait', port);
+}
+addEventListener('resize', () => { if (PC.open) pcFit(); });
+function pcPaint() {
+  const P = $('pcP'); if (!P) return;
+  P.querySelectorAll('.pc-card').forEach((c, n) => c.classList.toggle('foc', PC.zone === 'grid' && n === PC.foc));
+  P.querySelectorAll('.pc-tab').forEach((b, n) => b.style.outline = PC.zone === 'tabs' && n === PC.tab ? '4px solid #fff' : '');
+  const c = P.querySelector('.pc-card.foc'); if (c) c.scrollIntoView({ block: 'nearest' });
+}
+function pcTab(n) { PC.tab = (n + PC_TABS.length) % PC_TABS.length; PC.foc = 0; Snd.blip(520, .05); pcRender(); }
+function pcCols() { return $('pcP').classList.contains('portrait') ? 3 : 4; }
+function pcAsk() {
+  const it = pcItems()[PC.foc]; if (!it) return;
+  const w = NBTickets.wallet(), box = $('pcP').querySelector('.pc-mbox'), m = $('pcP').querySelector('.pc-modal');
+  if (w.owned[it.id]) { pcRender('YOU ALREADY GOT ONE OF THOSE.'); Snd.blip(300, .1); return; }
+  if (w.bal < it.price) {
+    pcRender('THAT\'S ' + it.price.toLocaleString('en-US') + ' TICKETS. YOU\'RE ' + (it.price - w.bal).toLocaleString('en-US') + ' SHORT, BRO.');
+    Snd.blip(160, .2, .5);
+    const c = $('pcP').querySelectorAll('.pc-card')[PC.foc]; if (c) { c.classList.remove('pc-shake'); void c.offsetWidth; c.classList.add('pc-shake'); }
+    return;
+  }
+  PC.modal = it; PC.mfoc = 0;
+  box.innerHTML = '<canvas width="16" height="16"></canvas><div class="pc-mq">BUY THE ' + it.name + '<br>FOR ' + it.price.toLocaleString('en-US') + ' TICKETS?</div>' +
+    '<div class="pc-mrow"><button class="pc-mb" data-y="1">BUY IT</button><button class="pc-mb" data-n="1">NOPE</button></div>';
+  const x = box.querySelector('canvas').getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(prizeIcon(it.id), 0, 0);
+  box.querySelector('[data-y]').onclick = pcBuy; box.querySelector('[data-n]').onclick = pcCancel;
+  m.classList.add('on'); pcModalPaint(); Snd.blip(700, .05);
+}
+function pcModalPaint() { $('pcP').querySelectorAll('.pc-mb').forEach((b, n) => b.classList.toggle('foc', n === PC.mfoc)); }
+function pcCancel() { PC.modal = null; const m = $('pcP').querySelector('.pc-modal'); if (m) m.classList.remove('on'); Snd.blip(400, .05); }
+function pcBuy() {
+  const it = PC.modal; PC.modal = null;
+  if (it && NBTickets.buy(it.id, it.price)) {
+    Snd.coin(); Snd.tone(1568, .25, 'square', .6, .3);
+    pcRender(PC_BUY[(Math.random() * PC_BUY.length) | 0]);
+  } else pcRender('SOMETHING WENT WRONG. TRY THAT AGAIN.');
+}
+function pcAct(a) {
+  if (PC.modal) {
+    if (a === 'l' || a === 'r') { PC.mfoc = 1 - PC.mfoc; pcModalPaint(); Snd.blip(520, .04); }
+    else if (a === 'a') (PC.mfoc === 0 ? pcBuy : pcCancel)();
+    else if (a === 'b') pcCancel();
+    return;
+  }
+  const n = PC_TABS[PC.tab].k === 'mine' ? 0 : pcItems().length, cols = pcCols();
+  if (a === 'lb') return pcTab(PC.tab - 1);
+  if (a === 'rb') return pcTab(PC.tab + 1);
+  if (a === 'b') return closeCounter();
+  if (PC.zone === 'tabs') {
+    if (a === 'l') return pcTab(PC.tab - 1);
+    if (a === 'r') return pcTab(PC.tab + 1);
+    if ((a === 'd' || a === 'a') && n) { PC.zone = 'grid'; PC.foc = 0; Snd.blip(520, .04); return pcPaint(); }
+    return;
+  }
+  if (!n) { if (a === 'u') { PC.zone = 'tabs'; pcPaint(); } return; }
+  if (a === 'l') PC.foc = Math.max(0, PC.foc - 1);
+  else if (a === 'r') PC.foc = Math.min(n - 1, PC.foc + 1);
+  else if (a === 'd') PC.foc = Math.min(n - 1, PC.foc + cols);
+  else if (a === 'u') { if (PC.foc < cols) { PC.zone = 'tabs'; } else PC.foc -= cols; }
+  else if (a === 'a') return pcAsk();
+  else return;
+  Snd.blip(520, .04); pcPaint();
+}
+// the clerk portrait in the counter screen reuses the ring art
+function pcDrawClerk(t) { const c = PC.open && $('pcP').querySelector('.pc-chonx'); if (!c) return; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; counterScene(x, t, true); }
+
+// ---- prize icons (16x16), drawn in code
+const ICONS = {};
+function prizeIcon(id) {
+  if (ICONS[id]) return ICONS[id];
+  const p = new PX(16, 16), O = '#1a0f08';
+  const draw = {
+    'junk.spider': () => { p.ell(8, 11, 4, 3, '#2b2b2b'); p.ell(8, 11, 2.2, 1.4, null); p.ell(8, 5, 2.5, 2, '#111'); for (let k = 0; k < 3; k++) { p.line(5, 4 + k * 2, 2, 2 + k * 2, '#111'); p.line(11, 4 + k * 2, 14, 2 + k * 2, '#111'); } p.set(7, 4, '#ff2a2a'); p.set(9, 4, '#ff2a2a'); },
+    'junk.trap': () => { p.rect(1, 6, 14, 5, '#ffe14d'); for (let k = 0; k < 14; k += 3) { p.line(1 + k, 10, 3 + k, 6, '#ff2a3d'); } },
+    'junk.ball': () => { p.ell(8, 8, 6, 6, '#ff2bd6'); p.rect(2, 7, 12, 2, '#ffe14d'); p.ell(6, 5, 1.5, 1.2, '#ffd3f6'); },
+    'junk.candy': () => { const cols = ['#ff9fb0', '#9fe3ff', '#ffe14d', '#b8ff9f', '#d9b8ff']; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; p.ell(8 + Math.cos(a) * 5.5, 8 + Math.sin(a) * 5.5, 1.3, 1.3, cols[k % 5]); } },
+    'junk.pencil': () => { for (let k = 0; k < 11; k++) p.rect(2 + k, 12 - k, 2, 2, '#ffe14d'); p.rect(1, 13, 2, 2, '#ff9fb0'); p.rect(13, 2, 2, 2, '#f6c98a'); p.set(15, 1, '#333'); },
+    'junk.sticky': () => { p.line(2, 2, 6, 7, '#5fe0b7'); p.ell(10, 10, 3.5, 3.5, '#39ff6a'); for (let k = 0; k < 4; k++) p.rect(8 + k * 1.5, 4, 1, 4, '#39ff6a'); p.ell(9, 10, 1, 1, '#b8ffcf'); },
+    'junk.kazoo': () => { p.rect(2, 7, 11, 3, '#ff2a3d'); p.rect(12, 6, 3, 5, '#ff2a3d'); p.rect(6, 5, 3, 2, '#ffe14d'); p.rect(2, 8, 1, 1, '#222'); },
+    'junk.whoopee': () => { p.ell(7, 9, 6, 4.5, '#ff6f8f'); p.rect(12, 7, 3, 3, '#ff6f8f'); p.ell(6, 7, 2, 1, '#ffb3c4'); },
+    'junk.slap': () => { for (let k = 0; k < 14; k++) p.rect(1 + k, 6 + Math.round(Math.sin(k / 2) * 2), 1, 4, ['#00e5ff', '#ff2bd6', '#ffe14d'][k % 3]); },
+    'junk.mood': () => { p.ell(8, 11, 4, 3.4, '#cfd4de'); p.ell(8, 11, 2.3, 1.8, null); p.ell(8, 5, 3, 3, '#7a3cc9'); p.ell(7, 4, 1, 1, '#d9b8ff'); },
+    'junk.clanker': () => { p.ell(8, 4, 2, 2, '#cfd4de'); p.ell(8, 4, 1, 1, null); p.rect(4, 6, 8, 8, '#858c99'); p.rect(5, 8, 2, 2, '#ff2a2a'); p.rect(9, 8, 2, 2, '#ff2a2a'); p.rect(6, 12, 4, 1, '#2b2b2b'); },
+    'junk.rat': () => { p.ell(8, 10, 6, 4, '#8a8f99'); p.ell(12.5, 7, 2, 2, '#8a8f99'); p.ell(4, 6, 1.5, 1.5, '#8a8f99'); p.set(12, 7, '#ff2a2a'); p.line(1, 12, 2, 10, '#c98aa0'); },
+    'col.grandma': () => { p.ell(8, 3, 1.6, 1.6, '#cfd4de'); p.ell(8, 3, .7, .7, null); p.ell(8, 9, 5, 5, '#f2c39a'); p.ell(8, 6, 5.5, 3, '#e6e3ef'); p.rect(5, 9, 2, 1, '#2a1f2e'); p.rect(9, 9, 2, 1, '#2a1f2e'); p.rect(7, 12, 2, 1, '#c4001d'); },
+    'col.brain': () => { p.ell(8, 8, 6.5, 5, '#ff9fc0'); p.line(8, 3, 8, 13, '#d9608a'); p.line(4, 6, 6, 8, '#d9608a'); p.line(11, 6, 12, 9, '#d9608a'); p.line(4, 10, 6, 11, '#d9608a'); },
+    'col.babybob': () => { p.rect(5, 13, 6, 2, '#333'); p.rect(7, 10, 2, 3, '#4ecdc4'); p.ell(8, 6, 5, 4.6, '#f6c48f'); p.set(6, 6, '#111'); p.set(10, 6, '#111'); p.rect(7, 8, 2, 1, '#ff8fa8'); p.set(8, 1, '#5a3a2a'); },
+    'col.karenbob': () => { p.rect(5, 13, 6, 2, '#333'); p.rect(7, 10, 2, 3, '#7fd1ff'); p.ell(8, 6, 4.6, 4.2, '#f2c39a'); p.ell(8, 4, 6, 3.4, '#ffe08a'); p.rect(3, 4, 2, 5, '#ffe08a'); p.set(6, 6, '#111'); p.set(10, 6, '#111'); p.rect(7, 8, 3, 1, '#d1002a'); },
+    'col.chonx': () => { p.ell(8, 10, 6, 5, '#d9893b'); p.ell(8, 11, 3, 3, '#f6c98a'); p.ell(3.5, 3.5, 1.8, 1.8, '#d9893b'); p.ell(12.5, 3.5, 1.8, 1.8, '#d9893b'); p.ell(8, 6, 5, 4, '#d9893b'); p.set(6, 6, '#111'); p.set(10, 6, '#111'); p.set(8, 8, '#ff6f8f'); p.rect(3, 12, 10, 2, '#7a3cc9'); },
+    'col.gerb': () => { p.ell(8, 10, 5.5, 5, '#a88a6a'); p.ell(8, 6, 4.5, 4, '#a88a6a'); p.ell(4.5, 2.8, 1.5, 1.5, '#a88a6a'); p.ell(11.5, 2.8, 1.5, 1.5, '#a88a6a'); p.rect(5, 4, 3, 1, '#4a3a2a'); p.rect(9, 4, 3, 1, '#4a3a2a'); p.set(6, 6, '#111'); p.set(10, 6, '#111'); p.set(8, 8, '#ff9fb0'); },
+    'col.mittens': () => { p.ell(8, 10, 6, 5, '#f4f4f8'); p.ell(8, 6, 5, 4, '#f4f4f8'); p.line(3, 1, 4, 4, '#f4f4f8'); p.line(13, 1, 12, 4, '#f4f4f8'); p.rect(3, 2, 2, 3, '#f4f4f8'); p.rect(11, 2, 2, 3, '#f4f4f8'); p.set(6, 6, '#3a9a3a'); p.ell(10, 6, 1.6, 1.6, '#ffd23a'); p.set(10, 6, '#3a9a3a'); p.line(11, 7, 12, 11, '#ffd23a'); p.set(8, 8, '#ff9fb0'); },
+    'top.giant': () => { p.ell(8, 10, 7, 6, '#d9893b'); p.ell(8, 11, 3.6, 3.6, '#f6c98a'); p.ell(3, 3, 2.2, 2.2, '#d9893b'); p.ell(13, 3, 2.2, 2.2, '#d9893b'); p.set(3, 3, '#ff9fb0'); p.set(13, 3, '#ff9fb0'); p.ell(8, 6, 5.5, 4.5, '#d9893b'); p.rect(5, 6, 2, 2, '#111'); p.rect(9, 6, 2, 2, '#111'); p.rect(7, 9, 2, 1, '#ff6f8f'); p.rect(2, 13, 12, 2, '#7a3cc9'); p.rect(7, 13, 2, 2, '#2ee6d6'); },
+    'top.token': () => { p.ell(8, 8, 7, 7, '#ffcc00'); p.ell(8, 8, 5, 5, '#ffe680'); p.rect(7, 4, 2, 8, '#b38600'); p.rect(5, 5, 6, 1, '#b38600'); p.ell(5, 4, 1, 1, '#fff6c2'); },
+  }[id];
+  if (draw) draw(); else { p.rect(3, 3, 10, 10, '#00e5ff'); p.rect(6, 6, 4, 4, '#ff2bd6'); }
+  p.outline(O);
+  return (ICONS[id] = p.canvas());
 }
 function openScores() {
   const g = units[sel].g; if (g.soon || g.counter || !window.NBScores) return;
@@ -1596,6 +1827,7 @@ function refreshScores(only) {
 function render(now) {
   requestAnimationFrame(render);
   pollPad();
+  if (PC.open) pcDrawClerk(now / 1000);
   placeRing();
   const t = now / 1000;
   units.forEach(u => {
@@ -1615,6 +1847,11 @@ function render(now) {
 // ---------------------------------------------------------------- input
 addEventListener('keydown', e => {
   if (window.NBScores && NBScores.active) return;
+  if (PC.open) {
+    const m = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', Enter: 'a', NumpadEnter: 'a', Space: 'a', Escape: 'b', Backspace: 'b', KeyQ: 'lb', KeyE: 'rb' }[e.code];
+    if (m) { e.preventDefault(); if (!(e.repeat && (m === 'a' || m === 'b'))) { Snd.unlock(); pcAct(m); } }
+    return;
+  }
   Snd.unlock();
   const port = document.body.classList.contains('port');
   const k = e.code;
@@ -1637,9 +1874,14 @@ function pollPad() {
   if (!gp) { padReset(); return; }
   const b = i => { const x = gp.buttons[i]; return !!x && (x.pressed || x.value > .5); };
   const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
-  const s = { l: b(14) || ax < -.5, r: b(15) || ax > .5, u: b(12) || ay < -.5, d: b(13) || ay > .5, a: b(0) || b(9), y: b(3) || b(2) };
+  const s = { l: b(14) || ax < -.5, r: b(15) || ax > .5, u: b(12) || ay < -.5, d: b(13) || ay > .5, a: b(0) || b(9), y: b(3) || b(2), b: b(1), lb: b(4), rb: b(5) };
   if (padPrev.block) { padPrev = s; return; }   // just closed the scores overlay: ignore buttons still held
   const hit = k => s[k] && !padPrev[k];
+  if (PC.open) {
+    ['l', 'r', 'u', 'd', 'lb', 'rb'].forEach(k => { if (hit(k)) pcAct(k); });
+    if (hit('a')) pcAct('a'); if (hit('b')) pcAct('b');
+    padPrev = s; return;
+  }
   const port = document.body.classList.contains('port');
   if (hit('r')) rot(1);
   if (hit('l')) rot(-1);
