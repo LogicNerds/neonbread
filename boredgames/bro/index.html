@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bro! · Bored Games · Neon Bread</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#ff2bd6;--cyan:#00e5ff;--yellow:#ffe14d;--purple:#b04bff;--pc:#ff2bd6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#07010f;color:#fff;font-family:'Press Start 2P',monospace;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{background:radial-gradient(ellipse at 50% 0%,#24103f 0%,#0b0218 60%,#07010f 100%)}
+#scan{position:fixed;inset:0;pointer-events:none;z-index:90;background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 2px,transparent 2px 4px)}
+/* ---------- game layout: board + side panel ---------- */
+#game{position:fixed;inset:0;display:none;align-items:center;justify-content:center;gap:2vmin;padding:2vmin}
+#game.on{display:flex}
+#board{display:block;image-rendering:pixelated;image-rendering:crisp-edges;background:#0f0522;border:4px solid #2a1650;box-shadow:0 0 30px rgba(176,75,255,.25);touch-action:none}
+#side{display:flex;flex-direction:column;gap:12px;width:min(380px,34vw);max-height:96vh}
+body.port #game{flex-direction:column;justify-content:flex-start}
+body.port #side{width:min(96vw,640px);max-height:none;flex:1;min-height:0}
+#turn{padding:12px;text-align:center;font-size:clamp(11px,1.4vw,16px);line-height:1.6;border:4px solid var(--pc);color:#fff;text-shadow:0 0 10px var(--pc);background:rgba(14,4,30,.9)}
+#turn small{display:block;font-size:.62em;color:#cfc6ff;text-shadow:none;margin-top:4px}
+#cardWrap{display:flex;align-items:center;gap:12px}
+#card{flex:0 0 auto;width:clamp(86px,9vw,120px);min-width:clamp(86px,9vw,120px);height:clamp(120px,12.6vw,168px);display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fff6e0;color:#1a0f2e;border:4px solid #1a0f2e;box-shadow:0 0 0 3px var(--pc),0 0 18px var(--pc);cursor:pointer;text-align:center;padding:6px}
+#card.back{background:repeating-linear-gradient(45deg,#2a1650 0 8px,#3a2272 8px 16px);box-shadow:0 0 0 3px #b04bff,0 0 18px #b04bff;color:#fff}
+#card b{font-weight:normal;font-size:clamp(26px,3.2vw,44px);line-height:1}
+#card b.word{font-size:clamp(12px,1.4vw,16px);color:#e8264a}
+#card span{font-size:7px;line-height:1.6;margin-top:8px}
+#card.flip{animation:flip .28s}
+@keyframes flip{0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+#cardText{font-size:clamp(8px,.9vw,11px);line-height:1.9;color:#cfc6ff}
+#opts{display:flex;flex-direction:column;gap:6px;overflow-y:auto;min-height:0;flex:1;padding:2px}
+.opt{display:flex;align-items:center;gap:6px;font-family:inherit;font-size:clamp(8px,.9vw,11px);line-height:1.6;text-align:left;padding:10px;background:rgba(14,4,30,.92);color:#e8e0ff;border:3px solid #3a2a6a;cursor:pointer;outline:none}
+.opt .t{flex:1}
+.opt .ar{font-family:inherit;font-size:10px;padding:6px 8px;background:#2a1650;color:#fff;border:2px solid #5a4a9a;cursor:pointer}
+.opt.foc{border-color:var(--pc);color:#fff;box-shadow:0 0 12px var(--pc)}
+.opt.big{justify-content:center;font-size:clamp(10px,1.1vw,13px);padding:14px}
+#hint{font-size:8px;line-height:1.8;color:#7d72b8;text-align:center}
+#topbtns{display:flex;gap:8px}
+#topbtns button{flex:1;font-family:inherit;font-size:9px;padding:8px;background:transparent;color:#cfc6ff;border:2px solid #3a2a6a;cursor:pointer}
+#topbtns button.on{color:var(--yellow);border-color:var(--yellow)}
+/* ---------- menus ---------- */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;z-index:20;text-align:center;overflow-y:auto}
+.screen.on{display:flex}
+.screen.dim{background:rgba(6,1,13,.86)}
+.logo{font-size:clamp(46px,12vw,140px);color:#ffd3f6;letter-spacing:.06em;text-shadow:0 0 6px #fff,0 0 16px var(--pink),0 0 40px var(--pink),0 0 80px var(--pink);animation:buzz 6s infinite}
+@keyframes buzz{0%,91%,93%,95%,100%{opacity:1}92%,94%{opacity:.35}}
+.tagl{font-size:clamp(9px,1.4vw,15px);color:var(--yellow);line-height:1.8;max-width:760px;text-shadow:0 0 10px rgba(255,225,77,.5)}
+.h{font-size:clamp(16px,3vw,30px);color:#fff;text-shadow:0 0 12px var(--pc)}
+.menu{display:flex;flex-direction:column;gap:10px;min-width:min(420px,90vw)}
+.btn{font-family:inherit;font-size:clamp(10px,1.3vw,14px);padding:14px 18px;background:rgba(14,4,30,.9);color:#fff;border:3px solid #5a4a9a;cursor:pointer;outline:none}
+.btn.foc{border-color:var(--pink);background:var(--pink);color:#07010f;box-shadow:0 0 18px var(--pink)}
+.btn.mint{border-color:#2a6a5a}
+.btn.mint.foc{border-color:#5fe0b7;background:#5fe0b7;box-shadow:0 0 18px #5fe0b7}
+#picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;width:min(820px,94vw)}
+.pk{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 4px;font-family:inherit;font-size:8px;line-height:1.5;color:#fff;background:rgba(14,4,30,.9);border:3px solid var(--c);cursor:pointer;outline:none}
+.pk canvas{width:64px;height:64px;image-rendering:pixelated}
+.pk.taken{opacity:.25;cursor:default}
+.pk.foc{box-shadow:0 0 18px var(--c);background:#1d0b3a;transform:translateY(-3px)}
+.how{max-width:760px;font-size:clamp(8px,1vw,11px);line-height:2.1;color:#cfc6ff;text-align:left}
+.how b{color:var(--yellow);font-weight:normal}
+#mhint{font-size:8px;color:#7d72b8;line-height:1.8}
+.credit{font-size:8px;color:#5a4f8a;margin-top:10px}
+#bro{position:fixed;left:50%;top:42%;z-index:30;transform:translate(-50%,-50%) scale(0);font-size:clamp(40px,10vw,120px);color:#fff;text-shadow:0 0 8px #fff,0 0 22px var(--pc),0 0 60px var(--pc);pointer-events:none;opacity:0}
+#bro.go{animation:bro 1s ease-out}
+@keyframes bro{0%{transform:translate(-50%,-50%) scale(.2) rotate(-12deg);opacity:0}15%{transform:translate(-50%,-50%) scale(1.25) rotate(4deg);opacity:1}70%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}100%{transform:translate(-50%,-50%) scale(1.1);opacity:0}}
+#rotate{display:none}
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="board" width="1140" height="1140"></canvas>
+  <div id="side">
+    <div id="topbtns"><button id="bSpeed">SPEED: NORMAL</button><button id="bPause">PAUSE</button></div>
+    <div id="turn">-</div>
+    <div id="cardWrap"><div id="card" class="back"><b>BRO!</b><span>DRAW</span></div><div id="cardText"></div></div>
+    <div id="opts"></div>
+    <div id="hint"></div>
+  </div>
+</div>
+<div class="screen on" id="sTitle">
+  <div class="logo">BRO!</div>
+  <div class="tagl">BUMP YOUR BUDDIES FROM BEHIND AND SEND THEM HOME</div>
+  <div class="menu" id="mTitle"></div>
+  <div id="mhint"></div>
+  <div class="credit">NEON BREAD STUDIOS &copy; 2026</div>
+</div>
+<div class="screen" id="sMenu"><div class="h" id="mHead"></div><div class="tagl" id="mSub"></div><div class="menu" id="mList"></div></div>
+<div class="screen" id="sPick"><div class="h" id="pHead"></div><div class="tagl" id="pSub"></div><div id="picks"></div><div class="menu" id="pBack"></div></div>
+<div class="screen dim" id="sHow"><div class="h">HOW TO PLAY</div><div class="how" id="howText"></div><div class="menu" id="howMenu"></div></div>
+<div class="screen dim" id="sPause"><div class="h">PAUSED</div><div class="menu" id="pauseMenu"></div></div>
+<div class="screen dim" id="sWin"><div class="h" id="winHead"></div><canvas id="winArt" width="16" height="16" style="width:128px;height:128px;image-rendering:pixelated"></canvas><div class="tagl" id="winSub"></div><div class="menu" id="winMenu"></div></div>
+<div id="bro">BRO!</div>
+<div id="scan"></div>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random() * n);
+const pick = a => a[rand(a.length)];
+
+// =====================================================================
+// PIECES — 11 character sets, pixel art drawn in code (16x16)
+// =====================================================================
+class PX {
+  constructor(w, h) { this.w = w; this.h = h; this.p = new Array(w * h).fill(null); }
+  set(x, y, c) { x |= 0; y |= 0; if (x >= 0 && y >= 0 && x < this.w && y < this.h) this.p[y * this.w + x] = c; return this; }
+  get(x, y) { return (x >= 0 && y >= 0 && x < this.w && y < this.h) ? this.p[y * this.w + x] : null; }
+  rect(x, y, w, h, c) { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.set(x + i, y + j, c); return this; }
+  ell(cx, cy, rx, ry, c) { for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) { const dx = (x + .5 - cx) / rx, dy = (y + .5 - cy) / ry; if (dx * dx + dy * dy <= 1) this.set(x, y, c); } return this; }
+  line(x0, y0, x1, y1, c) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) this.set(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), c); return this; }
+  outline(c) { const a = []; for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) { if (this.get(x, y) !== null) continue; if (this.get(x - 1, y) || this.get(x + 1, y) || this.get(x, y - 1) || this.get(x, y + 1)) a.push([x, y]); } a.forEach(([x, y]) => this.set(x, y, c)); return this; }
+  canvas() { const c = document.createElement('canvas'); c.width = this.w; c.height = this.h; const x = c.getContext('2d'), img = x.createImageData(this.w, this.h); for (let i = 0; i < this.p.length; i++) { const col = this.p[i]; if (!col) continue; let r = col.slice(1); if (r.length === 3) r = r[0] + r[0] + r[1] + r[1] + r[2] + r[2]; const v = parseInt(r, 16); img.data[i * 4] = v >> 16; img.data[i * 4 + 1] = (v >> 8) & 255; img.data[i * 4 + 2] = v & 255; img.data[i * 4 + 3] = 255; } x.putImageData(img, 0, 0); return c; }
+}
+const CHARS = [
+  { id: 'chonx', name: 'CHONX', col: '#b04bff', art: p => { p.rect(3, 9, 10, 6, '#7a3cc9'); p.rect(3, 9, 2, 6, '#5a2a99'); p.rect(3, 14, 10, 1, '#2ee6d6'); p.ell(9, 6, 4.6, 4.2, '#d9893b'); p.ell(10.8, 7.8, 2.2, 1.7, '#f6c98a'); p.ell(6, 2.2, 1.4, 1.5, '#d9893b'); p.ell(11.4, 2, 1.4, 1.5, '#d9893b'); p.set(6, 2, '#ff9fb0'); p.set(11, 2, '#ff9fb0'); p.set(10, 5, '#111'); p.set(13, 7, '#ff6f8f'); } },
+  { id: 'baby', name: 'THE BABY', col: '#ff6b9d', art: p => { p.ell(8, 12, 4.5, 3.4, '#f6c48f'); p.ell(8, 13, 4.2, 2.4, '#ffffff'); p.ell(8.5, 6, 5, 4.8, '#f6c48f'); p.set(8, 1, '#c98a3a'); p.set(9, 1, '#c98a3a'); p.set(6, 6, '#111'); p.set(11, 6, '#111'); p.set(5, 8, '#ff8fa8'); p.set(12, 8, '#ff8fa8'); p.rect(8, 8, 2, 1, '#7a3b1a'); } },
+  { id: 'grandma', name: 'GRANDMA', col: '#ffcc4d', art: p => { p.rect(4, 9, 8, 6, '#9b6bd6'); p.rect(4, 11, 8, 1, '#ffffff'); p.ell(8, 6, 3.8, 3.8, '#f2c39a'); p.ell(8, 3, 4.4, 2.4, '#e6e3ef'); p.ell(8, 1, 2, 1.4, '#e6e3ef'); p.rect(5, 6, 2, 1, '#2a1f2e'); p.rect(9, 6, 2, 1, '#2a1f2e'); p.set(7, 6, '#2a1f2e'); p.rect(7, 8, 2, 1, '#e06a7a'); p.line(13, 9, 13, 15, '#8a5a2e'); } },
+  { id: 'car', name: 'PED X-ING CAR', col: '#d4ff00', art: p => { p.rect(3, 2, 10, 12, '#e53935'); p.rect(4, 3, 8, 3, '#16202e'); p.rect(4, 10, 8, 2, '#16202e'); p.rect(4, 6, 8, 4, '#ff6f61'); p.rect(2, 3, 1, 3, '#111'); p.rect(13, 3, 1, 3, '#111'); p.rect(2, 10, 1, 3, '#111'); p.rect(13, 10, 1, 3, '#111'); p.set(4, 14, '#ffe14d'); p.set(11, 14, '#ffe14d'); } },
+  { id: 'karen', name: 'KAREN', col: '#00e5ff', art: p => { p.rect(4, 10, 8, 5, '#2f6fd1'); p.ell(8, 6, 5, 5, '#f2c14e'); p.ell(8, 7, 3.4, 4, '#f6c48f'); p.rect(5, 2, 6, 2, '#f2c14e'); p.line(5, 5, 7, 6, '#8a5a1a'); p.line(9, 6, 11, 5, '#8a5a1a'); p.set(6, 7, '#111'); p.set(10, 7, '#111'); p.rect(7, 9, 3, 2, '#7a1a1a'); } },
+  { id: 'sling', name: 'SLINGSHOT', col: '#ff8a2b', art: p => { p.rect(7, 8, 3, 7, '#8b5a2b'); p.line(8, 9, 3, 2, '#8b5a2b'); p.line(9, 9, 13, 2, '#8b5a2b'); p.line(7, 9, 2, 3, '#a0692f'); p.line(10, 9, 14, 3, '#6b4423'); p.line(3, 2, 8, 6, '#ff2bd6'); p.line(13, 2, 8, 6, '#ff2bd6'); p.rect(7, 6, 3, 2, '#5a3a1a'); } },
+  { id: 'brayn', name: 'BRAYN', col: '#e8264a', art: p => { p.ell(8, 6, 6.5, 5.5, '#e85a8a'); for (let k = 0; k < 3; k++) for (let x = 2; x < 15; x++) { const y = Math.round(2 + k * 3 + Math.sin(x * .8 + k)); if (p.get(x, y)) p.set(x, y, '#a8325f'); } p.ell(9, 11, 4, 3.6, '#efe6c8'); p.rect(7, 10, 1, 1, '#141414'); p.rect(10, 10, 1, 1, '#141414'); p.set(7, 10, '#7dff4a'); p.rect(7, 13, 4, 1, '#141414'); p.rect(10, 14, 1, 2, '#5dff3a'); } },
+  { id: 'rat', name: '6-7 RAT', col: '#a8b0bc', art: p => { p.ell(8, 10, 5.5, 3.6, '#8a8f99'); p.ell(12.5, 7, 2.6, 2.4, '#8a8f99'); p.ell(10.5, 4.5, 1.4, 1.4, '#8a8f99'); p.set(10, 4, '#c98aa0'); p.set(13, 6, '#ff2a2a'); p.set(15, 8, '#c98aa0'); p.line(2, 11, 1, 7, '#c98aa0'); p.line(1, 7, 2, 5, '#c98aa0'); p.rect(6, 13, 1, 2, '#c98aa0'); p.rect(10, 13, 1, 2, '#c98aa0'); } },
+  { id: 'clanker', name: 'CLANKER', col: '#3ddc97', art: p => { p.rect(3, 4, 10, 9, '#858c99'); p.rect(3, 4, 2, 9, '#6a707b'); p.rect(5, 7, 2, 2, '#ff2a2a'); p.rect(9, 7, 2, 2, '#ff2a2a'); p.rect(5, 11, 6, 1, '#2b2b2b'); p.rect(7, 1, 2, 3, '#cfd4de'); p.set(7, 0, '#ff2a2a'); p.set(8, 0, '#ff2a2a'); p.rect(1, 7, 2, 3, '#6a707b'); p.rect(13, 7, 2, 3, '#6a707b'); p.rect(5, 13, 2, 2, '#555'); p.rect(9, 13, 2, 2, '#555'); } },
+  { id: 'van', name: 'GTA VAN', col: '#3b7bff', art: p => { p.rect(3, 1, 10, 14, '#ffcc4d'); p.rect(4, 2, 8, 3, '#9fe3ff'); p.rect(4, 6, 8, 7, '#fff3c4'); p.rect(4, 8, 8, 1, '#c0563c'); p.rect(4, 11, 8, 1, '#c0563c'); p.rect(2, 3, 1, 3, '#1c1820'); p.rect(13, 3, 1, 3, '#1c1820'); p.rect(2, 10, 1, 3, '#1c1820'); p.rect(13, 10, 1, 3, '#1c1820'); p.set(4, 15, '#ff4d4d'); p.set(11, 15, '#ff4d4d'); } },
+  { id: 'manager', name: 'THE MANAGER', col: '#ff2bd6', art: p => { p.rect(3, 9, 10, 6, '#ffffff'); p.rect(7, 9, 2, 1, '#1565c0'); p.rect(7, 10, 2, 5, '#1565c0'); p.rect(10, 11, 2, 1, '#1565c0'); p.ell(8, 5.5, 3.8, 4, '#f6c48f'); p.ell(8, 2.4, 4, 2, '#5d4037'); p.rect(4, 2, 1, 4, '#5d4037'); p.rect(11, 2, 1, 4, '#5d4037'); p.set(6, 5, '#111'); p.set(10, 5, '#111'); p.rect(7, 7, 3, 1, '#7a1a1a'); } },
+];
+const SPR = {};
+CHARS.forEach(c => { const p = new PX(16, 16); c.art(p); p.outline('#14081f'); SPR[c.id] = p.canvas(); });
+const CH = id => CHARS.find(c => c.id === id);
+
+// =====================================================================
+// BOARD — 19x19 tiles, a 72-space loop round the edge, 6 seats
+// =====================================================================
+const N = 19, TS = 60, LOOP = 72, LANE = 5, SLIDE = 5;
+const HOME = 100 + LANE + 1;       // pos codes: -1 start · 0..71 track (relative to your start) · 101..105 safety lane · 106 home
+const tileXY = t => { t = ((t % LOOP) + LOOP) % LOOP; return t < 18 ? [t, 0] : t < 36 ? [18, t - 18] : t < 54 ? [18 - (t - 36), 18] : [0, 18 - (t - 54)]; };
+const seatStart = s => 12 * s + 9;                   // the track tile a piece enters on
+const absOf = (s, d) => (seatStart(s) + d) % LOOP;
+const relOf = (s, abs) => ((abs - seatStart(s)) % LOOP + LOOP) % LOOP;
+// per seat: which way the safety lane runs (inward), and where the start circle sits
+const SEATS = [
+  { lane: [0, 1], start: [10.5, 2.7] },     // top, x=9
+  { lane: [-1, 0], start: [15.7, 4.6] },    // right, y=3
+  { lane: [-1, 0], start: [15.7, 16.3] },   // right, y=15
+  { lane: [0, -1], start: [8.5, 15.7] },    // bottom, x=9
+  { lane: [1, 0], start: [3.3, 13.9] },     // left, y=15
+  { lane: [1, 0], start: [3.3, 2.35] },      // left, y=3
+];
+function laneXY(s, k) { const [lx, ly] = tileXY(seatStart(s) - 2), [dx, dy] = SEATS[s].lane; return [lx + dx * k, ly + dy * k]; }   // k = 1..5, home at 6
+// slides: one per stretch, starting 4 past each start, 5 tiles long. Everyone can use every slide.
+const SLIDES = [0, 1, 2, 3, 4, 5].map(s => ({ s, from: (seatStart(s) + 4) % LOOP }));
+const SLIDE_THEME = [
+  { name: 'YEET THROW', a: '#ff6b9d', b: '#ffd3e6' }, { name: 'GTA ROAD', a: '#3a3a44', b: '#ffcc4d' }, { name: 'CLANKER CONVEYOR', a: '#5a6170', b: '#3ddc97' },
+  { name: 'CROSSWALK', a: '#2a2a2a', b: '#ffffff' }, { name: 'CHECKOUT LANE', a: '#00a5b5', b: '#c9fbff' }, { name: 'BRAIN-ROT CHUTE', a: '#5dff3a', b: '#e85a8a' }];
+const slideAt = abs => SLIDES.find(sl => sl.from === abs) || null;
+
+// =====================================================================
+// DECK — our own mix (45 cards)
+// =====================================================================
+const CARD_INFO = {
+  1: 'LEAVE START, OR MOVE 1.', 2: 'LEAVE START, OR MOVE 2. THEN DRAW AGAIN.', 3: 'MOVE 3 FORWARD.', 4: 'MOVE 4 BACK.', 5: 'MOVE 5 FORWARD.',
+  7: 'MOVE 7, OR SPLIT IT BETWEEN TWO PIECES.', 8: 'MOVE 8 FORWARD.', 10: 'MOVE 10 FORWARD, OR 1 BACK.', 11: 'MOVE 11 FORWARD, OR SWAP PLACES WITH ANY RIVAL PIECE.', 12: 'MOVE 12 FORWARD.',
+  B: 'TAKE A PIECE OUT OF START AND DROP IT ON ANY RIVAL. THEY GO BACK TO START.',
+};
+function newDeck() { const d = []; const add = (c, n) => { for (let i = 0; i < n; i++) d.push(c); }; add(1, 5); [2, 3, 4, 5, 7, 8, 10, 11, 12, 'B'].forEach(c => add(c, 4)); return shuffle(d); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// =====================================================================
+// RULES
+// =====================================================================
+const G = { state: 'title', mode: 'cpu', diff: 'normal', players: [], turn: 0, deck: [], card: null, opts: [], oi: 0, busy: false, fast: false, winner: null };
+// one step along a player's path (null = can't)
+function step(pos, dir) {
+  if (pos < 0 || pos === HOME) return null;
+  if (dir > 0) { if (pos > 100) return pos + 1 <= HOME ? pos + 1 : null; if (pos === 70) return 101; return pos === 71 ? 0 : pos + 1; }
+  if (pos > 100) return pos === 101 ? 70 : pos - 1;
+  return pos === 0 ? 71 : pos - 1;
+}
+function walk(pos, n) { const path = []; const dir = n > 0 ? 1 : -1; for (let i = 0; i < Math.abs(n); i++) { pos = step(pos, dir); if (pos == null) return null; path.push(pos); } return path; }
+const onTrack = pos => pos >= 0 && pos < LOOP;
+// rival pieces sitting on an absolute track tile
+function rivalsAt(abs, me, P) { const out = []; P.forEach((pl, pi) => { if (pi === me) return; pl.pieces.forEach((pos, k) => { if (onTrack(pos) && absOf(pl.seat, pos) === abs) out.push([pi, k]); }); }); return out; }
+// every legal move for this card, as menu rows. A row may have choices (cycled with left / right).
+function movesFor(P, me, card) {
+  const pl = P[me], rows = [];
+  const fwd = (k, n, label) => { const pos = pl.pieces[k]; if (!onTrack(pos) && !(pos > 100 && pos < HOME)) return; const w = walk(pos, n); if (w) rows.push({ label, acts: [{ k, type: 'walk', n }] }); };
+  const out = (k) => rows.push({ label: 'PIECE ' + (k + 1) + ': LEAVE START', acts: [{ k, type: 'out' }] });
+  const startK = pl.pieces.findIndex(p => p < 0);
+  if (card === 1 || card === 2) { if (startK >= 0) out(startK); pl.pieces.forEach((_, k) => fwd(k, card, 'PIECE ' + (k + 1) + ': MOVE ' + card)); }
+  else if ([3, 5, 8, 12].includes(card)) pl.pieces.forEach((_, k) => fwd(k, card, 'PIECE ' + (k + 1) + ': MOVE ' + card));
+  else if (card === 4) pl.pieces.forEach((_, k) => fwd(k, -4, 'PIECE ' + (k + 1) + ': BACK 4'));
+  else if (card === 10) { pl.pieces.forEach((_, k) => fwd(k, 10, 'PIECE ' + (k + 1) + ': MOVE 10')); pl.pieces.forEach((_, k) => fwd(k, -1, 'PIECE ' + (k + 1) + ': BACK 1')); }
+  else if (card === 7) {
+    pl.pieces.forEach((_, k) => fwd(k, 7, 'PIECE ' + (k + 1) + ': ALL 7'));
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) {
+      const ch = [];
+      for (let x = 1; x <= 6; x++) { const t = trySeq(P, me, [{ k: a, type: 'walk', n: x }, { k: b, type: 'walk', n: 7 - x }]); if (t) ch.push({ text: x + ' + ' + (7 - x), acts: [{ k: a, type: 'walk', n: x }, { k: b, type: 'walk', n: 7 - x }] }); }
+      if (ch.length) rows.push({ label: 'SPLIT: PIECE ' + (a + 1) + ' + PIECE ' + (b + 1), choices: ch, ci: 0 });
+    }
+  }
+  else if (card === 11) {
+    pl.pieces.forEach((_, k) => fwd(k, 11, 'PIECE ' + (k + 1) + ': MOVE 11'));
+    pl.pieces.forEach((pos, k) => {
+      if (!onTrack(pos)) return;
+      const ch = [];
+      P.forEach((op, pi) => { if (pi === me) return; op.pieces.forEach((rp, rk) => { if (onTrack(rp)) ch.push({ text: CH(op.ch).name + ' ' + (rk + 1), acts: [{ k, type: 'swap', pi, rk }] }); }); });
+      if (ch.length) rows.push({ label: 'PIECE ' + (k + 1) + ': SWAP WITH', choices: ch, ci: 0 });
+    });
+  }
+  else if (card === 'B' && startK >= 0) {
+    const ch = [];
+    P.forEach((op, pi) => { if (pi === me) return; op.pieces.forEach((rp, rk) => { if (onTrack(rp)) ch.push({ text: CH(op.ch).name + ' ' + (rk + 1), acts: [{ k: startK, type: 'bump', pi, rk }] }); }); });
+    if (ch.length) rows.push({ label: 'BUMPED! DROP ON', choices: ch, ci: 0 });
+  }
+  return rows;
+}
+const rowActs = r => r.choices ? r.choices[r.ci].acts : r.acts;
+function clonePlayers(P) { return P.map(p => Object.assign({}, p, { pieces: p.pieces.slice() })); }
+// apply actions to a copy; returns { P, events } or null if illegal
+function trySeq(P, me, acts) {
+  P = clonePlayers(P); const events = [];
+  for (const a of acts) {
+    const pl = P[me];
+    if (a.type === 'out') { if (pl.pieces[a.k] >= 0) return null; pl.pieces[a.k] = 0; events.push({ t: 'move', pi: me, k: a.k, path: [0] }); land(P, me, a.k, events, false); }
+    else if (a.type === 'walk') { const w = walk(pl.pieces[a.k], a.n); if (!w || !(onTrack(pl.pieces[a.k]) || pl.pieces[a.k] > 100)) return null; pl.pieces[a.k] = w[w.length - 1]; events.push({ t: 'move', pi: me, k: a.k, path: w }); land(P, me, a.k, events, true); }
+    else if (a.type === 'swap') { const mine = pl.pieces[a.k], op = P[a.pi], theirs = op.pieces[a.rk]; if (!onTrack(mine) || !onTrack(theirs)) return null; const ma = absOf(pl.seat, mine), ta = absOf(op.seat, theirs); pl.pieces[a.k] = relOf(pl.seat, ta); op.pieces[a.rk] = relOf(op.seat, ma); events.push({ t: 'swap', pi: me, k: a.k, opi: a.pi, ok: a.rk });
+      // stacked pieces left behind on either tile get bumped by whoever just arrived
+      P.forEach((q, qi) => q.pieces.forEach((qp, qk) => { if (!onTrack(qp) || (qi === me && qk === a.k) || (qi === a.pi && qk === a.rk)) return; const qa = absOf(q.seat, qp);
+        if ((qa === ta && qi !== me) || (qa === ma && qi !== a.pi)) { q.pieces[qk] = -1; events.push({ t: 'bump', pi: qi, k: qk, by: me }); } }));
+      land(P, me, a.k, events, true, true); }
+    else if (a.type === 'bump') { const op = P[a.pi], theirs = op.pieces[a.rk]; if (pl.pieces[a.k] >= 0 || !onTrack(theirs)) return null; const ta = absOf(op.seat, theirs); pl.pieces[a.k] = relOf(pl.seat, ta); events.push({ t: 'move', pi: me, k: a.k, path: [pl.pieces[a.k]], jump: true }); land(P, me, a.k, events, true); }
+  }
+  return { P, events };
+}
+// after landing: bump rivals on the tile, then take a slide if it's the slide's first tile
+function land(P, me, k, events, canSlide, swapped) {
+  const pl = P[me], pos = pl.pieces[k]; if (!onTrack(pos)) return;
+  let abs = absOf(pl.seat, pos);
+  if (!swapped) rivalsAt(abs, me, P).forEach(([pi, rk]) => { P[pi].pieces[rk] = -1; events.push({ t: 'bump', pi, k: rk, by: me }); });
+  const sl = canSlide && slideAt(abs);
+  if (sl) {
+    const tiles = []; for (let i = 1; i < SLIDE; i++) tiles.push((abs + i) % LOOP);
+    const path = []; let p = pos; for (let i = 1; i < SLIDE; i++) { p = step(p, 1); path.push(p); }
+    events.push({ t: 'slide', pi: me, k, path, theme: sl.s });
+    P.forEach((op, pi) => op.pieces.forEach((rp, rk) => { if (pi === me && rk === k) return; if (onTrack(rp) && tiles.includes(absOf(op.seat, rp))) { op.pieces[rk] = -1; events.push({ t: 'bump', pi, k: rk, by: me, slide: true }); } }));
+    pl.pieces[k] = p;
+  }
+}
+
+// =====================================================================
+// THE COMPUTER — easy (mostly random) / normal (sensible) / mean (goes for the bump)
+// =====================================================================
+const prog = pos => pos < 0 ? 0 : pos === HOME ? 84 : pos > 100 ? 72 + (pos - 100) : pos === 71 ? 0.5 : pos + 1;
+function score(P, me, diff) {
+  let mine = 0, theirs = 0, lead = 0;
+  P.forEach((pl, pi) => { const s = pl.pieces.reduce((a, p) => a + prog(p) + (p === HOME ? 10 : p > 100 ? 4 : 0), 0); if (pi === me) mine = s; else { theirs += s; lead = Math.max(lead, s); } });
+  return diff === 'mean' ? mine - 0.9 * theirs - 0.6 * lead : mine - 0.4 * theirs;
+}
+function cpuPick(P, me, rows, diff) {
+  const flat = []; rows.forEach((r, ri) => { if (r.choices) r.choices.forEach((c, ci) => flat.push({ ri, ci, acts: c.acts })); else flat.push({ ri, ci: 0, acts: r.acts }); });
+  if (!flat.length) return null;
+  if (diff === 'easy' && Math.random() < 0.65) return pick(flat);
+  let best = null, bs = -1e9;
+  flat.forEach(f => { const r = trySeq(P, me, f.acts); if (!r) return; let s = score(r.P, me, diff); if (diff === 'mean') s += r.events.filter(e => e.t === 'bump').length * 25; s += Math.random() * 0.5; if (s > bs) { bs = s; best = f; } });
+  return best || pick(flat);
+}
+
+// =====================================================================
+// AUDIO — little chiptune blips
+// =====================================================================
+const Snd = {
+  ctx: null, muted: false,
+  unlock() { if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  tone(f, d, type = 'square', v = 0.05, delay = 0, slide = 0) {
+    if (!this.ctx || this.muted) return; const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, v = 0.06, f = 1200, delay = 0) {
+    if (!this.ctx || this.muted) return; const t = this.ctx.currentTime + delay, len = Math.floor(this.ctx.sampleRate * d), buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = this.ctx.createBufferSource(), fl = this.ctx.createBiquadFilter(), g = this.ctx.createGain(); fl.type = 'bandpass'; fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f * 3, t + d);
+    g.gain.value = v; s.buffer = buf; s.connect(fl); fl.connect(g); g.connect(this.ctx.destination); s.start(t);
+  },
+  sfx(k) {
+    if (k === 'move') this.tone(520, 0.05, 'square', 0.035);
+    else if (k === 'draw') { this.noise(0.08, 0.05, 2400); this.tone(880, 0.06, 'square', 0.03, 0.05); }
+    else if (k === 'select') this.tone(660, 0.05, 'square', 0.04);
+    else if (k === 'nav') this.tone(440, 0.03, 'square', 0.03);
+    else if (k === 'bump') { this.tone(392, 0.12, 'sawtooth', 0.07); this.tone(262, 0.25, 'sawtooth', 0.07, 0.1, -120); this.noise(0.2, 0.06, 500); }
+    else if (k === 'slide') { this.noise(0.4, 0.07, 400); this.tone(300, 0.35, 'triangle', 0.05, 0, 600); }
+    else if (k === 'home') [523, 659, 784].forEach((f, i) => this.tone(f, 0.12, 'square', 0.045, i * 0.08));
+    else if (k === 'pass') this.tone(200, 0.2, 'square', 0.04);
+    else if (k === 'win') [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, 0.16, 'square', 0.05, i * 0.12));
+    else if (k === 'deny') this.tone(160, 0.15, 'square', 0.04);
+  },
+};
+
+// =====================================================================
+// DRAWING THE BOARD
+// =====================================================================
+const cv = $('board'), cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
+let flash = 0, shakeT = 0;
+const anim = { moving: null };   // { pi, k, x, y } piece drawn mid-move
+function shade(hex, k) { const v = parseInt(hex.slice(1), 16); const f = c => Math.max(0, Math.min(255, Math.round(c * k))); return '#' + [f(v >> 16), f((v >> 8) & 255), f(v & 255)].map(n => n.toString(16).padStart(2, '0')).join(''); }
+function tileRect(x, y) { return [x * TS, y * TS, TS, TS]; }
+function piecePlace(pi, k, P) {
+  const pl = P[pi], pos = pl.pieces[k], s = pl.seat;
+  if (pos < 0) { const [sx, sy] = SEATS[s].start, i = pl.pieces.slice(0, k).filter(p => p < 0).length; return [sx + [-0.55, 0.55, 0][i], sy + [-0.3, -0.3, 0.6][i], 0.8]; }
+  if (pos === HOME) { const [hx, hy] = laneXY(s, LANE + 1), i = pl.pieces.slice(0, k).filter(p => p === HOME).length; return [hx + 0.5 + [-0.5, 0.5, 0][i], hy + 0.5 + [-0.3, -0.3, 0.5][i], 0.7]; }
+  let x, y;
+  if (pos > 100) [x, y] = laneXY(s, pos - 100); else [x, y] = tileXY(absOf(s, pos));
+  // your own pieces sharing a tile sit side by side
+  const same = pl.pieces.map((p, j) => j).filter(j => pl.pieces[j] === pos), idx = same.indexOf(k), n = same.length;
+  const off = n === 1 ? [[0, 0]] : n === 2 ? [[-0.22, 0], [0.22, 0]] : [[-0.25, -0.18], [0.25, -0.18], [0, 0.2]];
+  return [x + 0.5 + off[idx][0], y + 0.5 + off[idx][1], n === 1 ? 1 : 0.72];
+}
+function drawPiece(id, col, x, y, sc, num, hi, t) {
+  const r = TS * 0.42 * sc, px = x * TS, py = y * TS;
+  cx.fillStyle = 'rgba(0,0,0,.45)'; cx.beginPath(); cx.ellipse(px, py + r * 0.75, r * 0.95, r * 0.4, 0, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = shade(col, 0.45); cx.beginPath(); cx.arc(px, py + 3 * sc, r, 0, Math.PI * 2); cx.fill();
+  cx.fillStyle = col; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.fill();
+  if (hi) { cx.strokeStyle = '#ffffff'; cx.lineWidth = 4 + Math.sin(t * 8) * 2; cx.beginPath(); cx.arc(px, py, r + 5, 0, Math.PI * 2); cx.stroke(); }
+  const s = Math.round(r * 1.5 / 16) * 16 || 32; cx.drawImage(SPR[id], Math.round(px - s / 2), Math.round(py - s / 2 - 2), s, s);
+  if (num) { cx.fillStyle = '#07010f'; cx.fillRect(px + r * 0.45, py + r * 0.3, 18, 18); cx.fillStyle = '#fff'; cx.font = '12px "Press Start 2P"'; cx.fillText(num, px + r * 0.45 + 3, py + r * 0.3 + 15); }
+}
+function drawBoard(t) {
+  const P = G.players, me = G.turn, row = G.opts[G.oi];
+  cx.save();
+  if (shakeT > 0) cx.translate(Math.sin(t * 60) * shakeT * 10, Math.cos(t * 50) * shakeT * 10);
+  cx.fillStyle = '#0f0522'; cx.fillRect(-20, -20, 1180, 1180);
+  // the middle: a neon "BRO!" floor
+  cx.fillStyle = '#160a2e'; cx.fillRect(TS, TS, TS * 17, TS * 17);
+  cx.strokeStyle = 'rgba(176,75,255,.12)'; cx.lineWidth = 2; for (let i = 1; i < N; i++) { cx.beginPath(); cx.moveTo(i * TS, TS); cx.lineTo(i * TS, 18 * TS); cx.stroke(); cx.beginPath(); cx.moveTo(TS, i * TS); cx.lineTo(18 * TS, i * TS); cx.stroke(); }
+  cx.font = '64px "Press Start 2P"'; cx.textAlign = 'center'; cx.fillStyle = 'rgba(255,43,214,.16)'; cx.fillText('BRO!', 9.5 * TS, 10.2 * TS); cx.textAlign = 'left';
+  // track
+  for (let t2 = 0; t2 < LOOP; t2++) {
+    const [x, y] = tileXY(t2), [rx, ry] = tileRect(x, y);
+    cx.fillStyle = (t2 % 2) ? '#e8e0ff' : '#d6ccf5'; cx.fillRect(rx + 2, ry + 2, TS - 4, TS - 4);
+  }
+  // slides
+  SLIDES.forEach(sl => {
+    const th = SLIDE_THEME[sl.s];
+    for (let i = 0; i < SLIDE; i++) {
+      const [x, y] = tileXY(sl.from + i), [rx, ry] = tileRect(x, y);
+      cx.fillStyle = th.a; cx.fillRect(rx + 8, ry + 8, TS - 16, TS - 16);
+      cx.fillStyle = th.b;
+      if (sl.s === 3) { for (let j = 0; j < 3; j++) cx.fillRect(rx + 12 + j * 13, ry + 12, 7, TS - 24); }
+      else if (sl.s === 1) cx.fillRect(rx + TS / 2 - 3, ry + 14, 6, TS - 28);
+      else if (sl.s === 2) { for (let j = 0; j < 3; j++) cx.fillRect(rx + 12, ry + 14 + j * 12, TS - 24, 4); }
+      else cx.fillRect(rx + 16, ry + 16, TS - 32, TS - 32);
+    }
+    const [x0, y0] = tileXY(sl.from), [x1, y1] = tileXY(sl.from + SLIDE - 1);
+    cx.fillStyle = '#07010f'; cx.beginPath(); cx.arc(x0 * TS + TS / 2, y0 * TS + TS / 2, 14, 0, Math.PI * 2); cx.fill();     // the trigger tile
+    cx.fillStyle = th.b; cx.beginPath(); cx.arc(x0 * TS + TS / 2, y0 * TS + TS / 2, 9, 0, Math.PI * 2); cx.fill();
+    cx.fillStyle = '#07010f'; cx.fillRect(x1 * TS + 18, y1 * TS + 18, TS - 36, TS - 36);
+  });
+  // seats: start circles, safety lanes, homes (empty seats drawn dim)
+  for (let s = 0; s < 6; s++) {
+    const pl = P.find(p => p.seat === s), col = pl ? CH(pl.ch).col : '#3a2a6a';
+    const [sx, sy] = tileXY(seatStart(s)), [rx, ry] = tileRect(sx, sy);
+    cx.fillStyle = col; cx.globalAlpha = pl ? 0.9 : 0.4; cx.fillRect(rx + 4, ry + 4, TS - 8, TS - 8); cx.globalAlpha = 1;
+    for (let k = 1; k <= LANE; k++) { const [lx, ly] = laneXY(s, k); cx.fillStyle = pl ? shade(col, 0.55) : '#241640'; cx.fillRect(lx * TS + 6, ly * TS + 6, TS - 12, TS - 12); cx.strokeStyle = col; cx.lineWidth = 3; cx.globalAlpha = pl ? 1 : .4; cx.strokeRect(lx * TS + 6, ly * TS + 6, TS - 12, TS - 12); cx.globalAlpha = 1; }
+    const [hx, hy] = laneXY(s, LANE + 1);
+    cx.fillStyle = pl ? shade(col, 0.35) : '#1d1236'; cx.strokeStyle = col; cx.lineWidth = 4; cx.globalAlpha = pl ? 1 : .4;
+    cx.beginPath(); cx.arc(hx * TS + TS / 2, hy * TS + TS / 2, TS * 0.62, 0, Math.PI * 2); cx.fill(); cx.stroke();
+    const [stx, sty] = SEATS[s].start;
+    cx.beginPath(); cx.arc(stx * TS, sty * TS, TS * 1.15, 0, Math.PI * 2); cx.fill(); cx.stroke(); cx.globalAlpha = 1;
+    cx.font = '11px "Press Start 2P"'; cx.textAlign = 'center'; cx.fillStyle = pl ? col : '#4a3a7a'; cx.fillText(pl ? 'START' : '', stx * TS, sty * TS - TS * 0.85); cx.fillText(pl ? 'HOME' : '', hx * TS + TS / 2, hy * TS + TS / 2 - TS * 0.7); cx.textAlign = 'left';
+  }
+  // what the highlighted option would do: destination outline + targets
+  const hiK = new Set(), targets = [];
+  if (G.state === 'choose' && row && !G.busy) {
+    const acts = rowActs(row), res = trySeq(P, me, acts);
+    acts.forEach(a => hiK.add(a.k));
+    if (res) {
+      acts.forEach(a => { const pos = res.P[me].pieces[a.k]; let xy = null; if (onTrack(pos)) xy = tileXY(absOf(P[me].seat, pos)); else if (pos > 100 && pos < HOME) xy = laneXY(P[me].seat, pos - 100); else if (pos === HOME) xy = laneXY(P[me].seat, LANE + 1);
+        if (xy) { cx.strokeStyle = CH(P[me].ch).col; cx.lineWidth = 5; cx.setLineDash([10, 8]); cx.lineDashOffset = -t * 40; cx.strokeRect(xy[0] * TS + 4, xy[1] * TS + 4, TS - 8, TS - 8); cx.setLineDash([]); } });
+      res.events.filter(e => e.t === 'bump' || e.t === 'swap').forEach(e => targets.push(e.t === 'bump' ? [e.pi, e.k] : [e.opi, e.ok]));
+    }
+  }
+  // pieces
+  P.forEach((pl, pi) => pl.pieces.forEach((pos, k) => {
+    if (anim.moving && anim.moving.pi === pi && anim.moving.k === k) return;
+    const [x, y, sc] = piecePlace(pi, k, P), c = CH(pl.ch);
+    const isTarget = targets.some(([a, b]) => a === pi && b === k);
+    drawPiece(c.id, c.col, x, y, sc, pi === me ? String(k + 1) : '', (pi === me && hiK.has(k)) || isTarget, t);
+    if (isTarget) { cx.strokeStyle = '#ff2a2a'; cx.lineWidth = 5; cx.beginPath(); cx.moveTo(x * TS - 14, y * TS - 14); cx.lineTo(x * TS + 14, y * TS + 14); cx.moveTo(x * TS + 14, y * TS - 14); cx.lineTo(x * TS - 14, y * TS + 14); cx.stroke(); }
+  }));
+  if (anim.moving) { const m = anim.moving, c = CH(P[m.pi].ch); drawPiece(c.id, c.col, m.x, m.y - (m.hop || 0), 1.1, String(m.k + 1), false, t); }
+  if (flash > 0) { cx.fillStyle = 'rgba(255,255,255,' + flash * 0.35 + ')'; cx.fillRect(0, 0, 1140, 1140); }
+  cx.restore();
+}
+
+// =====================================================================
+// TURN FLOW
+// =====================================================================
+const wait = ms => new Promise(r => setTimeout(r, G.fast ? ms / 3 : ms));
+const cur = () => G.players[G.turn];
+const isCpu = () => cur().cpu;
+function setPC() { document.documentElement.style.setProperty('--pc', CH(cur().ch).col); }
+function renderTurn() {
+  const pl = cur(), c = CH(pl.ch);
+  $('turn').innerHTML = c.name + "'S TURN" + '<small>' + (pl.cpu ? 'THE COMPUTER IS THINKING...' : G.mode === 'party' ? 'PASS THE CONTROLLER TO ' + c.name : 'YOUR TURN') + '</small>';
+}
+function showCard(c) {
+  const el = $('card');
+  el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip');
+  if (c == null) { el.className = 'back flip'; el.innerHTML = '<b style="font-size:clamp(16px,2vw,24px)">BRO!</b><span>' + (isCpu() ? '' : 'DRAW') + '</span>'; $('cardText').textContent = isCpu() ? '' : 'DRAW A CARD.'; return; }
+  el.className = 'flip'; el.innerHTML = c === 'B' ? '<b class="word">BUMPED!</b><span>SEND ONE HOME</span>' : '<b>' + c + '</b><span>' + (c === 4 ? 'BACK' : c === 2 ? 'DRAW AGAIN' : c === 7 ? 'SPLIT' : c === 11 ? 'OR SWAP' : c === 10 ? 'OR BACK 1' : '') + '</span>';
+  $('cardText').textContent = CARD_INFO[c];
+}
+function renderOpts() {
+  const box = $('opts'); box.innerHTML = '';
+  if (G.state === 'draw') {
+    if (isCpu()) return;
+    const b = document.createElement('button'); b.className = 'opt big foc'; b.textContent = 'DRAW A CARD'; b.onclick = () => { Snd.unlock(); act('a'); }; box.appendChild(b); return;
+  }
+  if (G.state !== 'choose') return;
+  if (!G.opts.length) { const b = document.createElement('button'); b.className = 'opt big foc'; b.textContent = isCpu() ? 'NO MOVES' : 'NO MOVES. PASS'; b.onclick = () => act('a'); box.appendChild(b); return; }
+  G.opts.forEach((r, i) => {
+    const b = document.createElement('div'); b.className = 'opt' + (i === G.oi ? ' foc' : '');
+    b.innerHTML = '<span class="t">' + r.label + (r.choices ? ': <b style="color:var(--yellow);font-weight:normal">' + r.choices[r.ci].text + '</b>' : '') + '</span>' + (r.choices && r.choices.length > 1 ? '<button class="ar" data-d="-1">&#9664;</button><button class="ar" data-d="1">&#9654;</button>' : '');
+    b.addEventListener('click', e => { if (G.busy || isCpu()) return; const d = e.target.dataset && e.target.dataset.d; if (d) { G.oi = i; cycle(+d); return; } if (G.oi === i) act('a'); else { G.oi = i; Snd.sfx('nav'); renderOpts(); } });
+    b.addEventListener('mouseenter', () => { if (G.busy || isCpu() || G.oi === i) return; G.oi = i; renderOpts(); });
+    box.appendChild(b);
+  });
+  const f = box.querySelector('.foc'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
+}
+function cycle(d) { const r = G.opts[G.oi]; if (!r || !r.choices) return; r.ci = (r.ci + d + r.choices.length) % r.choices.length; Snd.sfx('nav'); renderOpts(); }
+function startTurn() {
+  G.state = 'draw'; G.card = null; G.opts = []; G.oi = 0;
+  setPC(); renderTurn(); showCard(null); renderOpts(); hint();
+  if (isCpu()) setTimeout(() => cpuTurn(), G.fast ? 200 : 700);
+}
+function draw() {
+  if (G.state !== 'draw' || G.busy) return;
+  if (!G.deck.length) G.deck = newDeck();
+  G.card = G.deck.pop(); Snd.sfx('draw'); showCard(G.card);
+  G.opts = movesFor(G.players, G.turn, G.card); G.oi = 0; G.state = 'choose'; renderOpts(); hint();
+}
+async function cpuTurn() {
+  if (G.state !== 'draw' || !isCpu()) return;
+  draw(); await wait(900);
+  cpuChoose();
+}
+async function cpuChoose() {
+  if (G.state !== 'choose' || !isCpu() || G.busy) return;
+  const ch = cpuPick(G.players, G.turn, G.opts, G.diff);
+  if (ch) { G.oi = ch.ri; if (G.opts[ch.ri].choices) G.opts[ch.ri].ci = ch.ci; renderOpts(); await wait(600); }
+  if (G.state !== 'choose') return;   // paused meanwhile: resume picks again
+  await confirm();
+}
+async function confirm() {
+  if (G.state !== 'choose' || G.busy) return;
+  const row = G.opts[G.oi];
+  if (!row) { Snd.sfx('pass'); return endTurn(); }
+  const res = trySeq(G.players, G.turn, rowActs(row)); if (!res) { Snd.sfx('deny'); return; }
+  Snd.sfx('select'); G.busy = true; renderOpts();
+  await play(res.events);
+  G.players = res.P; G.busy = false;
+  // winner?
+  const w = G.players.findIndex(p => p.pieces.every(x => x === HOME));
+  if (w >= 0) return win(w);
+  endTurn();
+}
+function endTurn() {
+  if (G.card === 2) { G.state = 'draw'; G.card = null; G.opts = []; showCard(null); $('cardText').textContent = isCpu() ? 'DRAW AGAIN.' : 'YOU DREW A 2. DRAW AGAIN.'; renderOpts(); hint(); if (isCpu()) setTimeout(() => cpuTurn(), G.fast ? 200 : 600); return; }
+  G.turn = (G.turn + 1) % G.players.length; startTurn();
+}
+// animate the events on a working copy so the board shows each step
+async function play(events) {
+  const work = clonePlayers(G.players); const realP = G.players; G.players = work;
+  for (const e of events) {
+    if (e.t === 'move' || e.t === 'slide') {
+      if (e.t === 'slide') { Snd.sfx('slide'); shakeT = 0.4; }
+      const pl = work[e.pi];
+      for (const pos of e.path) {
+        const [fx, fy] = piecePlace(e.pi, e.k, work); pl.pieces[e.k] = pos; const [tx, ty] = piecePlace(e.pi, e.k, work);
+        const dur = e.jump ? 320 : e.t === 'slide' ? 70 : 150, t0 = performance.now();
+        await new Promise(res => { const f = () => { const k = Math.min(1, (performance.now() - t0) / (G.fast ? dur / 3 : dur)); anim.moving = { pi: e.pi, k: e.k, x: fx + (tx - fx) * k, y: fy + (ty - fy) * k, hop: Math.sin(k * Math.PI) * (e.jump ? 1.2 : 0.25) }; if (k < 1) requestAnimationFrame(f); else res(); }; f(); });
+        if (e.t === 'move') Snd.sfx('move');
+      }
+      anim.moving = null;
+      if (pl.pieces[e.k] === HOME) Snd.sfx('home');
+    } else if (e.t === 'bump') {
+      work[e.pi].pieces[e.k] = -1; Snd.sfx('bump'); shakeT = 0.6; flash = 1; broCall(CH(work[e.pi].ch).col); await wait(450);
+    } else if (e.t === 'swap') {
+      const me = work[e.pi], op = work[e.opi], ma = absOf(me.seat, me.pieces[e.k]), ta = absOf(op.seat, op.pieces[e.ok]);
+      me.pieces[e.k] = relOf(me.seat, ta); op.pieces[e.ok] = relOf(op.seat, ma); Snd.sfx('slide'); await wait(450);
+    }
+  }
+  G.players = realP;
+}
+function broCall(col) { const b = $('bro'); b.style.setProperty('--pc', col); b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
+function win(pi) {
+  G.state = 'win'; G.winner = pi; Snd.sfx('win');
+  const c = CH(G.players[pi].ch);
+  document.documentElement.style.setProperty('--pc', c.col);
+  $('winHead').textContent = c.name + ' WINS!';
+  $('winSub').textContent = G.players[pi].cpu ? 'THE COMPUTER GOT EVERYONE HOME FIRST. BRO.' : 'ALL THREE HOME. BUMP RESPECTFULLY.';
+  const x = $('winArt').getContext('2d'); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 16, 16); x.drawImage(SPR[c.id], 0, 0);
+  showMenu('sWin', 'winMenu', [{ label: 'PLAY AGAIN', action: () => newGame(G.setup) }, { label: 'NEW GAME', action: showTitle }, { label: 'EXIT TO BORED GAMES', action: exitBG, cls: 'mint' }]);
+}
+
+// =====================================================================
+// SETUP SCREENS
+// =====================================================================
+const Menu = { items: [], idx: 0, grid: false };
+function hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.remove('on')); }
+function showMenu(screen, boxId, items) {
+  hideScreens(); $(screen).classList.add('on'); G.menu = screen;
+  const box = $(boxId); box.innerHTML = '';
+  Menu.grid = false; Menu.idx = 0;
+  Menu.items = items.map((it, i) => { const b = document.createElement('button'); b.className = 'btn' + (it.cls ? ' ' + it.cls : ''); b.textContent = it.label; b.onclick = () => { Snd.unlock(); Snd.sfx('select'); it.action(); }; b.onmouseenter = () => { Menu.idx = i; paintMenu(); }; box.appendChild(b); return { el: b, action: it.action }; });
+  paintMenu(); mhint();
+}
+function paintMenu() { Menu.items.forEach((m, i) => m.el.classList.toggle('foc', i === Menu.idx)); }
+function showTitle() {
+  G.state = 'title'; $('game').classList.remove('on');
+  document.documentElement.style.setProperty('--pc', '#ff2bd6');
+  showMenu('sTitle', 'mTitle', [
+    { label: 'PLAY VS THE COMPUTER', action: chooseDiff },
+    { label: 'PARTY MODE (PASS THE CONTROLLER)', action: chooseCount },
+    { label: 'HOW TO PLAY', action: () => showHow(showTitle) },
+    { label: 'FULLSCREEN', action: toggleFs, cls: 'mint' },
+    { label: 'EXIT TO BORED GAMES', action: exitBG, cls: 'mint' },
+  ]);
+}
+function chooseDiff() {
+  G.state = 'menu'; $('mHead').textContent = 'HOW MEAN IS THE COMPUTER?'; $('mSub').textContent = 'YOU VS 2 COMPUTER PIECE SETS. EVERYONE IS A RIVAL.';
+  showMenu('sMenu', 'mList', [
+    { label: 'EASY', action: () => pickChars({ mode: 'cpu', diff: 'easy', humans: 1 }) },
+    { label: 'NORMAL', action: () => pickChars({ mode: 'cpu', diff: 'normal', humans: 1 }) },
+    { label: 'MEAN (LOVES A BUMP)', action: () => pickChars({ mode: 'cpu', diff: 'mean', humans: 1 }) },
+    { label: 'BACK', action: showTitle, cls: 'mint' },
+  ]);
+}
+function chooseCount() {
+  G.state = 'menu'; $('mHead').textContent = 'HOW MANY PLAYERS?'; $('mSub').textContent = 'EVERYONE SHARES ONE SCREEN. PASS THE CONTROLLER.';
+  showMenu('sMenu', 'mList', [2, 3, 4, 5, 6].map(n => ({ label: n + ' PLAYERS', action: () => pickChars({ mode: 'party', humans: n }) })).concat([{ label: 'BACK', action: showTitle, cls: 'mint' }]));
+}
+// character select: one player per character
+let PK = null;
+function pickChars(setup) { PK = { setup, chosen: [], i: 0 }; renderPick(); }
+function renderPick() {
+  G.state = 'pick'; G.menu = null; hideScreens(); $('sPick').classList.add('on');
+  const n = PK.chosen.length, s = PK.setup;
+  $('pHead').textContent = s.mode === 'cpu' ? 'PICK YOUR PIECES' : 'PLAYER ' + (n + 1) + ', PICK YOUR PIECES';
+  $('pSub').textContent = s.mode === 'cpu' ? 'THE COMPUTER PICKS 2 FROM WHAT\'S LEFT.' : 'ONE PLAYER PER CHARACTER. ' + (s.humans - n) + ' TO GO.';
+  const box = $('picks'); box.innerHTML = '';
+  CHARS.forEach((c, i) => {
+    const taken = PK.chosen.includes(c.id);
+    const b = document.createElement('button'); b.className = 'pk' + (taken ? ' taken' : '') + (i === PK.i ? ' foc' : ''); b.style.setProperty('--c', c.col);
+    b.innerHTML = '<canvas width="16" height="16"></canvas>' + c.name;
+    const x = b.querySelector('canvas').getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(SPR[c.id], 0, 0);
+    b.onclick = () => { Snd.unlock(); PK.i = i; choosePick(); };
+    b.onmouseenter = () => { PK.i = i; paintPick(); };
+    box.appendChild(b);
+  });
+  const back = $('pBack'); back.innerHTML = ''; const bb = document.createElement('button'); bb.className = 'btn mint'; bb.textContent = 'BACK'; bb.onclick = () => { Snd.sfx('select'); pickBack(); }; back.appendChild(bb);
+  mhint();
+}
+function paintPick() { document.querySelectorAll('.pk').forEach((b, i) => b.classList.toggle('foc', i === PK.i)); }
+function pickBack() { if (PK.chosen.length) { PK.chosen.pop(); renderPick(); } else if (PK.setup.mode === 'cpu') chooseDiff(); else chooseCount(); }
+function choosePick() {
+  const c = CHARS[PK.i]; if (PK.chosen.includes(c.id)) { Snd.sfx('deny'); return; }
+  Snd.sfx('select'); PK.chosen.push(c.id);
+  if (PK.chosen.length < PK.setup.humans) { PK.i = CHARS.findIndex(x => !PK.chosen.includes(x.id)); renderPick(); return; }
+  const setup = Object.assign({}, PK.setup, { humanChars: PK.chosen.slice() });
+  if (setup.mode === 'cpu') { const left = CHARS.filter(x => !PK.chosen.includes(x.id)); setup.cpuChars = shuffle(left.slice()).slice(0, 2).map(x => x.id); }
+  newGame(setup);
+}
+// seats spread round the board for each player count
+const SEAT_SETS = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5] };
+function newGame(setup) {
+  G.setup = setup; G.mode = setup.mode; G.diff = setup.diff || 'normal';
+  const list = setup.humanChars.map(ch => ({ ch, cpu: false })).concat((setup.cpuChars || []).map(ch => ({ ch, cpu: true })));
+  const seats = SEAT_SETS[list.length];
+  // in computer mode, shuffle who sits where so you're not always first
+  if (setup.mode === 'cpu') shuffle(list);
+  G.players = list.map((p, i) => ({ ch: p.ch, cpu: p.cpu, seat: seats[i], pieces: [-1, -1, -1] }));
+  G.deck = newDeck(); G.turn = setup.mode === 'cpu' ? G.players.findIndex(p => !p.cpu) : 0; G.busy = false; anim.moving = null;
+  hideScreens(); $('game').classList.add('on'); G.menu = null; layout(); startTurn();
+}
+function showHow(back) {
+  G.prevState = G.state; G.state = 'how';
+  $('howText').innerHTML =
+    '<b>GOAL:</b> GET ALL 3 OF YOUR PIECES FROM START, ROUND THE BOARD, UP YOUR SAFETY LANE AND HOME.<br>' +
+    '<b>YOUR TURN:</b> DRAW A CARD, THEN PICK A MOVE FROM THE LIST. THE BOARD SHOWS WHERE IT LANDS.<br>' +
+    '<b>LEAVE START:</b> ONLY WITH A 1, A 2 OR A BUMPED! CARD.<br>' +
+    '<b>BUMP:</b> LAND ON A RIVAL AND THEY GO BACK TO START. YOUR OWN PIECES JUST SIT SIDE BY SIDE.<br>' +
+    '<b>SLIDES:</b> LAND EXACTLY ON A SLIDE\'S FIRST TILE (THE DOT) AND ZOOM TO THE END, BUMPING EVERYONE ON IT, EVEN YOUR OWN.<br>' +
+    '<b>SAFETY LANE:</b> ONLY YOUR PIECES GO IN. YOU NEED THE EXACT COUNT TO GET HOME. BACKWARD CARDS CAN PULL YOU OUT.<br>' +
+    '<b>CARDS:</b> 1 / 2 (DRAW AGAIN) / 3 / 4 BACK / 5 / 7 SPLIT / 8 / 10 OR BACK 1 / 11 OR SWAP / 12 / BUMPED!<br>' +
+    '<b>NO MOVE?</b> THE CARD IS WASTED AND PLAY PASSES.';
+  showMenu('sHow', 'howMenu', [{ label: 'GOT IT', action: () => { G.state = G.prevState; back(); } }]);
+}
+function pauseGame() { if ((G.state !== 'draw' && G.state !== 'choose') || G.busy) return; G.paused = G.state; G.state = 'paused'; showMenu('sPause', 'pauseMenu', [
+  { label: 'RESUME', action: resume }, { label: 'HOW TO PLAY', action: () => showHow(() => pauseAgain()) },
+  { label: 'SPEED: ' + (G.fast ? 'FAST' : 'NORMAL'), action: () => { toggleFast(); G.state = G.paused; pauseGame(); } },
+  { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' }]); }
+function pauseAgain() { G.state = 'paused'; showMenu('sPause', 'pauseMenu', [{ label: 'RESUME', action: resume }, { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' }]); }
+function resume() { hideScreens(); G.menu = null; G.state = G.paused; renderOpts(); if (G.state === 'draw' && isCpu()) setTimeout(cpuTurn, 300); if (G.state === 'choose' && isCpu() && !G.busy) setTimeout(cpuChoose, 300); }
+function toggleFast() { G.fast = !G.fast; $('bSpeed').textContent = 'SPEED: ' + (G.fast ? 'FAST' : 'NORMAL'); $('bSpeed').classList.toggle('on', G.fast); }
+function exitBG() { location.href = '../'; }
+function toggleFs() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { } }
+$('bSpeed').onclick = () => { Snd.unlock(); toggleFast(); };
+$('bPause').onclick = () => { Snd.unlock(); pauseGame(); };
+$('card').onclick = () => { Snd.unlock(); if (G.state === 'draw' && !isCpu()) draw(); };
+cv.addEventListener('click', () => { Snd.unlock(); if (G.state === 'draw' && !isCpu()) draw(); });
+
+// =====================================================================
+// INPUT — keyboard, controller, mouse, touch
+// =====================================================================
+let lastDev = 'key', padPS = false;
+function act(a) {
+  Snd.unlock();
+  if (G.menu === 'sPick' || G.state === 'pick') {
+    const cols = Math.max(1, Math.round($('picks').clientWidth / 120));
+    if (a === 'l') PK.i = (PK.i + CHARS.length - 1) % CHARS.length; else if (a === 'r') PK.i = (PK.i + 1) % CHARS.length;
+    else if (a === 'u') PK.i = Math.max(0, PK.i - cols); else if (a === 'd') PK.i = Math.min(CHARS.length - 1, PK.i + cols);
+    else if (a === 'a') return choosePick(); else if (a === 'b') return pickBack(); else return;
+    Snd.sfx('nav'); return paintPick();
+  }
+  if (G.menu) {
+    if (a === 'u' || a === 'l') { Menu.idx = (Menu.idx + Menu.items.length - 1) % Menu.items.length; Snd.sfx('nav'); paintMenu(); }
+    else if (a === 'd' || a === 'r') { Menu.idx = (Menu.idx + 1) % Menu.items.length; Snd.sfx('nav'); paintMenu(); }
+    else if (a === 'a') { Snd.sfx('select'); Menu.items[Menu.idx].action(); }
+    else if (a === 'b' && G.state === 'paused') resume();
+    return;
+  }
+  if (a === 'p') return pauseGame();
+  if (G.busy || isCpu()) { if (a === 'a' || a === 'y') { /* hold to speed: handled by FAST toggle */ } return; }
+  if (G.state === 'draw') { if (a === 'a') draw(); return; }
+  if (G.state === 'choose') {
+    if (!G.opts.length) { if (a === 'a') confirm(); return; }
+    if (a === 'u') { G.oi = (G.oi + G.opts.length - 1) % G.opts.length; Snd.sfx('nav'); renderOpts(); }
+    else if (a === 'd') { G.oi = (G.oi + 1) % G.opts.length; Snd.sfx('nav'); renderOpts(); }
+    else if (a === 'l') cycle(-1); else if (a === 'r') cycle(1);
+    else if (a === 'a') confirm();
+  }
+}
+addEventListener('keydown', e => {
+  if (e.repeat && (e.key === 'Enter' || e.key === ' ')) return;
+  const k = e.key, m = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r', w: 'u', s: 'd', a: 'l', d: 'r', Enter: 'a', ' ': 'a', Escape: G.menu ? 'b' : 'p', Backspace: 'b', p: 'p', f: 'y' }[k];
+  if (!m) return; e.preventDefault(); lastDev = 'key';
+  if (m === 'y') { toggleFast(); return; }
+  act(m); hint(); mhint();
+});
+// controller: edges only; anything held when the page opens is ignored until released
+let padHeld = {}, padArmed = false, padRep = { k: null, t: 0 };
+function pollPad(now) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = null;
+  for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+  if (!gp) return;
+  padPS = /054c|dualsense|dualshock|playstation/i.test(gp.id) || (/wireless controller/i.test(gp.id) && !/xbox|045e/i.test(gp.id));
+  const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  const st = { a: b(0), b: b(1), y: b(3), p: b(9), u: b(12) || ay < -0.5, d: b(13) || ay > 0.5, l: b(14) || ax < -0.5, r: b(15) || ax > 0.5 };
+  if (!padArmed) { if (!Object.values(st).some(Boolean)) padArmed = true; padHeld = st; return; }
+  for (const k in st) {
+    if (st[k] && !padHeld[k]) { lastDev = 'pad'; if (k === 'y') toggleFast(); else act(k); hint(); mhint(); padRep = { k, t: now + 380 }; }
+    else if (st[k] && padRep.k === k && 'udlr'.includes(k) && now > padRep.t) { act(k); padRep.t = now + 130; }
+  }
+  padHeld = st;
+}
+addEventListener('pointerdown', e => { if (e.pointerType === 'touch') lastDev = 'touch'; else if (lastDev === 'touch') lastDev = 'key'; }, true);
+function P_(ps, xb) { return padPS ? ps : xb; }
+function hint() {
+  let h = '';
+  if (lastDev === 'pad') h = (G.state === 'draw' ? P_('CROSS', 'A') + ' DRAW' : '&#9650;&#9660; PICK A MOVE &middot; &#9664;&#9654; CHANGE &middot; ' + P_('CROSS', 'A') + ' GO') + ' &middot; ' + P_('TRIANGLE', 'Y') + ' SPEED &middot; ' + P_('OPTIONS', 'START') + ' PAUSE';
+  else if (lastDev === 'touch') h = G.state === 'draw' ? 'TAP THE CARD OR THE BOARD TO DRAW' : 'TAP A MOVE TO PREVIEW IT, TAP AGAIN TO GO';
+  else h = (G.state === 'draw' ? 'ENTER DRAW' : '&#9650;&#9660; PICK A MOVE &middot; &#9664;&#9654; CHANGE &middot; ENTER GO') + ' &middot; F SPEED &middot; ESC PAUSE';
+  $('hint').innerHTML = h;
+}
+function mhint() { $('mhint').innerHTML = lastDev === 'pad' ? '&#9650;&#9660; PICK &middot; ' + P_('CROSS', 'A') + ' SELECT' : lastDev === 'touch' ? '' : '&#9650;&#9660; PICK &middot; ENTER SELECT'; }
+
+// =====================================================================
+// LAYOUT + LOOP
+// =====================================================================
+function layout() {
+  const vw = innerWidth, vh = innerHeight, port = vh > vw * 1.1;
+  document.body.classList.toggle('port', port);
+  const size = port ? Math.min(vw * 0.96, vh * 0.56) : Math.min(vh * 0.94, vw * 0.6);
+  cv.style.width = cv.style.height = Math.floor(size) + 'px';
+}
+addEventListener('resize', layout);
+let lastT = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  pollPad(now);
+  flash = Math.max(0, flash - dt * 3); shakeT = Math.max(0, shakeT - dt);
+  if ($('game').classList.contains('on')) drawBoard(now / 1000);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+addEventListener('pageshow', () => { padArmed = false; });
+layout(); showTitle(); hint();
+requestAnimationFrame(frame);
+// exposed for automated tests only
+window.__bro = { G, movesFor, trySeq, step, walk, absOf, relOf, tileXY, laneXY, HOME, SLIDES, newGame, act, draw, confirm };
+})();
+</script>
+</body>
+</html>

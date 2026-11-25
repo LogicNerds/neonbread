@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bored Games · Neon Bread Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#ff2bd6;--cyan:#00e5ff;--yellow:#ffe14d;--purple:#b04bff}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#07010f;color:#fff;font-family:'Press Start 2P',monospace;overflow-x:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;align-items:center;min-height:100%;
+  background:radial-gradient(ellipse at 50% 0%,#2a0f4a 0%,#0b0218 55%,#07010f 100%)}
+/* wood-panel back room wall */
+#wall{position:fixed;inset:0;z-index:0;opacity:.18;background:repeating-linear-gradient(90deg,#3a2210 0 46px,#2c180a 46px 50px,#45291a 50px 96px,#2c180a 96px 100px)}
+#scan{position:fixed;inset:0;pointer-events:none;z-index:50;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 2px,transparent 2px 4px)}
+#sign{position:relative;z-index:2;text-align:center;margin-top:clamp(24px,6vh,70px)}
+.tube{display:block;font-size:clamp(22px,6vw,72px);letter-spacing:.08em;color:#f3dcff;text-shadow:0 0 4px #fff,0 0 12px var(--purple),0 0 28px var(--purple),0 0 60px var(--purple);animation:buzz 7s infinite}
+.tube.b{color:#c9fbff;text-shadow:0 0 4px #fff,0 0 12px var(--cyan),0 0 28px var(--cyan),0 0 60px var(--cyan);animation-delay:2.3s}
+@keyframes buzz{0%,91%,93%,95%,100%{opacity:1}92%,94%{opacity:.3}}
+.sub{margin-top:1.4em;font-size:clamp(8px,1.1vw,13px);color:var(--yellow);letter-spacing:.14em;text-shadow:0 0 10px rgba(255,225,77,.6)}
+#tables{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:clamp(16px,3vw,40px);justify-content:center;margin:clamp(24px,5vh,60px) 16px 0}
+.tbl{width:min(340px,86vw);padding:18px 16px 20px;background:rgba(14,4,30,.88);border:4px solid #3a2a6a;text-align:center;cursor:pointer;outline:none;transition:transform .15s,border-color .15s,box-shadow .15s}
+.tbl canvas{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#120626;border:3px solid #2a1650}
+.tbl h2{font-weight:normal;font-size:clamp(18px,2.6vw,28px);margin-top:16px;color:#fff;text-shadow:0 0 10px var(--c,var(--pink))}
+.tbl p{font-size:10px;line-height:1.9;color:#cfc6ff;margin-top:12px;min-height:3.8em}
+.tbl .who{font-size:9px;color:#8a7bd8;margin-top:8px}
+.tbl.foc{border-color:var(--c,var(--pink));box-shadow:0 0 22px var(--c,var(--pink));transform:translateY(-4px)}
+.tbl.soon{cursor:default;opacity:.55}
+.tbl.soon h2{text-shadow:none;color:#8a7bd8}
+#exit{position:relative;z-index:2;margin:clamp(24px,5vh,50px) 0 30px;font-family:inherit;font-size:12px;padding:14px 22px;background:transparent;color:var(--cyan);border:3px solid var(--cyan);cursor:pointer;outline:none}
+#exit.foc,#exit:hover{background:var(--cyan);color:#07010f;box-shadow:0 0 16px var(--cyan)}
+#hint{position:relative;z-index:2;font-size:9px;color:#7d72b8;margin-bottom:10px;text-align:center;line-height:1.8;padding:0 10px}
+#credit{position:relative;z-index:2;font-size:9px;color:#5a4f8a;margin:6px 0 20px}
+</style>
+</head>
+<body>
+<div id="wall"></div>
+<header id="sign"><h1 style="font-weight:normal"><span class="tube">BORED</span><span class="tube b">GAMES</span></h1>
+  <div class="sub">THE BACK ROOM &middot; PASS THE CONTROLLER</div></header>
+<main id="tables">
+  <div class="tbl" id="tBro" style="--c:#ff2bd6" tabindex="0" role="button" aria-label="Play Bro!">
+    <canvas id="broArt" width="120" height="72"></canvas>
+    <h2>BRO!</h2>
+    <p>BUMP YOUR BUDDIES FROM BEHIND AND SEND THEM HOME</p>
+    <div class="who">1 PLAYER VS COMPUTER &middot; PARTY 2-6</div>
+  </div>
+  <div class="tbl soon" aria-hidden="true">
+    <canvas id="soonArt" width="120" height="72"></canvas>
+    <h2>MORE GAMES</h2>
+    <p>THE TABLE'S BEING SET UP.<br>CHECK BACK SOON.</p>
+    <div class="who">&nbsp;</div>
+  </div>
+</main>
+<button id="exit">EXIT TO ARCADE</button>
+<div id="hint"></div>
+<div id="credit">NEON BREAD STUDIOS &copy; 2026</div>
+<div id="scan"></div>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const items = [$('tBro'), $('exit')];
+let foc = 0;
+const go = el => { if (el === $('tBro')) location.href = 'bro/'; else location.href = 'https://www.neonbreadent.com/'; };
+function paint() { items.forEach((el, i) => el.classList.toggle('foc', i === foc)); }
+items.forEach((el, i) => { el.addEventListener('click', () => go(el)); el.addEventListener('mouseenter', () => { foc = i; paint(); }); });
+addEventListener('keydown', e => {
+  if (['ArrowLeft', 'ArrowUp'].includes(e.key)) { foc = (foc + items.length - 1) % items.length; paint(); e.preventDefault(); }
+  else if (['ArrowRight', 'ArrowDown', 'Tab'].includes(e.key)) { foc = (foc + 1) % items.length; paint(); e.preventDefault(); }
+  else if (e.key === 'Enter' || e.key === ' ') { go(items[foc]); e.preventDefault(); }
+  else if (e.key === 'Escape' || e.key === 'Backspace') { go($('exit')); }
+});
+// controller: buttons held when the page loads (from the press that opened it) are ignored until released
+let held = {}, armed = false, ps = false;
+function poll() {
+  requestAnimationFrame(poll);
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = null;
+  for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+  if (!gp) { $('hint').innerHTML = matchMedia('(pointer: coarse)').matches ? 'TAP A TABLE TO PLAY' : '&#9664; &#9654; PICK &middot; ENTER PLAY &middot; ESC BACK TO THE ARCADE'; return; }
+  ps = /054c|dualsense|dualshock|playstation/i.test(gp.id) || (/wireless controller/i.test(gp.id) && !/xbox|045e/i.test(gp.id));
+  $('hint').innerHTML = '&#9664; &#9654; PICK &middot; ' + (ps ? 'CROSS' : 'A') + ' PLAY &middot; ' + (ps ? 'CIRCLE' : 'B') + ' BACK TO THE ARCADE';
+  const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  const now = { a: b(0), b: b(1), l: b(14) || ax < -.5 || b(12) || ay < -.5, r: b(15) || ax > .5 || b(13) || ay > .5 };
+  if (!armed) { if (!now.a && !now.b) armed = true; held = now; return; }
+  const edge = k => now[k] && !held[k];
+  if (edge('l')) { foc = (foc + items.length - 1) % items.length; paint(); }
+  if (edge('r')) { foc = (foc + 1) % items.length; paint(); }
+  if (edge('a')) go(items[foc]);
+  if (edge('b')) go($('exit'));
+  held = now;
+}
+poll();
+addEventListener('pageshow', () => { armed = false; });
+// little table art: the Bro! board with a few pieces, and an empty table
+function art() {
+  const c = $('broArt').getContext('2d'); c.imageSmoothingEnabled = false;
+  c.fillStyle = '#1b0b33'; c.fillRect(0, 0, 120, 72);
+  c.fillStyle = '#2a1650'; c.fillRect(30, 4, 64, 64);
+  c.fillStyle = '#e8e0ff'; for (let i = 0; i < 16; i++) { c.fillRect(30 + i * 4, 4, 3, 3); c.fillRect(30 + i * 4, 65, 3, 3); c.fillRect(30, 4 + i * 4, 3, 3); c.fillRect(91, 4 + i * 4, 3, 3); }
+  [['#b04bff', 50, 12], ['#ff6b9d', 70, 30], ['#ffcc4d', 40, 46], ['#00e5ff', 62, 52]].forEach(([col, x, y]) => { c.fillStyle = col; c.fillRect(x, y, 6, 6); c.fillStyle = '#fff'; c.fillRect(x + 1, y + 1, 2, 2); });
+  c.fillStyle = '#ff2bd6'; c.fillRect(54, 30, 14, 10); c.fillStyle = '#fff'; c.fillRect(56, 32, 10, 6);
+  const s = $('soonArt').getContext('2d'); s.fillStyle = '#1b0b33'; s.fillRect(0, 0, 120, 72); s.fillStyle = '#2a1650'; s.fillRect(30, 10, 60, 52);
+  s.fillStyle = '#4a3a7a'; s.fillRect(50, 28, 20, 4); s.fillRect(58, 20, 4, 20);
+}
+art(); paint();
+})();
+</script>
+</body>
+</html>
