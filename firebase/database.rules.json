@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        ".read": true,
+        ".write": "$code.matches(/^[A-HJ-NP-Z2-9]{4}$/)",
+        ".validate": "newData.hasChildren(['game', 'host', 'status'])",
+        "game": { ".validate": "newData.isString() && newData.val().matches(/^(yeet|karen|pedxing|bruh)$/)" },
+        "host": { ".validate": "newData.isString() && newData.val().matches(/^[a-z2-9]{10}$/)" },
+        "status": { ".validate": "newData.val() === 'lobby' || newData.val() === 'play'" },
+        "gen": { ".validate": "newData.isNumber()" },
+        "created": { ".validate": "newData.isNumber()" },
+        "players": {
+          "$pid": {
+            ".validate": "$pid.matches(/^[a-z2-9]{10}$/) && newData.hasChild('name')",
+            "name": { ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9]{1,6}$/)" },
+            "order": { ".validate": "newData.isNumber()" },
+            "hb": { ".validate": "newData.isNumber()" },
+            "left": { ".validate": "newData.isBoolean()" },
+            "$other": { ".validate": false }
+          }
+        },
+        "g": { ".validate": true },
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
