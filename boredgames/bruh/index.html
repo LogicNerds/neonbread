@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bruh... · Bored Games · Neon Bread</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--pink:#ff2bd6;--cyan:#00e5ff;--yellow:#ffe14d;--purple:#b04bff;--pc:#ff2bd6}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#07010f;color:#fff;font-family:'Press Start 2P',monospace;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{background:radial-gradient(ellipse at 50% 0%,#2a1250 0%,#0d0320 58%,#07010f 100%)}
+#scan{position:fixed;inset:0;pointer-events:none;z-index:90;background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 2px,transparent 2px 4px)}
+/* ---------- game layout: board + side panel ---------- */
+#game{position:fixed;inset:0;display:none;align-items:center;justify-content:center;gap:2.4vmin;padding:2vmin}
+#game.on{display:flex}
+#board{display:block;background:#0f0522;border:3px solid #3a2272;border-radius:18px;box-shadow:0 0 0 1px rgba(255,255,255,.06) inset,0 0 40px rgba(176,75,255,.3),0 20px 50px rgba(0,0,0,.6);touch-action:none}
+#side{display:flex;flex-direction:column;gap:12px;width:min(460px,34vw);max-height:96vh}
+body.port #game{flex-direction:column;justify-content:flex-start}
+body.port #side{width:min(96vw,640px);max-height:none;flex:1;min-height:0}
+.panel{border-radius:14px;background:linear-gradient(180deg,rgba(36,16,72,.92),rgba(14,5,32,.94));border:2px solid #3a2a6a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+#turn{padding:14px 12px;text-align:center;font-size:clamp(11px,1.15vw,20px);line-height:1.6;border-color:var(--pc);color:#fff;text-shadow:0 0 10px var(--pc);box-shadow:0 0 22px -6px var(--pc),0 8px 24px rgba(0,0,0,.45)}
+#turn small{display:block;font-size:.6em;color:#d8d0ff;text-shadow:none;margin-top:6px}
+#cardWrap{display:flex;align-items:center;gap:14px}
+#card{--cw:clamp(96px,8.4vw,150px);position:relative;flex:0 0 auto;width:var(--cw);min-width:var(--cw);height:calc(var(--cw) * 1.4);display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:calc(var(--cw) * .1);background:linear-gradient(155deg,#fffaf0 0%,#f6ead0 60%,#ecdcb8 100%);color:#2a1650;box-shadow:0 0 0 3px var(--pc),0 0 22px var(--pc),0 10px 22px rgba(0,0,0,.55);cursor:pointer;text-align:center;padding:8px}
+#card::before{content:'';position:absolute;inset:calc(var(--cw) * .05);border:2px solid rgba(42,22,80,.18);border-radius:calc(var(--cw) * .07);pointer-events:none}
+#card.back{background:radial-gradient(circle at 50% 42%,#5a2fa0 0%,#2a1356 55%,#170a33 100%);box-shadow:0 0 0 3px #b04bff,0 0 22px #b04bff,0 10px 22px rgba(0,0,0,.55);color:#fff}
+#card.back::before{border-color:rgba(255,211,246,.35);background:repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 6px,transparent 6px 12px)}
+#card b{position:relative;font-weight:normal;font-size:calc(var(--cw) * .36);line-height:1;color:#2a1650;text-shadow:0 2px 0 rgba(42,22,80,.15)}
+#card b.red{color:#e8264a}
+#card b.word{font-size:calc(var(--cw) * .11);color:#e8264a}
+#card.back b{font-size:calc(var(--cw) * .1);color:#ffd3f6;text-shadow:0 0 6px #ff2bd6,0 0 14px #ff2bd6}
+#card span{position:relative;font-size:calc(var(--cw) * .072);line-height:1.6;margin-top:calc(var(--cw) * .08)}
+#card .ci{position:absolute;font-style:normal;font-size:calc(var(--cw) * .1);line-height:1;color:#2a1650}
+#card .ci.red{color:#e8264a}
+#card .tl{top:calc(var(--cw) * .09);left:calc(var(--cw) * .1)}
+#card .br{bottom:calc(var(--cw) * .09);right:calc(var(--cw) * .1);transform:rotate(180deg)}
+#card.flip{animation:flip .3s cubic-bezier(.4,0,.2,1)}
+@keyframes flip{0%{transform:scaleX(1)}50%{transform:scaleX(0) translateY(-6px)}100%{transform:scaleX(1)}}
+#cardText{font-size:clamp(9px,.95vw,15px);line-height:1.9;color:#d8d0ff}
+#opts{display:flex;flex-direction:column;gap:7px;overflow-y:auto;min-height:0;flex:1;padding:4px}
+.opt{display:flex;align-items:center;gap:6px;font-family:inherit;font-size:clamp(9px,.95vw,15px);line-height:1.6;text-align:left;padding:11px 12px;border-radius:12px;background:linear-gradient(180deg,rgba(32,14,64,.94),rgba(16,6,36,.94));color:#e8e0ff;border:2px solid #3a2a6a;cursor:pointer;outline:none;transition:border-color .12s,box-shadow .12s,transform .12s}
+.opt .t{flex:1}
+.opt .ar{font-family:inherit;font-size:clamp(10px,.8vw,13px);padding:7px 9px;border-radius:8px;background:#2a1650;color:#fff;border:2px solid #5a4a9a;cursor:pointer}
+.opt.foc{border-color:var(--pc);color:#fff;box-shadow:0 0 16px -2px var(--pc);background:linear-gradient(180deg,rgba(52,22,96,.96),rgba(22,8,46,.96));transform:translateX(3px)}
+.opt.big{justify-content:center;font-size:clamp(10px,1.1vw,17px);padding:15px}
+#hint{font-size:clamp(8px,.75vw,12px);line-height:1.8;color:#8d82c8;text-align:center}
+#topbtns{display:flex;gap:8px}
+#topbtns button{flex:1;font-family:inherit;font-size:clamp(9px,.7vw,12px);padding:9px 6px;border-radius:10px;background:rgba(20,8,42,.7);color:#cfc6ff;border:2px solid #3a2a6a;cursor:pointer}
+#topbtns button.on{color:var(--yellow);border-color:var(--yellow);box-shadow:0 0 10px -2px var(--yellow)}
+/* ---------- menus ---------- */
+.screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;z-index:20;text-align:center;overflow-y:auto}
+.screen.on{display:flex}
+.screen.dim{background:rgba(6,1,13,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.logo{font-size:clamp(34px,10.5vw,128px);color:#ffd3f6;letter-spacing:.04em;white-space:nowrap;text-shadow:0 0 6px #fff,0 0 16px var(--pink),0 0 40px var(--pink),0 0 80px var(--pink);animation:buzz 6s infinite}
+@keyframes buzz{0%,91%,93%,95%,100%{opacity:1}92%,94%{opacity:.35}}
+.tagl{font-size:clamp(9px,1.3vw,16px);color:var(--yellow);line-height:1.8;max-width:760px;text-shadow:0 0 10px rgba(255,225,77,.5)}
+.h{font-size:clamp(16px,2.6vw,32px);color:#fff;text-shadow:0 0 12px var(--pc)}
+.menu{display:flex;flex-direction:column;gap:10px;min-width:min(440px,90vw)}
+.btn{font-family:inherit;font-size:clamp(10px,1.2vw,16px);padding:15px 18px;border-radius:14px;background:linear-gradient(180deg,rgba(36,16,72,.92),rgba(14,5,32,.94));color:#fff;border:2px solid #5a4a9a;cursor:pointer;outline:none;transition:transform .12s,box-shadow .12s}
+.btn.foc{border-color:#ff8af0;background:linear-gradient(180deg,#ff5fe4,#d61fb4);color:#14031f;box-shadow:0 0 22px var(--pink);transform:scale(1.02)}
+.btn.mint{border-color:#2a6a5a}
+.btn.mint.foc{border-color:#a8ffe4;background:linear-gradient(180deg,#7ff0cb,#3cc59a);box-shadow:0 0 22px #5fe0b7}
+#picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px;width:min(860px,94vw)}
+.pk{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 4px;font-family:inherit;font-size:clamp(8px,.7vw,11px);line-height:1.5;color:#fff;border-radius:14px;background:linear-gradient(180deg,rgba(36,16,72,.92),rgba(14,5,32,.94));border:2px solid var(--c);cursor:pointer;outline:none;transition:transform .12s,box-shadow .12s}
+.pk canvas{width:72px;height:72px}
+.pk.taken{opacity:.25;cursor:default}
+.pk.foc{box-shadow:0 0 20px var(--c);background:linear-gradient(180deg,rgba(56,24,104,.96),rgba(24,8,50,.96));transform:translateY(-4px)}
+.how{max-width:800px;font-size:clamp(8px,.95vw,13px);line-height:2.1;color:#d8d0ff;text-align:left;padding:18px 22px;border-radius:16px;background:rgba(20,8,42,.7);border:2px solid #3a2a6a}
+.how b{color:var(--yellow);font-weight:normal}
+#mhint{font-size:clamp(8px,.7vw,11px);color:#8d82c8;line-height:1.8}
+.credit{font-size:8px;color:#5a4f8a;margin-top:10px}
+#winArt{width:144px;height:144px;filter:drop-shadow(0 0 18px var(--pc))}
+#bro{position:fixed;left:50%;top:42%;z-index:30;transform:translate(-50%,-50%) scale(0);font-size:clamp(34px,9vw,110px);white-space:nowrap;color:#fff;text-shadow:0 0 8px #fff,0 0 22px var(--pc),0 0 60px var(--pc);pointer-events:none;opacity:0}
+#bro.go{animation:bro 1s ease-out}
+@keyframes bro{0%{transform:translate(-50%,-50%) scale(.2) rotate(-12deg);opacity:0}15%{transform:translate(-50%,-50%) scale(1.25) rotate(4deg);opacity:1}70%{transform:translate(-50%,-50%) scale(1) rotate(0);opacity:1}100%{transform:translate(-50%,-50%) scale(1.1);opacity:0}}
+#confetti{position:fixed;inset:0;width:100%;height:100%;z-index:25;pointer-events:none;display:none}
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="board" width="1140" height="1140"></canvas>
+  <div id="side">
+    <div id="topbtns"><button id="bSpeed">SPEED: NORMAL</button><button id="bSound">SOUND: ON</button><button id="bPause">PAUSE</button></div>
+    <div id="turn" class="panel">-</div>
+    <div id="cardWrap"><div id="card" class="back"><b>BRUH...</b><span>DRAW</span></div><div id="cardText"></div></div>
+    <div id="opts"></div>
+    <div id="hint"></div>
+  </div>
+</div>
+<div class="screen on" id="sTitle">
+  <div class="logo">BRUH...</div>
+  <div class="tagl">BUMP YOUR BUDDIES FROM BEHIND AND SEND THEM HOME</div>
+  <div class="menu" id="mTitle"></div>
+  <div id="mhint"></div>
+  <div class="credit">NEON BREAD STUDIOS &copy; 2026</div>
+</div>
+<div class="screen" id="sMenu"><div class="h" id="mHead"></div><div class="tagl" id="mSub"></div><div class="menu" id="mList"></div></div>
+<div class="screen" id="sPick"><div class="h" id="pHead"></div><div class="tagl" id="pSub"></div><div id="picks"></div><div class="menu" id="pBack"></div></div>
+<div class="screen dim" id="sHow"><div class="h">HOW TO PLAY</div><div class="how" id="howText"></div><div class="menu" id="howMenu"></div></div>
+<div class="screen dim" id="sPause"><div class="h">PAUSED</div><div class="menu" id="pauseMenu"></div></div>
+<div class="screen dim" id="sWin"><div class="h" id="winHead"></div><canvas id="winArt" width="288" height="288"></canvas><div class="tagl" id="winSub"></div><div class="menu" id="winMenu"></div></div>
+<canvas id="confetti"></canvas>
+<div id="bro">BRUH...</div>
+<div id="scan"></div>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rand = n => Math.floor(Math.random() * n);
+const pick = a => a[rand(a.length)];
+const TAU = Math.PI * 2;
+
+// =====================================================================
+// COLOUR + SHAPE HELPERS
+// =====================================================================
+function shade(hex, k) { const v = parseInt(hex.slice(1), 16); const f = c => Math.max(0, Math.min(255, Math.round(k > 1 ? c + (255 - c) * (k - 1) : c * k))); return '#' + [f(v >> 16), f((v >> 8) & 255), f(v & 255)].map(n => n.toString(16).padStart(2, '0')).join(''); }
+function rgba(hex, a) { const v = parseInt(hex.slice(1), 16); return 'rgba(' + (v >> 16) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')'; }
+function rr(g, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function lin(g, x0, y0, x1, y1, cols) { const gr = g.createLinearGradient(x0, y0, x1, y1); cols.forEach((c, i) => gr.addColorStop(i / (cols.length - 1), c)); return gr; }
+function rad(g, x, y, r, c0, c1) { const gr = g.createRadialGradient(x - r * .35, y - r * .45, r * .08, x, y, r * 1.05); gr.addColorStop(0, c0); gr.addColorStop(1, c1); return gr; }
+
+// =====================================================================
+// PIECES — 11 character portraits, drawn in code (100x100 space)
+// =====================================================================
+const OL = '#170a26';
+// fill + outline one shape: build() adds the path
+function S(g, fill, lw, build) { g.beginPath(); build(); if (fill) { g.fillStyle = fill; g.fill(); } if (lw) { g.lineWidth = lw; g.strokeStyle = OL; g.lineJoin = 'round'; g.lineCap = 'round'; g.stroke(); } }
+const E = (g, x, y, rx, ry, rot) => () => g.ellipse(x, y, rx, ry, rot || 0, 0, TAU);
+const R = (g, x, y, w, h, r) => () => { rr(g, x, y, w, h, r); };
+function stroke(g, col, lw, build) { g.beginPath(); build(); g.strokeStyle = col; g.lineWidth = lw; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); }
+function shine(g, x, y, r) { S(g, '#fff', 0, E(g, x, y, r, r)); }
+function glow(g, col, blur, fn) { g.save(); g.shadowColor = col; g.shadowBlur = blur; fn(); g.restore(); }
+function torso(g, fill, top) { S(g, fill, 3, () => { g.moveTo(10, 106); g.bezierCurveTo(12, top + 6, 30, top, 50, top); g.bezierCurveTo(70, top, 88, top + 6, 90, 106); g.closePath(); }); }
+
+const CHARS = [
+  { id: 'chonx', name: 'CHONX', col: '#b04bff', art: g => {
+    torso(g, lin(g, 0, 70, 0, 100, ['#a56af5', '#5a2aa8']), 72);
+    S(g, lin(g, 0, 70, 0, 80, ['#6ff7ea', '#1fb8ab']), 3, E(g, 50, 75, 25, 6));
+    [26, 74].forEach(x => { S(g, rad(g, x, 22, 11, '#f7b56c', '#c46f24'), 3, E(g, x, 23, 10.5, 10.5)); S(g, '#ff9fb6', 0, E(g, x, 24, 5.5, 5.5)); });
+    S(g, rad(g, 50, 46, 31, '#f9bb76', '#cf7628'), 3, E(g, 50, 46, 31, 28));
+    S(g, rad(g, 33, 57, 13, '#fff3dc', '#f1cf9e'), 2.5, E(g, 33, 57, 13, 11));
+    S(g, rad(g, 67, 57, 13, '#fff3dc', '#f1cf9e'), 2.5, E(g, 67, 57, 13, 11));
+    S(g, '#fbe2bc', 0, E(g, 50, 59, 9, 8));
+    S(g, 'rgba(255,110,150,.45)', 0, E(g, 27, 55, 5, 3)); S(g, 'rgba(255,110,150,.45)', 0, E(g, 73, 55, 5, 3));
+    [38, 62].forEach(x => { S(g, '#14081f', 0, E(g, x, 42, 4.6, 5.6)); shine(g, x - 1.5, 40, 1.7); });
+    S(g, '#ff6f8f', 2, E(g, 50, 51, 3.8, 2.7));
+    stroke(g, OL, 2, () => { g.moveTo(43, 56); g.quadraticCurveTo(46.5, 59.5, 50, 55); g.quadraticCurveTo(53.5, 59.5, 57, 56); });
+    S(g, '#fff', 1.6, R(g, 47, 57, 6, 6, 1.5)); stroke(g, OL, 1.2, () => { g.moveTo(50, 57.5); g.lineTo(50, 62.5); });
+  } },
+  { id: 'baby', name: 'THE BABY', col: '#ff6b9d', art: g => {
+    torso(g, lin(g, 0, 72, 0, 100, ['#ffffff', '#dcd0ee']), 76);
+    S(g, '#ffb3cf', 2.5, R(g, 40, 80, 20, 6, 3));
+    [19, 81].forEach(x => S(g, '#f2bd8c', 3, E(g, x, 49, 5, 7)));
+    S(g, rad(g, 50, 46, 32, '#ffe0bd', '#eeae78'), 3, E(g, 50, 46, 32, 31));
+    stroke(g, OL, 5, () => { g.moveTo(50, 17); g.bezierCurveTo(43, 7, 59, 4, 57, 13); });
+    stroke(g, '#b9803d', 2.6, () => { g.moveTo(50, 17); g.bezierCurveTo(43, 7, 59, 4, 57, 13); });
+    [39, 61].forEach(x => { S(g, '#fff', 2, E(g, x, 45, 6.5, 7.5)); S(g, '#4a2a14', 0, E(g, x + .5, 46, 4.3, 5)); S(g, '#14081f', 0, E(g, x + .5, 46.5, 2.2, 2.6)); shine(g, x - 1.2, 43.5, 1.6); });
+    stroke(g, OL, 1.8, () => { g.moveTo(33, 36); g.quadraticCurveTo(39, 33, 44, 36); g.moveTo(56, 36); g.quadraticCurveTo(61, 33, 67, 36); });
+    S(g, 'rgba(255,110,150,.5)', 0, E(g, 28, 56, 5.5, 3.5)); S(g, 'rgba(255,110,150,.5)', 0, E(g, 72, 56, 5.5, 3.5));
+    stroke(g, '#ff6b9d', 3, () => { g.arc(50, 69, 4.5, 0.15 * Math.PI, 0.85 * Math.PI); });
+    S(g, lin(g, 0, 56, 0, 68, ['#ff9cc0', '#ff4f8e']), 2.5, E(g, 50, 62, 10, 6.5));
+    S(g, '#ffd3e6', 2, E(g, 50, 62, 4, 3));
+  } },
+  { id: 'grandma', name: 'GRANDMA', col: '#ffcc4d', art: g => {
+    torso(g, lin(g, 0, 70, 0, 100, ['#b48af0', '#6c3fb0']), 74);
+    S(g, '#fff', 2.5, () => { g.moveTo(36, 74); g.lineTo(50, 86); g.lineTo(40, 90); g.closePath(); });
+    S(g, '#fff', 2.5, () => { g.moveTo(64, 74); g.lineTo(50, 86); g.lineTo(60, 90); g.closePath(); });
+    for (let i = 0; i < 7; i++) { const a = Math.PI * (.18 + i * .107); S(g, '#fffaf0', 1.2, E(g, 50 + Math.cos(a) * 15, 70 + Math.sin(a) * 9, 2.2, 2.2)); }
+    S(g, rad(g, 50, 18, 12, '#ffffff', '#c9c3dc'), 3, E(g, 50, 17, 12, 9));
+    S(g, rad(g, 50, 38, 32, '#ffffff', '#bdb6d4'), 3, E(g, 50, 39, 31, 25));
+    S(g, rad(g, 50, 52, 22, '#fcd8b8', '#e2a77e'), 3, E(g, 50, 52, 21, 23));
+    [[36, 32], [44, 29], [52, 29], [60, 31], [66, 35]].forEach(([x, y]) => S(g, rad(g, x, y, 6, '#ffffff', '#d4cee6'), 2, E(g, x, y, 5.5, 5)));
+    [41, 59].forEach(x => { S(g, 'rgba(200,230,255,.35)', 3, E(g, x, 51, 7.5, 7)); S(g, '#2a1f2e', 0, E(g, x, 51.5, 2.3, 2.6)); shine(g, x - .8, 50.5, .9); });
+    stroke(g, OL, 3, () => { g.moveTo(48.5, 50); g.quadraticCurveTo(50, 48, 51.5, 50); });
+    S(g, 'rgba(255,110,140,.45)', 0, E(g, 33, 60, 4.5, 3)); S(g, 'rgba(255,110,140,.45)', 0, E(g, 67, 60, 4.5, 3));
+    S(g, '#e0566e', 2, () => { g.moveTo(43, 63); g.quadraticCurveTo(50, 70, 57, 63); g.quadraticCurveTo(50, 65.5, 43, 63); });
+    stroke(g, '#8a5a2e', 4, () => { g.moveTo(86, 64); g.lineTo(86, 104); g.moveTo(86, 64); g.quadraticCurveTo(86, 56, 79, 58); });
+  } },
+  { id: 'car', name: 'PED X-ING CAR', col: '#d4ff00', art: g => {
+    [[20, 20], [72, 20], [20, 62], [72, 62]].forEach(([x, y]) => S(g, lin(g, x, 0, x + 8, 0, ['#3a3542', '#141018', '#3a3542']), 2, R(g, x, y, 8, 18, 3)));
+    S(g, lin(g, 26, 0, 74, 0, ['#a81a26', '#ff4d4d', '#ff6a5e', '#ff4d4d', '#a81a26']), 3, R(g, 26, 10, 48, 82, 16));
+    S(g, lin(g, 0, 28, 0, 44, ['#2c4a70', '#101a2c']), 2.5, R(g, 32, 28, 36, 15, 6));
+    stroke(g, 'rgba(255,255,255,.45)', 2.5, () => { g.moveTo(37, 40); g.lineTo(46, 30); });
+    S(g, lin(g, 0, 44, 0, 68, ['#ff7a6c', '#e8463c']), 2.5, R(g, 32, 44, 36, 24, 7));
+    S(g, lin(g, 0, 68, 0, 80, ['#2c4a70', '#101a2c']), 2.5, R(g, 34, 69, 32, 10, 4));
+    stroke(g, 'rgba(120,0,10,.55)', 2, () => { g.moveTo(42, 14); g.lineTo(42, 26); g.moveTo(58, 14); g.lineTo(58, 26); });
+    glow(g, '#ffe14d', 8, () => { S(g, '#fff6a8', 2, E(g, 34, 14, 4, 2.6)); S(g, '#fff6a8', 2, E(g, 66, 14, 4, 2.6)); });
+    S(g, '#ff1f3a', 2, R(g, 30, 85, 9, 4, 2)); S(g, '#ff1f3a', 2, R(g, 61, 85, 9, 4, 2));
+    stroke(g, 'rgba(255,255,255,.35)', 3, () => { g.moveTo(31, 22); g.lineTo(31, 82); });
+  } },
+  { id: 'karen', name: 'KAREN', col: '#00e5ff', art: g => {
+    torso(g, lin(g, 0, 72, 0, 100, ['#4a8cf0', '#2153a8']), 76);
+    S(g, rad(g, 50, 44, 34, '#ffe68a', '#cf9a22'), 3, () => { g.moveTo(18, 70); g.bezierCurveTo(10, 30, 26, 10, 50, 11); g.bezierCurveTo(76, 10, 92, 30, 82, 70); g.bezierCurveTo(70, 72, 30, 72, 18, 70); });
+    S(g, rad(g, 50, 52, 21, '#fdd9b8', '#e5a982'), 3, E(g, 50, 53, 19, 22));
+    S(g, lin(g, 20, 20, 80, 40, ['#ffe27a', '#f0b833']), 3, () => { g.moveTo(26, 52); g.bezierCurveTo(22, 18, 62, 8, 80, 36); g.bezierCurveTo(62, 26, 44, 32, 26, 52); });
+    stroke(g, '#c99428', 1.8, () => { g.moveTo(34, 38); g.quadraticCurveTo(50, 22, 70, 30); });
+    stroke(g, '#7a4a14', 3.4, () => { g.moveTo(36, 45); g.lineTo(46, 48.5); g.moveTo(64, 45); g.lineTo(54, 48.5); });
+    [41, 59].forEach(x => { S(g, '#fff', 1.8, () => { g.ellipse(x, 53, 5.5, 3.2, 0, Math.PI, 0, true); }); S(g, '#14081f', 0, E(g, x, 52.5, 2, 2)); });
+    S(g, '#8f1f2a', 2, () => { g.moveTo(43, 66); g.quadraticCurveTo(50, 60, 57, 66); g.quadraticCurveTo(50, 64, 43, 66); });
+    S(g, '#e06a7a', 0, E(g, 31, 82, 1, 1));
+  } },
+  { id: 'sling', name: 'SLINGSHOT', col: '#ff8a2b', art: g => {
+    const arm = () => { g.moveTo(50, 62); g.quadraticCurveTo(36, 50, 29, 22); g.moveTo(50, 62); g.quadraticCurveTo(64, 50, 71, 22); };
+    stroke(g, OL, 14, arm); stroke(g, '#b07238', 9, arm); stroke(g, 'rgba(255,220,170,.35)', 2.5, () => { g.moveTo(46, 58); g.quadraticCurveTo(35, 48, 29.5, 24); });
+    S(g, lin(g, 43, 0, 57, 0, ['#8b5a2b', '#c08040', '#6b4423']), 3, R(g, 43, 58, 14, 38, 6));
+    [68, 76, 84].forEach(y => stroke(g, '#ff2bd6', 3, () => { g.moveTo(44, y); g.lineTo(56, y + 3); }));
+    stroke(g, OL, 6, () => { g.moveTo(29, 21); g.lineTo(50, 40); g.lineTo(71, 21); });
+    stroke(g, '#ff4fe0', 3.4, () => { g.moveTo(29, 21); g.lineTo(50, 40); g.lineTo(71, 21); });
+    S(g, lin(g, 0, 36, 0, 46, ['#7a5230', '#3e2614']), 2.5, E(g, 50, 41, 9, 5.5));
+    S(g, rad(g, 50, 37, 6, '#e6e6ee', '#6e6e7c'), 2.5, E(g, 50, 36, 5.5, 5.5));
+  } },
+  { id: 'brayn', name: 'BRAYN', col: '#e8264a', art: g => {
+    S(g, rad(g, 50, 46, 26, '#fff8e2', '#d4c69e'), 3, () => { g.moveTo(22, 42); g.bezierCurveTo(22, 72, 30, 90, 50, 90); g.bezierCurveTo(70, 90, 78, 72, 78, 42); g.closePath(); });
+    S(g, rad(g, 50, 30, 36, '#ffb0cc', '#d23f78'), 3, () => {
+      g.moveTo(16, 44); g.bezierCurveTo(8, 34, 14, 20, 24, 20); g.bezierCurveTo(24, 8, 42, 6, 48, 13); g.bezierCurveTo(56, 4, 74, 8, 74, 19);
+      g.bezierCurveTo(88, 18, 94, 34, 84, 44); g.bezierCurveTo(70, 50, 30, 50, 16, 44); });
+    [() => { g.moveTo(22, 30); g.bezierCurveTo(28, 24, 34, 34, 40, 26); }, () => { g.moveTo(44, 20); g.bezierCurveTo(48, 28, 56, 18, 60, 26); },
+     () => { g.moveTo(62, 32); g.bezierCurveTo(68, 24, 74, 34, 80, 28); }, () => { g.moveTo(30, 40); g.bezierCurveTo(38, 34, 44, 42, 52, 36); }, () => { g.moveTo(56, 40); g.bezierCurveTo(62, 36, 66, 42, 72, 38); }]
+      .forEach(b => stroke(g, '#9e2a58', 2.4, b));
+    S(g, '#1a0f22', 0, E(g, 39, 59, 8, 7)); S(g, '#1a0f22', 0, E(g, 61, 59, 8, 7));
+    glow(g, '#7dff4a', 10, () => S(g, '#9dff6a', 0, E(g, 39, 59, 3.2, 3.2)));
+    S(g, '#ff3a5a', 0, E(g, 61, 59, 1.6, 1.6));
+    S(g, '#1a0f22', 0, () => { g.moveTo(50, 64); g.lineTo(47, 70); g.lineTo(53, 70); g.closePath(); });
+    S(g, '#1a0f22', 2, R(g, 37, 74, 26, 9, 3));
+    for (let i = 0; i < 5; i++) S(g, '#fffbe8', 0, R(g, 38.5 + i * 5, 75, 3.6, 7, 1));
+    S(g, lin(g, 0, 80, 0, 98, ['#8cff5a', '#3cd61a']), 2, () => { g.moveTo(58, 82); g.quadraticCurveTo(62, 90, 60, 96); g.arc(58, 96, 2.6, 0, Math.PI); g.quadraticCurveTo(56, 90, 54, 83); g.closePath(); });
+  } },
+  { id: 'rat', name: '6-7 RAT', col: '#a8b0bc', art: g => {
+    stroke(g, OL, 6.5, () => { g.moveTo(70, 82); g.bezierCurveTo(92, 82, 94, 60, 84, 58); });
+    stroke(g, '#e09ab4', 4, () => { g.moveTo(70, 82); g.bezierCurveTo(92, 82, 94, 60, 84, 58); });
+    S(g, rad(g, 50, 78, 26, '#b3b8c2', '#6e737e'), 3, E(g, 50, 82, 25, 16));
+    [27, 73].forEach(x => { S(g, rad(g, x, 24, 12, '#b8bdc7', '#7b808b'), 3, E(g, x, 26, 12, 12)); S(g, '#f2a8c2', 0, E(g, x, 27, 7, 7)); });
+    S(g, rad(g, 50, 48, 24, '#c2c7d0', '#7e838e'), 3, E(g, 50, 49, 23, 21));
+    S(g, rad(g, 50, 60, 12, '#e0e3e8', '#a8adb6'), 2.5, E(g, 50, 61, 11, 9));
+    glow(g, '#ff2a2a', 8, () => { S(g, '#ff2a2a', 1.5, E(g, 41, 46, 4, 4.6)); S(g, '#ff2a2a', 1.5, E(g, 59, 46, 4, 4.6)); });
+    shine(g, 40, 44.5, 1.3); shine(g, 58, 44.5, 1.3);
+    S(g, '#ff7fa6', 2, E(g, 50, 56, 3.4, 2.6));
+    S(g, '#fff', 1.5, R(g, 47, 64, 6, 6, 1)); stroke(g, OL, 1.2, () => { g.moveTo(50, 64.5); g.lineTo(50, 69.5); });
+    stroke(g, 'rgba(30,20,40,.75)', 1.4, () => { g.moveTo(38, 58); g.lineTo(26, 55); g.moveTo(38, 61); g.lineTo(25, 62); g.moveTo(62, 58); g.lineTo(74, 55); g.moveTo(62, 61); g.lineTo(75, 62); });
+  } },
+  { id: 'clanker', name: 'CLANKER', col: '#3ddc97', art: g => {
+    stroke(g, OL, 6, () => { g.moveTo(50, 26); g.lineTo(50, 12); }); stroke(g, '#cfd4de', 3, () => { g.moveTo(50, 26); g.lineTo(50, 12); });
+    glow(g, '#ff2a2a', 12, () => S(g, rad(g, 50, 10, 5, '#ff9a9a', '#e01a1a'), 2.5, E(g, 50, 10, 5, 5)));
+    S(g, lin(g, 0, 0, 0, 1, ['#8a909c', '#555b66']), 3, R(g, 36, 78, 28, 10, 3));
+    torso(g, lin(g, 0, 84, 0, 100, ['#9ba2ae', '#5c626e']), 86);
+    S(g, lin(g, 12, 0, 24, 0, ['#5c626e', '#8a909c']), 2.5, R(g, 13, 42, 10, 18, 3));
+    S(g, lin(g, 77, 0, 89, 0, ['#8a909c', '#5c626e']), 2.5, R(g, 77, 42, 10, 18, 3));
+    S(g, lin(g, 0, 24, 0, 80, ['#cfd4de', '#7c8390']), 3, R(g, 21, 24, 58, 54, 12));
+    S(g, lin(g, 0, 34, 0, 60, ['#1d222c', '#2f3644']), 2.5, R(g, 28, 34, 44, 26, 7));
+    glow(g, '#ff2a2a', 10, () => { S(g, '#ff3a3a', 0, R(g, 33, 41, 13, 9, 3)); S(g, '#ff3a3a', 0, R(g, 54, 41, 13, 9, 3)); });
+    S(g, 'rgba(255,255,255,.7)', 0, R(g, 35, 42.5, 4, 2.5, 1)); S(g, 'rgba(255,255,255,.7)', 0, R(g, 56, 42.5, 4, 2.5, 1));
+    S(g, '#2b2f38', 2.2, R(g, 36, 64, 28, 8, 2));
+    for (let i = 1; i < 6; i++) stroke(g, '#8a909c', 1.4, () => { g.moveTo(36 + i * 4.7, 65); g.lineTo(36 + i * 4.7, 71); });
+    [[26, 29], [74, 29], [26, 73], [74, 73]].forEach(([x, y]) => S(g, '#e8ecf2', 1.2, E(g, x, y, 1.8, 1.8)));
+    stroke(g, 'rgba(255,255,255,.5)', 2.5, () => { g.moveTo(27, 29); g.lineTo(27, 66); });
+  } },
+  { id: 'van', name: 'GTA VAN', col: '#3b7bff', art: g => {
+    [[19, 16], [73, 16], [19, 66], [73, 66]].forEach(([x, y]) => S(g, lin(g, x, 0, x + 8, 0, ['#3a3542', '#141018', '#3a3542']), 2, R(g, x, y, 8, 18, 3)));
+    S(g, '#1c1820', 2, R(g, 20, 26, 6, 4, 1.5)); S(g, '#1c1820', 2, R(g, 74, 26, 6, 4, 1.5));
+    S(g, lin(g, 25, 0, 75, 0, ['#d99a14', '#ffd54f', '#ffe27a', '#ffd54f', '#d99a14']), 3, R(g, 25, 6, 50, 90, 11));
+    S(g, lin(g, 0, 12, 0, 28, ['#d8f6ff', '#5fb8e0']), 2.5, R(g, 31, 12, 38, 15, 5));
+    stroke(g, 'rgba(255,255,255,.7)', 2.5, () => { g.moveTo(36, 24); g.lineTo(44, 14); });
+    S(g, lin(g, 0, 30, 0, 88, ['#fff7d6', '#f0e2a8']), 2.5, R(g, 31, 31, 38, 55, 6));
+    S(g, '#d0533a', 0, () => { g.rect(31, 46, 38, 5); g.rect(31, 63, 38, 5); });
+    stroke(g, 'rgba(120,80,20,.4)', 1.5, () => { g.moveTo(36, 34); g.lineTo(36, 83); g.moveTo(64, 34); g.lineTo(64, 83); });
+    glow(g, '#fff6a8', 8, () => { S(g, '#fff6a8', 2, E(g, 32, 8.5, 3.5, 2)); S(g, '#fff6a8', 2, E(g, 68, 8.5, 3.5, 2)); });
+    S(g, '#ff2a3a', 2, R(g, 28, 89, 8, 4, 1.5)); S(g, '#ff2a3a', 2, R(g, 64, 89, 8, 4, 1.5));
+  } },
+  { id: 'manager', name: 'THE MANAGER', col: '#ff2bd6', art: g => {
+    torso(g, lin(g, 0, 70, 0, 100, ['#ffffff', '#d6dbe6']), 72);
+    S(g, '#fff', 2.5, () => { g.moveTo(34, 72); g.lineTo(46, 80); g.lineTo(40, 86); g.closePath(); });
+    S(g, '#fff', 2.5, () => { g.moveTo(66, 72); g.lineTo(54, 80); g.lineTo(60, 86); g.closePath(); });
+    S(g, lin(g, 44, 0, 56, 0, ['#0f4ea0', '#2a7ae0', '#0f4ea0']), 2.2, () => { g.moveTo(46, 78); g.lineTo(54, 78); g.lineTo(56, 100); g.lineTo(50, 106); g.lineTo(44, 100); g.closePath(); });
+    S(g, '#1565c0', 2.2, R(g, 45.5, 75, 9, 6, 2));
+    stroke(g, 'rgba(255,255,255,.4)', 2, () => { g.moveTo(47, 88); g.lineTo(53, 84); g.moveTo(46, 96); g.lineTo(54, 91); });
+    S(g, '#2f6fd1', 0, R(g, 64, 84, 2.4, 9, 1));
+    [28, 72].forEach(x => S(g, '#eab084', 2.5, E(g, x, 48, 4.5, 6.5)));
+    S(g, rad(g, 50, 46, 23, '#fdd6b2', '#e3a77c'), 3, E(g, 50, 47, 21, 24));
+    S(g, lin(g, 0, 18, 0, 40, ['#7a5444', '#4a2c22']), 3, () => { g.moveTo(28, 46); g.bezierCurveTo(24, 22, 40, 16, 54, 18); g.bezierCurveTo(70, 18, 78, 28, 72, 46); g.bezierCurveTo(70, 34, 60, 30, 42, 32); g.bezierCurveTo(36, 34, 30, 38, 28, 46); });
+    stroke(g, 'rgba(255,255,255,.25)', 2, () => { g.moveTo(44, 22); g.quadraticCurveTo(56, 19, 66, 25); });
+    stroke(g, '#4a2c22', 2.6, () => { g.moveTo(36, 40); g.lineTo(45, 39); g.moveTo(55, 38); g.lineTo(64, 37); });
+    [41, 59].forEach(x => { S(g, '#fff', 1.6, E(g, x, 46, 4.2, 3.6)); S(g, '#14081f', 0, E(g, x + .8, 46.2, 2, 2.2)); });
+    stroke(g, OL, 2, () => { g.moveTo(50, 50); g.lineTo(48, 56); g.lineTo(51, 56); });
+    stroke(g, '#8f2a2a', 2.6, () => { g.moveTo(43, 62); g.quadraticCurveTo(51, 64, 58, 59); });
+  } },
+];
+const CH = id => CHARS.find(c => c.id === id);
+// each portrait is drawn once into a round badge, then reused at any size
+const PORT = {};
+const PORT_PX = 256;
+CHARS.forEach(c => {
+  const cn = document.createElement('canvas'); cn.width = cn.height = PORT_PX; const g = cn.getContext('2d');
+  g.scale(PORT_PX / 100, PORT_PX / 100);
+  g.save(); g.beginPath(); g.arc(50, 50, 50, 0, TAU); g.clip();
+  const bg = g.createRadialGradient(50, 40, 4, 50, 50, 60); bg.addColorStop(0, shade(c.col, .62)); bg.addColorStop(1, '#120624'); g.fillStyle = bg; g.fillRect(0, 0, 100, 100);
+  g.fillStyle = 'rgba(255,255,255,.06)'; g.beginPath(); g.arc(50, 50, 38, 0, TAU); g.fill();
+  c.art(g); g.restore();
+  PORT[c.id] = cn;
+});
+// a portrait in a coloured ring, for the pick screen and the win screen
+function badge(canvas, id) {
+  const x = canvas.getContext('2d'), w = canvas.width, c = CH(id); x.clearRect(0, 0, w, w);
+  x.save(); x.shadowColor = c.col; x.shadowBlur = w * .08; x.fillStyle = c.col; x.beginPath(); x.arc(w / 2, w / 2, w * .46, 0, TAU); x.fill(); x.restore();
+  x.imageSmoothingQuality = 'high'; x.drawImage(PORT[id], w * .08, w * .08, w * .84, w * .84);
+  x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = w * .015; x.beginPath(); x.arc(w / 2, w / 2, w * .44, Math.PI * 1.1, Math.PI * 1.6); x.stroke();
+}
+
+// =====================================================================
+// BOARD — 19x19 tiles, a 72-space loop round the edge, 6 seats
+// =====================================================================
+const N = 19, TS = 60, LOOP = 72, LANE = 5, SLIDE = 5, BW = N * TS;
+const HOME = 100 + LANE + 1;       // pos codes: -1 start · 0..71 track (relative to your start) · 101..105 safety lane · 106 home
+const tileXY = t => { t = ((t % LOOP) + LOOP) % LOOP; return t < 18 ? [t, 0] : t < 36 ? [18, t - 18] : t < 54 ? [18 - (t - 36), 18] : [0, 18 - (t - 54)]; };
+const seatStart = s => 12 * s + 9;                   // the track tile a piece enters on
+const absOf = (s, d) => (seatStart(s) + d) % LOOP;
+const relOf = (s, abs) => ((abs - seatStart(s)) % LOOP + LOOP) % LOOP;
+// per seat: which way the safety lane runs (inward), and where the start circle sits
+const SEATS = [
+  { lane: [0, 1], start: [10.5, 2.7] },     // top, x=9
+  { lane: [-1, 0], start: [15.7, 4.6] },    // right, y=3
+  { lane: [-1, 0], start: [15.7, 16.3] },   // right, y=15
+  { lane: [0, -1], start: [8.5, 15.7] },    // bottom, x=9
+  { lane: [1, 0], start: [3.3, 13.9] },     // left, y=15
+  { lane: [1, 0], start: [3.3, 2.35] },      // left, y=3
+];
+function laneXY(s, k) { const [lx, ly] = tileXY(seatStart(s) - 2), [dx, dy] = SEATS[s].lane; return [lx + dx * k, ly + dy * k]; }   // k = 1..5, home at 6
+// slides: one per stretch, starting 4 past each start, 5 tiles long. Everyone can use every slide.
+const SLIDES = [0, 1, 2, 3, 4, 5].map(s => ({ s, from: (seatStart(s) + 4) % LOOP }));
+const SLIDE_THEME = [
+  { name: 'YEET THROW', a: '#ff6b9d', b: '#ffd3e6' }, { name: 'GTA ROAD', a: '#3a3a44', b: '#ffcc4d' }, { name: 'CLANKER CONVEYOR', a: '#5a6170', b: '#3ddc97' },
+  { name: 'CROSSWALK', a: '#2a2a2a', b: '#ffffff' }, { name: 'CHECKOUT LANE', a: '#00a5b5', b: '#c9fbff' }, { name: 'BRAIN-ROT CHUTE', a: '#5dff3a', b: '#e85a8a' }];
+const slideAt = abs => SLIDES.find(sl => sl.from === abs) || null;
+
+// =====================================================================
+// DECK — our own mix (45 cards)
+// =====================================================================
+const CARD_INFO = {
+  1: 'LEAVE START, OR MOVE 1.', 2: 'LEAVE START, OR MOVE 2. THEN DRAW AGAIN.', 3: 'MOVE 3 FORWARD.', 4: 'MOVE 4 BACK.', 5: 'MOVE 5 FORWARD.',
+  7: 'MOVE 7, OR SPLIT IT BETWEEN TWO PIECES.', 8: 'MOVE 8 FORWARD.', 10: 'MOVE 10 FORWARD, OR 1 BACK.', 11: 'MOVE 11 FORWARD, OR SWAP PLACES WITH ANY RIVAL PIECE.', 12: 'MOVE 12 FORWARD.',
+  B: 'TAKE A PIECE OUT OF START AND DROP IT ON ANY RIVAL. THEY GO BACK TO START.',
+};
+function newDeck() { const d = []; const add = (c, n) => { for (let i = 0; i < n; i++) d.push(c); }; add(1, 5); [2, 3, 4, 5, 7, 8, 10, 11, 12, 'B'].forEach(c => add(c, 4)); return shuffle(d); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// =====================================================================
+// RULES
+// =====================================================================
+const G = { state: 'title', mode: 'cpu', diff: 'normal', players: [], turn: 0, deck: [], card: null, opts: [], oi: 0, busy: false, fast: false, winner: null };
+// one step along a player's path (null = can't)
+function step(pos, dir) {
+  if (pos < 0 || pos === HOME) return null;
+  if (dir > 0) { if (pos > 100) return pos + 1 <= HOME ? pos + 1 : null; if (pos === 70) return 101; return pos === 71 ? 0 : pos + 1; }
+  if (pos > 100) return pos === 101 ? 70 : pos - 1;
+  return pos === 0 ? 71 : pos - 1;
+}
+function walk(pos, n) { const path = []; const dir = n > 0 ? 1 : -1; for (let i = 0; i < Math.abs(n); i++) { pos = step(pos, dir); if (pos == null) return null; path.push(pos); } return path; }
+const onTrack = pos => pos >= 0 && pos < LOOP;
+// rival pieces sitting on an absolute track tile
+function rivalsAt(abs, me, P) { const out = []; P.forEach((pl, pi) => { if (pi === me) return; pl.pieces.forEach((pos, k) => { if (onTrack(pos) && absOf(pl.seat, pos) === abs) out.push([pi, k]); }); }); return out; }
+// every legal move for this card, as menu rows. A row may have choices (cycled with left / right).
+function movesFor(P, me, card) {
+  const pl = P[me], rows = [];
+  const fwd = (k, n, label) => { const pos = pl.pieces[k]; if (!onTrack(pos) && !(pos > 100 && pos < HOME)) return; const w = walk(pos, n); if (w) rows.push({ label, acts: [{ k, type: 'walk', n }] }); };
+  const out = (k) => rows.push({ label: 'PIECE ' + (k + 1) + ': LEAVE START', acts: [{ k, type: 'out' }] });
+  const startK = pl.pieces.findIndex(p => p < 0);
+  if (card === 1 || card === 2) { if (startK >= 0) out(startK); pl.pieces.forEach((_, k) => fwd(k, card, 'PIECE ' + (k + 1) + ': MOVE ' + card)); }
+  else if ([3, 5, 8, 12].includes(card)) pl.pieces.forEach((_, k) => fwd(k, card, 'PIECE ' + (k + 1) + ': MOVE ' + card));
+  else if (card === 4) pl.pieces.forEach((_, k) => fwd(k, -4, 'PIECE ' + (k + 1) + ': BACK 4'));
+  else if (card === 10) { pl.pieces.forEach((_, k) => fwd(k, 10, 'PIECE ' + (k + 1) + ': MOVE 10')); pl.pieces.forEach((_, k) => fwd(k, -1, 'PIECE ' + (k + 1) + ': BACK 1')); }
+  else if (card === 7) {
+    pl.pieces.forEach((_, k) => fwd(k, 7, 'PIECE ' + (k + 1) + ': ALL 7'));
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) {
+      const ch = [];
+      for (let x = 1; x <= 6; x++) { const t = trySeq(P, me, [{ k: a, type: 'walk', n: x }, { k: b, type: 'walk', n: 7 - x }]); if (t) ch.push({ text: x + ' + ' + (7 - x), acts: [{ k: a, type: 'walk', n: x }, { k: b, type: 'walk', n: 7 - x }] }); }
+      if (ch.length) rows.push({ label: 'SPLIT: PIECE ' + (a + 1) + ' + PIECE ' + (b + 1), choices: ch, ci: 0 });
+    }
+  }
+  else if (card === 11) {
+    pl.pieces.forEach((_, k) => fwd(k, 11, 'PIECE ' + (k + 1) + ': MOVE 11'));
+    pl.pieces.forEach((pos, k) => {
+      if (!onTrack(pos)) return;
+      const ch = [];
+      P.forEach((op, pi) => { if (pi === me) return; op.pieces.forEach((rp, rk) => { if (onTrack(rp)) ch.push({ text: CH(op.ch).name + ' ' + (rk + 1), acts: [{ k, type: 'swap', pi, rk }] }); }); });
+      if (ch.length) rows.push({ label: 'PIECE ' + (k + 1) + ': SWAP WITH', choices: ch, ci: 0 });
+    });
+  }
+  else if (card === 'B' && startK >= 0) {
+    const ch = [];
+    P.forEach((op, pi) => { if (pi === me) return; op.pieces.forEach((rp, rk) => { if (onTrack(rp)) ch.push({ text: CH(op.ch).name + ' ' + (rk + 1), acts: [{ k: startK, type: 'bump', pi, rk }] }); }); });
+    if (ch.length) rows.push({ label: 'BUMPED! DROP ON', choices: ch, ci: 0 });
+  }
+  return rows;
+}
+const rowActs = r => r.choices ? r.choices[r.ci].acts : r.acts;
+function clonePlayers(P) { return P.map(p => Object.assign({}, p, { pieces: p.pieces.slice() })); }
+// apply actions to a copy; returns { P, events } or null if illegal
+function trySeq(P, me, acts) {
+  P = clonePlayers(P); const events = [];
+  for (const a of acts) {
+    const pl = P[me];
+    if (a.type === 'out') { if (pl.pieces[a.k] >= 0) return null; pl.pieces[a.k] = 0; events.push({ t: 'move', pi: me, k: a.k, path: [0] }); land(P, me, a.k, events, false); }
+    else if (a.type === 'walk') { const w = walk(pl.pieces[a.k], a.n); if (!w || !(onTrack(pl.pieces[a.k]) || pl.pieces[a.k] > 100)) return null; pl.pieces[a.k] = w[w.length - 1]; events.push({ t: 'move', pi: me, k: a.k, path: w }); land(P, me, a.k, events, true); }
+    else if (a.type === 'swap') { const mine = pl.pieces[a.k], op = P[a.pi], theirs = op.pieces[a.rk]; if (!onTrack(mine) || !onTrack(theirs)) return null; const ma = absOf(pl.seat, mine), ta = absOf(op.seat, theirs); pl.pieces[a.k] = relOf(pl.seat, ta); op.pieces[a.rk] = relOf(op.seat, ma); events.push({ t: 'swap', pi: me, k: a.k, opi: a.pi, ok: a.rk });
+      // stacked pieces left behind on either tile get bumped by whoever just arrived
+      P.forEach((q, qi) => q.pieces.forEach((qp, qk) => { if (!onTrack(qp) || (qi === me && qk === a.k) || (qi === a.pi && qk === a.rk)) return; const qa = absOf(q.seat, qp);
+        if ((qa === ta && qi !== me) || (qa === ma && qi !== a.pi)) { q.pieces[qk] = -1; events.push({ t: 'bump', pi: qi, k: qk, by: me }); } }));
+      land(P, me, a.k, events, true, true); }
+    else if (a.type === 'bump') { const op = P[a.pi], theirs = op.pieces[a.rk]; if (pl.pieces[a.k] >= 0 || !onTrack(theirs)) return null; const ta = absOf(op.seat, theirs); pl.pieces[a.k] = relOf(pl.seat, ta); events.push({ t: 'move', pi: me, k: a.k, path: [pl.pieces[a.k]], jump: true }); land(P, me, a.k, events, true); }
+  }
+  return { P, events };
+}
+// after landing: bump rivals on the tile, then take a slide if it's the slide's first tile
+function land(P, me, k, events, canSlide, swapped) {
+  const pl = P[me], pos = pl.pieces[k]; if (!onTrack(pos)) return;
+  let abs = absOf(pl.seat, pos);
+  if (!swapped) rivalsAt(abs, me, P).forEach(([pi, rk]) => { P[pi].pieces[rk] = -1; events.push({ t: 'bump', pi, k: rk, by: me }); });
+  const sl = canSlide && slideAt(abs);
+  if (sl) {
+    const tiles = []; for (let i = 1; i < SLIDE; i++) tiles.push((abs + i) % LOOP);
+    const path = []; let p = pos; for (let i = 1; i < SLIDE; i++) { p = step(p, 1); path.push(p); }
+    events.push({ t: 'slide', pi: me, k, path, theme: sl.s });
+    P.forEach((op, pi) => op.pieces.forEach((rp, rk) => { if (pi === me && rk === k) return; if (onTrack(rp) && tiles.includes(absOf(op.seat, rp))) { op.pieces[rk] = -1; events.push({ t: 'bump', pi, k: rk, by: me, slide: true }); } }));
+    pl.pieces[k] = p;
+  }
+}
+
+// =====================================================================
+// THE COMPUTER — easy (mostly random) / normal (sensible) / mean (goes for the bump)
+// =====================================================================
+const prog = pos => pos < 0 ? 0 : pos === HOME ? 84 : pos > 100 ? 72 + (pos - 100) : pos === 71 ? 0.5 : pos + 1;
+function score(P, me, diff) {
+  let mine = 0, theirs = 0, lead = 0;
+  P.forEach((pl, pi) => { const s = pl.pieces.reduce((a, p) => a + prog(p) + (p === HOME ? 10 : p > 100 ? 4 : 0), 0); if (pi === me) mine = s; else { theirs += s; lead = Math.max(lead, s); } });
+  return diff === 'mean' ? mine - 0.9 * theirs - 0.6 * lead : mine - 0.4 * theirs;
+}
+function cpuPick(P, me, rows, diff) {
+  const flat = []; rows.forEach((r, ri) => { if (r.choices) r.choices.forEach((c, ci) => flat.push({ ri, ci, acts: c.acts })); else flat.push({ ri, ci: 0, acts: r.acts }); });
+  if (!flat.length) return null;
+  if (diff === 'easy' && Math.random() < 0.65) return pick(flat);
+  let best = null, bs = -1e9;
+  flat.forEach(f => { const r = trySeq(P, me, f.acts); if (!r) return; let s = score(r.P, me, diff); if (diff === 'mean') s += r.events.filter(e => e.t === 'bump').length * 25; s += Math.random() * 0.5; if (s > bs) { bs = s; best = f; } });
+  return best || pick(flat);
+}
+
+// =====================================================================
+// AUDIO — little chiptune blips
+// =====================================================================
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+const Snd = {
+  ctx: null, muted: store.get('bruh.muted') === '1',
+  unlock() { if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { } } if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  tone(f, d, type = 'square', v = 0.05, delay = 0, slide = 0) {
+    if (!this.ctx || this.muted) return; const t = this.ctx.currentTime + delay, o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t); if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, f + slide), t + d);
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(this.ctx.destination); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, v = 0.06, f = 1200, delay = 0) {
+    if (!this.ctx || this.muted) return; const t = this.ctx.currentTime + delay, len = Math.floor(this.ctx.sampleRate * d), buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), ch = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const s = this.ctx.createBufferSource(), fl = this.ctx.createBiquadFilter(), g = this.ctx.createGain(); fl.type = 'bandpass'; fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f * 3, t + d);
+    g.gain.value = v; s.buffer = buf; s.connect(fl); fl.connect(g); g.connect(this.ctx.destination); s.start(t);
+  },
+  sfx(k) {
+    if (k === 'move') this.tone(520, 0.05, 'square', 0.035);
+    else if (k === 'draw') { this.noise(0.08, 0.05, 2400); this.tone(880, 0.06, 'square', 0.03, 0.05); }
+    else if (k === 'select') this.tone(660, 0.05, 'square', 0.04);
+    else if (k === 'nav') this.tone(440, 0.03, 'square', 0.03);
+    else if (k === 'bump') { this.tone(392, 0.12, 'sawtooth', 0.07); this.tone(262, 0.25, 'sawtooth', 0.07, 0.1, -120); this.noise(0.2, 0.06, 500); }
+    else if (k === 'slide') { this.noise(0.4, 0.07, 400); this.tone(300, 0.35, 'triangle', 0.05, 0, 600); }
+    else if (k === 'home') [523, 659, 784].forEach((f, i) => this.tone(f, 0.12, 'square', 0.045, i * 0.08));
+    else if (k === 'pass') this.tone(200, 0.2, 'square', 0.04);
+    else if (k === 'win') [523, 659, 784, 1047, 784, 1047].forEach((f, i) => this.tone(f, 0.16, 'square', 0.05, i * 0.12));
+    else if (k === 'deny') this.tone(160, 0.15, 'square', 0.04);
+  },
+};
+
+// =====================================================================
+// DRAWING THE BOARD — the still parts are painted once into a cached
+// layer at screen resolution; pieces and effects are drawn every frame
+// =====================================================================
+const cv = $('board'), cx = cv.getContext('2d');
+let SC = 1;                          // canvas pixels per board unit
+let flash = 0, shakeT = 0;
+const anim = { moving: null };       // { pi, k, x, y, hop, sx, sy } piece drawn mid-move
+const fx = [];                       // slide trail particles (board units)
+const layer = document.createElement('canvas'); let layerDirty = true;
+const FONT = '"Press Start 2P", monospace';
+
+function slideDir(abs) { const [x0, y0] = tileXY(abs), [x1, y1] = tileXY(abs + 1); return [Math.sign(x1 - x0), Math.sign(y1 - y0)]; }
+function chevron(g, cx0, cy0, dx, dy, s) { g.beginPath(); g.moveTo(cx0 - dx * s * .5 - dy * s * .7, cy0 - dy * s * .5 + dx * s * .7); g.lineTo(cx0 + dx * s * .5, cy0 + dy * s * .5); g.lineTo(cx0 - dx * s * .5 + dy * s * .7, cy0 - dy * s * .5 - dx * s * .7); g.stroke(); }
+function paintLayer() {
+  const px = cv.width; layer.width = layer.height = px;
+  const g = layer.getContext('2d'); g.setTransform(px / BW, 0, 0, px / BW, 0, 0);
+  const P = G.players;
+  // base + the middle floor
+  g.fillStyle = lin(g, 0, 0, BW, BW, ['#170a34', '#0e0424', '#160830']); g.fillRect(0, 0, BW, BW);
+  const mid = g.createRadialGradient(BW / 2, BW / 2, 40, BW / 2, BW / 2, BW * .55); mid.addColorStop(0, '#2c1260'); mid.addColorStop(1, '#130628');
+  rr(g, TS + 8, TS + 8, TS * 17 - 16, TS * 17 - 16, 26); g.fillStyle = mid; g.fill();
+  g.save(); rr(g, TS + 8, TS + 8, TS * 17 - 16, TS * 17 - 16, 26); g.clip();
+  g.strokeStyle = 'rgba(176,75,255,.09)'; g.lineWidth = 2;
+  for (let i = 1; i < N; i++) { g.beginPath(); g.moveTo(i * TS, TS); g.lineTo(i * TS, 18 * TS); g.stroke(); g.beginPath(); g.moveTo(TS, i * TS); g.lineTo(18 * TS, i * TS); g.stroke(); }
+  g.restore();
+  g.save(); g.font = '60px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.shadowColor = '#ff2bd6'; g.shadowBlur = 40; g.fillStyle = 'rgba(255,90,224,.22)'; g.fillText('BRUH...', BW / 2, BW / 2 + 6);
+  g.shadowBlur = 0; g.lineWidth = 2; g.strokeStyle = 'rgba(255,170,240,.28)'; g.strokeText('BRUH...', BW / 2, BW / 2 + 6); g.restore();
+  // track tiles
+  for (let t = 0; t < LOOP; t++) {
+    const [x, y] = tileXY(t), rx = x * TS, ry = y * TS;
+    g.save(); g.shadowColor = 'rgba(176,75,255,.45)'; g.shadowBlur = 10;
+    rr(g, rx + 3, ry + 6, TS - 6, TS - 7, 11); g.fillStyle = '#6a58a8'; g.fill(); g.restore();
+    rr(g, rx + 3, ry + 3, TS - 6, TS - 7, 11); g.fillStyle = lin(g, 0, ry + 3, 0, ry + TS - 4, t % 2 ? ['#fbf8ff', '#ddd2f8'] : ['#efe8ff', '#cdbff2']); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 2; g.beginPath(); g.moveTo(rx + 13, ry + 5); g.lineTo(rx + TS - 13, ry + 5); g.stroke();
+  }
+  // slides
+  SLIDES.forEach(sl => {
+    const th = SLIDE_THEME[sl.s];
+    for (let i = 0; i < SLIDE; i++) {
+      const abs = (sl.from + i) % LOOP, [x, y] = tileXY(abs), rx = x * TS, ry = y * TS, [dx, dy] = slideDir(i === SLIDE - 1 ? (abs + LOOP - 1) % LOOP : abs);
+      g.save(); rr(g, rx + 7, ry + 7, TS - 14, TS - 15, 9); g.clip();
+      g.fillStyle = lin(g, rx, ry, rx + TS, ry + TS, [shade(th.a, 1.25), th.a, shade(th.a, .7)]); g.fillRect(rx, ry, TS, TS);
+      g.fillStyle = th.b; g.strokeStyle = th.b;
+      if (sl.s === 3) { for (let j = 0; j < 3; j++) { if (dx) g.fillRect(rx + 10, ry + 12 + j * 13, TS - 20, 7); else g.fillRect(rx + 12 + j * 13, ry + 10, 7, TS - 20); } }
+      else if (sl.s === 1) { g.setLineDash([8, 7]); g.lineWidth = 5; g.beginPath(); if (dx) { g.moveTo(rx, ry + TS / 2); g.lineTo(rx + TS, ry + TS / 2); } else { g.moveTo(rx + TS / 2, ry); g.lineTo(rx + TS / 2, ry + TS); } g.stroke(); g.setLineDash([]); }
+      else if (sl.s === 2) { g.globalAlpha = .7; for (let j = 0; j < 4; j++) { if (dx) g.fillRect(rx + 9 + j * 12, ry + 9, 4, TS - 18); else g.fillRect(rx + 9, ry + 9 + j * 12, TS - 18, 4); } g.globalAlpha = 1; }
+      else if (sl.s === 4) { g.globalAlpha = .55; for (let j = 0; j < 3; j++) { if (dx) g.fillRect(rx + 14 + j * 14, ry + 9, 3, TS - 18); else g.fillRect(rx + 9, ry + 14 + j * 14, TS - 18, 3); } g.globalAlpha = 1; }
+      else if (sl.s === 5) { [[.3, .35, 6], [.66, .6, 8], [.42, .74, 4]].forEach(([a, b, r]) => { g.beginPath(); g.arc(rx + TS * a, ry + TS * b, r, 0, TAU); g.fill(); }); }
+      else { g.globalAlpha = .5; [[.3, .3], [.7, .62], [.4, .74]].forEach(([a, b]) => { g.beginPath(); g.arc(rx + TS * a, ry + TS * b, 4, 0, TAU); g.fill(); }); g.globalAlpha = 1; }
+      if (i > 0 && i < SLIDE - 1) { g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(13,4,32,.85)'; g.lineWidth = 8; chevron(g, rx + TS / 2, ry + TS / 2, dx, dy, 14); g.strokeStyle = '#ffffff'; g.lineWidth = 4; chevron(g, rx + TS / 2, ry + TS / 2, dx, dy, 14); }
+      g.restore();
+      rr(g, rx + 7, ry + 7, TS - 14, TS - 15, 9); g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2; g.stroke();
+    }
+    const [x0, y0] = tileXY(sl.from), [x1, y1] = tileXY(sl.from + SLIDE - 1);
+    g.save(); g.shadowColor = th.b; g.shadowBlur = 14;                     // the trigger tile: a glowing dot
+    g.fillStyle = '#0d0420'; g.beginPath(); g.arc(x0 * TS + TS / 2, y0 * TS + TS / 2, 14, 0, TAU); g.fill();
+    g.fillStyle = th.b; g.beginPath(); g.arc(x0 * TS + TS / 2, y0 * TS + TS / 2, 8.5, 0, TAU); g.fill(); g.restore();
+    rr(g, x1 * TS + 17, y1 * TS + 17, TS - 34, TS - 35, 6); g.fillStyle = '#0d0420'; g.fill();   // the end stop
+    g.strokeStyle = rgba(th.b, .7); g.lineWidth = 2; g.stroke();
+  });
+  // seats: start circles, safety lanes, homes (empty seats drawn dim)
+  for (let s = 0; s < 6; s++) {
+    const pl = P.find(p => p.seat === s), col = pl ? CH(pl.ch).col : '#4a3a7a';
+    g.globalAlpha = pl ? 1 : .42;
+    const [sx, sy] = tileXY(seatStart(s));
+    rr(g, sx * TS + 4, sy * TS + 4, TS - 8, TS - 9, 10); g.fillStyle = lin(g, 0, sy * TS, 0, sy * TS + TS, [shade(col, 1.25), col, shade(col, .7)]); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(sx * TS + 14, sy * TS + 6); g.lineTo(sx * TS + TS - 14, sy * TS + 6); g.stroke();
+    for (let k = 1; k <= LANE; k++) {
+      const [lx, ly] = laneXY(s, k);
+      g.save(); if (pl) { g.shadowColor = col; g.shadowBlur = 12; }
+      rr(g, lx * TS + 6, ly * TS + 6, TS - 12, TS - 12, 10); g.fillStyle = lin(g, 0, ly * TS, 0, ly * TS + TS, [shade(col, .7), shade(col, .42)]); g.fill(); g.restore();
+      rr(g, lx * TS + 6, ly * TS + 6, TS - 12, TS - 12, 10); g.strokeStyle = shade(col, 1.2); g.lineWidth = 2.5; g.stroke();
+    }
+    const [hx, hy] = laneXY(s, LANE + 1), hcx = hx * TS + TS / 2, hcy = hy * TS + TS / 2;
+    const [stx, sty] = SEATS[s].start;
+    [[hcx, hcy, TS * .62], [stx * TS, sty * TS, TS * 1.15]].forEach(([ox, oy, r]) => {
+      const gr = g.createRadialGradient(ox - r * .3, oy - r * .35, r * .1, ox, oy, r); gr.addColorStop(0, shade(col, .62)); gr.addColorStop(1, shade(col, .2));
+      g.save(); if (pl) { g.shadowColor = col; g.shadowBlur = 22; } g.fillStyle = gr; g.beginPath(); g.arc(ox, oy, r, 0, TAU); g.fill(); g.restore();
+      g.strokeStyle = col; g.lineWidth = 4; g.beginPath(); g.arc(ox, oy, r, 0, TAU); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 2; g.beginPath(); g.arc(ox, oy, r - 7, 0, TAU); g.stroke();
+    });
+    if (pl) {
+      g.save(); g.font = '11px ' + FONT; g.textAlign = 'center'; g.fillStyle = shade(col, 1.3); g.shadowColor = col; g.shadowBlur = 8;
+      g.fillText('START', stx * TS, sty * TS - TS * 0.85); g.fillText('HOME', hcx, hcy - TS * 0.7); g.restore();
+    }
+    g.globalAlpha = 1;
+  }
+  layerDirty = false;
+}
+function piecePlace(pi, k, P) {
+  const pl = P[pi], pos = pl.pieces[k], s = pl.seat;
+  if (pos < 0) { const [sx, sy] = SEATS[s].start, i = pl.pieces.slice(0, k).filter(p => p < 0).length; return [sx + [-0.55, 0.55, 0][i], sy + [-0.3, -0.3, 0.6][i], 0.8]; }
+  if (pos === HOME) { const [hx, hy] = laneXY(s, LANE + 1), i = pl.pieces.slice(0, k).filter(p => p === HOME).length; return [hx + 0.5 + [-0.5, 0.5, 0][i], hy + 0.5 + [-0.3, -0.3, 0.5][i], 0.7]; }
+  let x, y;
+  if (pos > 100) [x, y] = laneXY(s, pos - 100); else [x, y] = tileXY(absOf(s, pos));
+  // your own pieces sharing a tile sit side by side
+  const same = pl.pieces.map((p, j) => j).filter(j => pl.pieces[j] === pos), idx = same.indexOf(k), n = same.length;
+  const off = n === 1 ? [[0, 0]] : n === 2 ? [[-0.22, 0], [0.22, 0]] : [[-0.25, -0.18], [0.25, -0.18], [0, 0.2]];
+  return [x + 0.5 + off[idx][0], y + 0.5 + off[idx][1], n === 1 ? 1 : 0.72];
+}
+// a game token: shadow, coloured base, glossy top, the character in the middle
+function drawPiece(id, col, x, y, sc, num, hi, t, sq) {
+  const r = TS * 0.42 * sc, px = x * TS, py = y * TS, sx = sq ? sq[0] : 1, sy = sq ? sq[1] : 1, g = cx;
+  g.fillStyle = 'rgba(0,0,0,.42)'; g.beginPath(); g.ellipse(px, py + r * 0.8, r * 0.98 * sx, r * 0.38, 0, 0, TAU); g.fill();
+  g.save(); g.translate(px, py + r * .8); g.scale(sx, sy); g.translate(0, -r * .8);
+  if (hi) { g.save(); g.shadowColor = '#fff'; g.shadowBlur = 16; g.strokeStyle = '#fff'; g.lineWidth = 3.5 + Math.sin(t * 8) * 1.5; g.beginPath(); g.arc(0, 0, r + 6, 0, TAU); g.stroke(); g.restore(); }
+  g.fillStyle = shade(col, .42); g.beginPath(); g.arc(0, r * .14, r, 0, TAU); g.fill();
+  const top = g.createRadialGradient(-r * .35, -r * .45, r * .1, 0, 0, r * 1.05); top.addColorStop(0, shade(col, 1.45)); top.addColorStop(.55, col); top.addColorStop(1, shade(col, .68));
+  g.fillStyle = top; g.beginPath(); g.arc(0, 0, r, 0, TAU); g.fill();
+  g.fillStyle = '#120624'; g.beginPath(); g.arc(0, 0, r * .8, 0, TAU); g.fill();
+  g.drawImage(PORT[id], -r * .78, -r * .78, r * 1.56, r * 1.56);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = Math.max(1.5, r * .07); g.beginPath(); g.arc(0, 0, r * .9, Math.PI * 1.08, Math.PI * 1.62); g.stroke();
+  g.fillStyle = 'rgba(255,255,255,.14)'; g.beginPath(); g.ellipse(-r * .2, -r * .42, r * .5, r * .22, -.4, 0, TAU); g.fill();
+  if (num) {
+    const bx = r * .68, by = r * .62, br = 11;
+    g.fillStyle = '#0d0420'; g.beginPath(); g.arc(bx, by, br, 0, TAU); g.fill(); g.strokeStyle = col; g.lineWidth = 2.5; g.stroke();
+    g.fillStyle = '#fff'; g.font = '11px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(num, bx + .5, by + 1); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  }
+  g.restore();
+}
+function drawBoard(t) {
+  const P = G.players, me = G.turn, row = G.opts[G.oi];
+  if (layerDirty) paintLayer();
+  const shx = shakeT > 0 ? Math.sin(t * 60) * shakeT * 10 : 0, shy = shakeT > 0 ? Math.cos(t * 50) * shakeT * 10 : 0;
+  cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = '#0f0522'; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.drawImage(layer, shx * SC, shy * SC);
+  cx.setTransform(SC, 0, 0, SC, shx * SC, shy * SC); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  // what the highlighted option would do: destination outline + targets
+  const hiK = new Set(), targets = [];
+  if (G.state === 'choose' && row && !G.busy) {
+    const acts = rowActs(row), res = trySeq(P, me, acts);
+    acts.forEach(a => hiK.add(a.k));
+    if (res) {
+      const col = CH(P[me].ch).col;
+      acts.forEach(a => { const pos = res.P[me].pieces[a.k]; let xy = null; if (onTrack(pos)) xy = tileXY(absOf(P[me].seat, pos)); else if (pos > 100 && pos < HOME) xy = laneXY(P[me].seat, pos - 100); else if (pos === HOME) xy = laneXY(P[me].seat, LANE + 1);
+        if (xy) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 14; cx.strokeStyle = col; cx.lineWidth = 5; cx.setLineDash([12, 8]); cx.lineDashOffset = -t * 40; rr(cx, xy[0] * TS + 3, xy[1] * TS + 3, TS - 6, TS - 6, 12); cx.stroke(); cx.restore(); } });
+      res.events.filter(e => e.t === 'bump' || e.t === 'swap').forEach(e => targets.push(e.t === 'bump' ? [e.pi, e.k] : [e.opi, e.ok]));
+    }
+  }
+  // slide trail under the pieces
+  fx.forEach(p => { cx.globalAlpha = Math.max(0, p.life / p.max) * .9; cx.fillStyle = p.col; cx.beginPath(); cx.arc(p.x * TS, p.y * TS, p.r * (p.life / p.max), 0, TAU); cx.fill(); });
+  cx.globalAlpha = 1;
+  // pieces
+  P.forEach((pl, pi) => pl.pieces.forEach((pos, k) => {
+    if (anim.moving && anim.moving.pi === pi && anim.moving.k === k) return;
+    const [x, y, sc] = piecePlace(pi, k, P), c = CH(pl.ch);
+    const isTarget = targets.some(([a, b]) => a === pi && b === k);
+    drawPiece(c.id, c.col, x, y, sc, pi === me ? String(k + 1) : '', (pi === me && hiK.has(k)) || isTarget, t);
+    if (isTarget) { cx.save(); cx.shadowColor = '#ff2a2a'; cx.shadowBlur = 12; cx.strokeStyle = '#ff3a3a'; cx.lineWidth = 6; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(x * TS - 14, y * TS - 14); cx.lineTo(x * TS + 14, y * TS + 14); cx.moveTo(x * TS + 14, y * TS - 14); cx.lineTo(x * TS - 14, y * TS + 14); cx.stroke(); cx.restore(); }
+  }));
+  if (anim.moving) { const m = anim.moving, c = CH(P[m.pi].ch); drawPiece(c.id, c.col, m.x, m.y - (m.hop || 0), 1.1, String(m.k + 1), false, t, [m.sx || 1, m.sy || 1]); }
+  if (flash > 0) { cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = 'rgba(255,255,255,' + flash * 0.35 + ')'; cx.fillRect(0, 0, cv.width, cv.height); }
+}
+
+// =====================================================================
+// CONFETTI — on the win screen
+// =====================================================================
+const cf = $('confetti'), cfx = cf.getContext('2d'); let confetti = [];
+function startConfetti(col) {
+  const dpr = Math.min(devicePixelRatio || 1, 2); cf.width = innerWidth * dpr; cf.height = innerHeight * dpr; cf.style.display = 'block';
+  const cols = [col, '#ff2bd6', '#00e5ff', '#ffe14d', '#b04bff', '#3ddc97', '#ffffff'];
+  confetti = []; for (let i = 0; i < 180; i++) confetti.push({ x: Math.random() * cf.width, y: -Math.random() * cf.height * .8, vx: (Math.random() - .5) * 160 * dpr, vy: (120 + Math.random() * 220) * dpr, w: (6 + Math.random() * 7) * dpr, h: (10 + Math.random() * 8) * dpr, a: Math.random() * TAU, va: (Math.random() - .5) * 10, c: pick(cols), sway: Math.random() * TAU });
+}
+function stopConfetti() { confetti = []; cf.style.display = 'none'; }
+function tickConfetti(dt) {
+  if (!confetti.length) return;
+  cfx.clearRect(0, 0, cf.width, cf.height);
+  confetti.forEach(p => { p.sway += dt * 3; p.x += (p.vx + Math.sin(p.sway) * 40) * dt; p.y += p.vy * dt; p.a += p.va * dt;
+    cfx.save(); cfx.translate(p.x, p.y); cfx.rotate(p.a); cfx.scale(1, Math.abs(Math.cos(p.a * 1.3)) * .8 + .2); cfx.fillStyle = p.c; cfx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cfx.restore(); });
+  confetti = confetti.filter(p => p.y < cf.height + 40);
+  if (!confetti.length) stopConfetti();
+}
+
+// =====================================================================
+// TURN FLOW
+// =====================================================================
+const wait = ms => new Promise(r => setTimeout(r, G.fast ? ms / 3 : ms));
+const cur = () => G.players[G.turn];
+const isCpu = () => cur().cpu;
+function setPC() { document.documentElement.style.setProperty('--pc', CH(cur().ch).col); }
+function renderTurn() {
+  const pl = cur(), c = CH(pl.ch);
+  $('turn').innerHTML = c.name + "'S TURN" + '<small>' + (pl.cpu ? 'THE COMPUTER IS THINKING...' : G.mode === 'party' ? 'PASS THE CONTROLLER TO ' + c.name : 'YOUR TURN') + '</small>';
+}
+function showCard(c) {
+  const el = $('card');
+  el.classList.remove('flip'); void el.offsetWidth;
+  if (c == null) { el.className = 'back flip'; el.innerHTML = '<b>BRUH...</b><span>' + (isCpu() ? '' : 'DRAW') + '</span>'; $('cardText').textContent = isCpu() ? '' : 'DRAW A CARD.'; return; }
+  el.className = 'flip';
+  const red = c === 4 || c === 'B' ? ' red' : '', idx = c === 'B' ? 'B!' : String(c);
+  const corner = '<i class="ci tl' + red + '">' + idx + '</i><i class="ci br' + red + '">' + idx + '</i>';
+  el.innerHTML = corner + (c === 'B' ? '<b class="word">BUMPED!</b><span>SEND ONE HOME</span>' : '<b class="' + red.trim() + '">' + c + '</b><span>' + (c === 4 ? 'BACK' : c === 2 ? 'DRAW AGAIN' : c === 7 ? 'SPLIT' : c === 11 ? 'OR SWAP' : c === 10 ? 'OR BACK 1' : '') + '</span>');
+  $('cardText').textContent = CARD_INFO[c];
+}
+function paintOpts() { document.querySelectorAll('#opts .opt').forEach((b, i) => b.classList.toggle('foc', i === G.oi)); }
+function renderOpts() {
+  const box = $('opts'); box.innerHTML = '';
+  if (G.state === 'draw') {
+    if (isCpu()) return;
+    const b = document.createElement('button'); b.className = 'opt big foc'; b.textContent = 'DRAW A CARD'; b.onclick = () => { Snd.unlock(); act('a'); }; box.appendChild(b); return;
+  }
+  if (G.state !== 'choose') return;
+  if (!G.opts.length) { const b = document.createElement('button'); b.className = 'opt big foc'; b.textContent = isCpu() ? 'NO MOVES' : 'NO MOVES. PASS'; b.onclick = () => act('a'); box.appendChild(b); return; }
+  G.opts.forEach((r, i) => {
+    const b = document.createElement('div'); b.className = 'opt' + (i === G.oi ? ' foc' : '');
+    b.innerHTML = '<span class="t">' + r.label + (r.choices ? ': <b style="color:var(--yellow);font-weight:normal">' + r.choices[r.ci].text + '</b>' : '') + '</span>' + (r.choices && r.choices.length > 1 ? '<button class="ar" data-d="-1">&#9664;</button><button class="ar" data-d="1">&#9654;</button>' : '');
+    // first tap / click on a row previews it, a second one plays it. A mouse previews by hovering.
+    b.addEventListener('click', e => { if (G.busy || isCpu()) return; const d = e.target.dataset && e.target.dataset.d; if (d) { G.oi = i; cycle(+d); return; } if (G.oi === i) act('a'); else { G.oi = i; Snd.sfx('nav'); paintOpts(); } });
+    b.addEventListener('pointerenter', e => { if (e.pointerType !== 'mouse' || G.busy || isCpu() || G.oi === i) return; G.oi = i; paintOpts(); });
+    box.appendChild(b);
+  });
+  const f = box.querySelector('.foc'); if (f && f.scrollIntoView) f.scrollIntoView({ block: 'nearest' });
+}
+function cycle(d) { const r = G.opts[G.oi]; if (!r || !r.choices) return; r.ci = (r.ci + d + r.choices.length) % r.choices.length; Snd.sfx('nav'); renderOpts(); }
+function startTurn() {
+  G.state = 'draw'; G.card = null; G.opts = []; G.oi = 0;
+  setPC(); renderTurn(); showCard(null); renderOpts(); hint();
+  if (isCpu()) setTimeout(() => cpuTurn(), G.fast ? 200 : 700);
+}
+function draw() {
+  if (G.state !== 'draw' || G.busy) return;
+  if (!G.deck.length) G.deck = newDeck();
+  G.card = G.deck.pop(); Snd.sfx('draw'); showCard(G.card);
+  G.opts = movesFor(G.players, G.turn, G.card); G.oi = 0; G.state = 'choose'; renderOpts(); hint();
+}
+async function cpuTurn() {
+  if (G.state !== 'draw' || !isCpu()) return;
+  draw(); await wait(900);
+  cpuChoose();
+}
+async function cpuChoose() {
+  if (G.state !== 'choose' || !isCpu() || G.busy) return;
+  const ch = cpuPick(G.players, G.turn, G.opts, G.diff);
+  if (ch) { G.oi = ch.ri; if (G.opts[ch.ri].choices) G.opts[ch.ri].ci = ch.ci; renderOpts(); await wait(600); }
+  if (G.state !== 'choose') return;   // paused meanwhile: resume picks again
+  await confirm();
+}
+async function confirm() {
+  if (G.state !== 'choose' || G.busy) return;
+  const row = G.opts[G.oi];
+  if (!row) { Snd.sfx('pass'); return endTurn(); }
+  const res = trySeq(G.players, G.turn, rowActs(row)); if (!res) { Snd.sfx('deny'); return; }
+  Snd.sfx('select'); G.busy = true; renderOpts();
+  await play(res.events);
+  G.players = res.P; G.busy = false;
+  // winner?
+  const w = G.players.findIndex(p => p.pieces.every(x => x === HOME));
+  if (w >= 0) return win(w);
+  endTurn();
+}
+function endTurn() {
+  if (G.card === 2) { G.state = 'draw'; G.card = null; G.opts = []; showCard(null); $('cardText').textContent = isCpu() ? 'DRAW AGAIN.' : 'YOU DREW A 2. DRAW AGAIN.'; renderOpts(); hint(); if (isCpu()) setTimeout(() => cpuTurn(), G.fast ? 200 : 600); return; }
+  G.turn = (G.turn + 1) % G.players.length; startTurn();
+}
+const ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+function tween(ms, fn) { const t0 = performance.now(), dur = G.fast ? ms / 3 : ms; return new Promise(res => { const f = () => { const k = Math.min(1, (performance.now() - t0) / dur); fn(k); if (k < 1) requestAnimationFrame(f); else res(); }; f(); }); }
+// animate the events on a working copy so the board shows each step
+async function play(events) {
+  const work = clonePlayers(G.players); const realP = G.players; G.players = work;
+  for (const e of events) {
+    if (e.t === 'move' || e.t === 'slide') {
+      const slide = e.t === 'slide', th = slide ? SLIDE_THEME[e.theme] : null;
+      if (slide) { Snd.sfx('slide'); shakeT = 0.4; }
+      const pl = work[e.pi];
+      for (let i = 0; i < e.path.length; i++) {
+        const [fx0, fy0] = piecePlace(e.pi, e.k, work); pl.pieces[e.k] = e.path[i]; const [tx, ty] = piecePlace(e.pi, e.k, work);
+        if (slide) {
+          // a straight zoom along the slide, leaving a trail
+          await tween(80, k => { const x = fx0 + (tx - fx0) * k, y = fy0 + (ty - fy0) * k; anim.moving = { pi: e.pi, k: e.k, x, y, hop: 0 };
+            for (let j = 0; j < 2; j++) fx.push({ x: x + (Math.random() - .5) * .35, y: y + (Math.random() - .5) * .35, r: 5 + Math.random() * 6, life: .45, max: .45, col: Math.random() < .5 ? th.a : th.b }); });
+        } else {
+          const dur = e.jump ? 340 : 170;
+          await tween(dur, k => { const q = ease(k); anim.moving = { pi: e.pi, k: e.k, x: fx0 + (tx - fx0) * q, y: fy0 + (ty - fy0) * q, hop: Math.sin(k * Math.PI) * (e.jump ? 1.2 : 0.32), sx: 1 - .06 * Math.sin(k * Math.PI), sy: 1 + .08 * Math.sin(k * Math.PI) }; });
+          Snd.sfx('move');
+        }
+        // a little squash as it lands (after every hop, and at the end of a slide)
+        if (!slide || i === e.path.length - 1) { const m = anim.moving; await tween(e.jump ? 150 : 90, k => { const s = Math.sin(k * Math.PI); m.hop = 0; m.sx = 1 + .16 * s; m.sy = 1 - .2 * s; }); }
+      }
+      anim.moving = null;
+      if (pl.pieces[e.k] === HOME) Snd.sfx('home');
+    } else if (e.t === 'bump') {
+      work[e.pi].pieces[e.k] = -1; Snd.sfx('bump'); shakeT = 0.6; flash = 1; broCall(CH(work[e.pi].ch).col); await wait(450);
+    } else if (e.t === 'swap') {
+      const me = work[e.pi], op = work[e.opi], ma = absOf(me.seat, me.pieces[e.k]), ta = absOf(op.seat, op.pieces[e.ok]);
+      me.pieces[e.k] = relOf(me.seat, ta); op.pieces[e.ok] = relOf(op.seat, ma); Snd.sfx('slide'); await wait(450);
+    }
+  }
+  G.players = realP;
+}
+function broCall(col) { const b = $('bro'); b.style.setProperty('--pc', col); b.classList.remove('go'); void b.offsetWidth; b.classList.add('go'); }
+function win(pi) {
+  G.state = 'win'; G.winner = pi; Snd.sfx('win');
+  const c = CH(G.players[pi].ch);
+  document.documentElement.style.setProperty('--pc', c.col);
+  $('winHead').textContent = c.name + ' WINS!';
+  $('winSub').textContent = G.players[pi].cpu ? 'THE COMPUTER GOT EVERYONE HOME FIRST. BRUH.' : 'ALL THREE HOME. BUMP RESPECTFULLY.';
+  badge($('winArt'), c.id);
+  showMenu('sWin', 'winMenu', [{ label: 'PLAY AGAIN', action: () => newGame(G.setup) }, { label: 'NEW GAME', action: showTitle }, { label: 'EXIT TO BORED GAMES', action: exitBG, cls: 'mint' }]);
+  startConfetti(c.col);
+}
+
+// =====================================================================
+// SETUP SCREENS
+// =====================================================================
+const Menu = { items: [], idx: 0, grid: false };
+function hideScreens() { document.querySelectorAll('.screen').forEach(s => s.classList.remove('on')); }
+function showMenu(screen, boxId, items) {
+  hideScreens(); if (screen !== 'sWin') stopConfetti(); $(screen).classList.add('on'); G.menu = screen;
+  const box = $(boxId); box.innerHTML = '';
+  Menu.grid = false; Menu.idx = 0;
+  Menu.items = items.map((it, i) => { const b = document.createElement('button'); b.className = 'btn' + (it.cls ? ' ' + it.cls : ''); b.textContent = it.label; b.onclick = () => { Snd.unlock(); Snd.sfx('select'); it.action(); }; b.onmouseenter = () => { Menu.idx = i; paintMenu(); }; box.appendChild(b); return { el: b, action: it.action }; });
+  paintMenu(); mhint();
+}
+function paintMenu() { Menu.items.forEach((m, i) => m.el.classList.toggle('foc', i === Menu.idx)); }
+function showTitle() {
+  G.state = 'title'; $('game').classList.remove('on');
+  document.documentElement.style.setProperty('--pc', '#ff2bd6');
+  showMenu('sTitle', 'mTitle', [
+    { label: 'PLAY VS THE COMPUTER', action: chooseDiff },
+    { label: 'PARTY MODE (PASS THE CONTROLLER)', action: chooseCount },
+    { label: 'HOW TO PLAY', action: () => showHow(showTitle) },
+    { label: 'FULLSCREEN', action: toggleFs, cls: 'mint' },
+    { label: 'EXIT TO BORED GAMES', action: exitBG, cls: 'mint' },
+  ]);
+}
+function chooseDiff() {
+  G.state = 'menu'; $('mHead').textContent = 'HOW MEAN IS THE COMPUTER?'; $('mSub').textContent = 'YOU VS 2 COMPUTER PIECE SETS. EVERYONE IS A RIVAL.';
+  showMenu('sMenu', 'mList', [
+    { label: 'EASY', action: () => pickChars({ mode: 'cpu', diff: 'easy', humans: 1 }) },
+    { label: 'NORMAL', action: () => pickChars({ mode: 'cpu', diff: 'normal', humans: 1 }) },
+    { label: 'MEAN (LOVES A BUMP)', action: () => pickChars({ mode: 'cpu', diff: 'mean', humans: 1 }) },
+    { label: 'BACK', action: showTitle, cls: 'mint' },
+  ]);
+}
+function chooseCount() {
+  G.state = 'menu'; $('mHead').textContent = 'HOW MANY PLAYERS?'; $('mSub').textContent = 'EVERYONE SHARES ONE SCREEN. PASS THE CONTROLLER.';
+  showMenu('sMenu', 'mList', [2, 3, 4, 5, 6].map(n => ({ label: n + ' PLAYERS', action: () => pickChars({ mode: 'party', humans: n }) })).concat([{ label: 'BACK', action: showTitle, cls: 'mint' }]));
+}
+// character select: one player per character
+let PK = null;
+function pickChars(setup) { PK = { setup, chosen: [], i: 0 }; renderPick(); }
+function renderPick() {
+  G.state = 'pick'; G.menu = null; hideScreens(); $('sPick').classList.add('on');
+  const n = PK.chosen.length, s = PK.setup;
+  $('pHead').textContent = s.mode === 'cpu' ? 'PICK YOUR PIECES' : 'PLAYER ' + (n + 1) + ', PICK YOUR PIECES';
+  $('pSub').textContent = s.mode === 'cpu' ? 'THE COMPUTER PICKS 2 FROM WHAT\'S LEFT.' : 'ONE PLAYER PER CHARACTER. ' + (s.humans - n) + ' TO GO.';
+  const box = $('picks'); box.innerHTML = '';
+  CHARS.forEach((c, i) => {
+    const taken = PK.chosen.includes(c.id);
+    const b = document.createElement('button'); b.className = 'pk' + (taken ? ' taken' : '') + (i === PK.i ? ' foc' : ''); b.style.setProperty('--c', c.col);
+    b.innerHTML = '<canvas width="144" height="144"></canvas>' + c.name;
+    badge(b.querySelector('canvas'), c.id);
+    b.onclick = () => { Snd.unlock(); PK.i = i; choosePick(); };
+    b.onmouseenter = () => { PK.i = i; paintPick(); };
+    box.appendChild(b);
+  });
+  const back = $('pBack'); back.innerHTML = ''; const bb = document.createElement('button'); bb.className = 'btn mint'; bb.textContent = 'BACK'; bb.onclick = () => { Snd.sfx('select'); pickBack(); }; back.appendChild(bb);
+  mhint();
+}
+function paintPick() { document.querySelectorAll('.pk').forEach((b, i) => b.classList.toggle('foc', i === PK.i)); }
+function pickBack() { if (PK.chosen.length) { PK.chosen.pop(); renderPick(); } else if (PK.setup.mode === 'cpu') chooseDiff(); else chooseCount(); }
+function choosePick() {
+  const c = CHARS[PK.i]; if (PK.chosen.includes(c.id)) { Snd.sfx('deny'); return; }
+  Snd.sfx('select'); PK.chosen.push(c.id);
+  if (PK.chosen.length < PK.setup.humans) { PK.i = CHARS.findIndex(x => !PK.chosen.includes(x.id)); renderPick(); return; }
+  const setup = Object.assign({}, PK.setup, { humanChars: PK.chosen.slice() });
+  if (setup.mode === 'cpu') { const left = CHARS.filter(x => !PK.chosen.includes(x.id)); setup.cpuChars = shuffle(left.slice()).slice(0, 2).map(x => x.id); }
+  newGame(setup);
+}
+// seats spread round the board for each player count
+const SEAT_SETS = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5] };
+function newGame(setup) {
+  G.setup = setup; G.mode = setup.mode; G.diff = setup.diff || 'normal';
+  const list = setup.humanChars.map(ch => ({ ch, cpu: false })).concat((setup.cpuChars || []).map(ch => ({ ch, cpu: true })));
+  const seats = SEAT_SETS[list.length];
+  // in computer mode, shuffle who sits where so you're not always first
+  if (setup.mode === 'cpu') shuffle(list);
+  G.players = list.map((p, i) => ({ ch: p.ch, cpu: p.cpu, seat: seats[i], pieces: [-1, -1, -1] }));
+  G.deck = newDeck(); G.turn = setup.mode === 'cpu' ? G.players.findIndex(p => !p.cpu) : 0; G.busy = false; anim.moving = null; fx.length = 0;
+  hideScreens(); stopConfetti(); $('game').classList.add('on'); G.menu = null; layerDirty = true; layout(); startTurn();
+}
+function showHow(back) {
+  G.prevState = G.state; G.state = 'how';
+  $('howText').innerHTML =
+    '<b>GOAL:</b> GET ALL 3 OF YOUR PIECES FROM START, ROUND THE BOARD, UP YOUR SAFETY LANE AND HOME.<br>' +
+    '<b>YOUR TURN:</b> DRAW A CARD, THEN PICK A MOVE FROM THE LIST. THE BOARD SHOWS WHERE IT LANDS.<br>' +
+    '<b>LEAVE START:</b> ONLY WITH A 1, A 2 OR A BUMPED! CARD.<br>' +
+    '<b>BUMP:</b> LAND ON A RIVAL AND THEY GO BACK TO START. YOUR OWN PIECES JUST SIT SIDE BY SIDE.<br>' +
+    '<b>SLIDES:</b> LAND EXACTLY ON A SLIDE\'S FIRST TILE (THE DOT) AND ZOOM TO THE END, BUMPING EVERYONE ON IT, EVEN YOUR OWN.<br>' +
+    '<b>SAFETY LANE:</b> ONLY YOUR PIECES GO IN. YOU NEED THE EXACT COUNT TO GET HOME. BACKWARD CARDS CAN PULL YOU OUT.<br>' +
+    '<b>CARDS:</b> 1 / 2 (DRAW AGAIN) / 3 / 4 BACK / 5 / 7 SPLIT / 8 / 10 OR BACK 1 / 11 OR SWAP / 12 / BUMPED!<br>' +
+    '<b>NO MOVE?</b> THE CARD IS WASTED AND PLAY PASSES.';
+  showMenu('sHow', 'howMenu', [{ label: 'GOT IT', action: () => { G.state = G.prevState; back(); } }]);
+}
+function pauseGame() { if ((G.state !== 'draw' && G.state !== 'choose') || G.busy) return; G.paused = G.state; showPause(0); }
+// the full pause menu, every time (SPEED and SOUND stay put after HOW TO PLAY)
+function showPause(idx) {
+  G.state = 'paused';
+  showMenu('sPause', 'pauseMenu', [
+    { label: 'RESUME', action: resume },
+    { label: 'HOW TO PLAY', action: () => showHow(() => showPause(1)) },
+    { label: 'SPEED: ' + (G.fast ? 'FAST' : 'NORMAL'), action: () => { toggleFast(); showPause(2); } },
+    { label: 'SOUND: ' + (Snd.muted ? 'OFF' : 'ON'), action: () => { toggleMute(); showPause(3); } },
+    { label: 'QUIT TO TITLE', action: showTitle, cls: 'mint' }]);
+  Menu.idx = idx || 0; paintMenu();
+}
+function resume() { hideScreens(); G.menu = null; G.state = G.paused; renderOpts(); if (G.state === 'draw' && isCpu()) setTimeout(cpuTurn, 300); if (G.state === 'choose' && isCpu() && !G.busy) setTimeout(cpuChoose, 300); }
+function toggleFast() { G.fast = !G.fast; $('bSpeed').textContent = 'SPEED: ' + (G.fast ? 'FAST' : 'NORMAL'); $('bSpeed').classList.toggle('on', G.fast); }
+function paintMute() { $('bSound').textContent = 'SOUND: ' + (Snd.muted ? 'OFF' : 'ON'); $('bSound').classList.toggle('on', Snd.muted); }
+function toggleMute() { Snd.muted = !Snd.muted; store.set('bruh.muted', Snd.muted ? '1' : '0'); paintMute(); }
+function exitBG() { location.href = '../'; }
+function toggleFs() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { } }
+$('bSpeed').onclick = () => { Snd.unlock(); toggleFast(); };
+$('bSound').onclick = () => { Snd.unlock(); toggleMute(); };
+$('bPause').onclick = () => { Snd.unlock(); pauseGame(); };
+$('card').onclick = () => { Snd.unlock(); if (G.state === 'draw' && !isCpu()) draw(); };
+cv.addEventListener('click', () => { Snd.unlock(); if (G.state === 'draw' && !isCpu()) draw(); });
+
+// =====================================================================
+// INPUT — keyboard, controller, mouse, touch
+// =====================================================================
+let lastDev = 'key', padPS = false;
+function act(a) {
+  Snd.unlock();
+  if (G.menu === 'sPick' || G.state === 'pick') {
+    const cols = Math.max(1, Math.round($('picks').clientWidth / 130));
+    if (a === 'l') PK.i = (PK.i + CHARS.length - 1) % CHARS.length; else if (a === 'r') PK.i = (PK.i + 1) % CHARS.length;
+    else if (a === 'u') PK.i = Math.max(0, PK.i - cols); else if (a === 'd') PK.i = Math.min(CHARS.length - 1, PK.i + cols);
+    else if (a === 'a') return choosePick(); else if (a === 'b') return pickBack(); else return;
+    Snd.sfx('nav'); return paintPick();
+  }
+  if (G.menu) {
+    if (a === 'u' || a === 'l') { Menu.idx = (Menu.idx + Menu.items.length - 1) % Menu.items.length; Snd.sfx('nav'); paintMenu(); }
+    else if (a === 'd' || a === 'r') { Menu.idx = (Menu.idx + 1) % Menu.items.length; Snd.sfx('nav'); paintMenu(); }
+    else if (a === 'a') { Snd.sfx('select'); Menu.items[Menu.idx].action(); }
+    else if (a === 'b' && G.state === 'paused') resume();
+    return;
+  }
+  if (a === 'p') return pauseGame();
+  if (G.busy || isCpu()) return;
+  if (G.state === 'draw') { if (a === 'a') draw(); return; }
+  if (G.state === 'choose') {
+    if (!G.opts.length) { if (a === 'a') confirm(); return; }
+    if (a === 'u') { G.oi = (G.oi + G.opts.length - 1) % G.opts.length; Snd.sfx('nav'); renderOpts(); }
+    else if (a === 'd') { G.oi = (G.oi + 1) % G.opts.length; Snd.sfx('nav'); renderOpts(); }
+    else if (a === 'l') cycle(-1); else if (a === 'r') cycle(1);
+    else if (a === 'a') confirm();
+  }
+}
+addEventListener('keydown', e => {
+  if (e.repeat && (e.key === 'Enter' || e.key === ' ')) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;    // Caps Lock / Shift don't matter
+  const m = { ArrowUp: 'u', ArrowDown: 'd', ArrowLeft: 'l', ArrowRight: 'r', w: 'u', s: 'd', a: 'l', d: 'r', Enter: 'a', ' ': 'a', Escape: G.menu ? 'b' : 'p', Backspace: 'b', p: 'p', f: 'y', m: 'm' }[k];
+  if (!m) return; e.preventDefault(); lastDev = 'key';
+  if (m === 'y') { toggleFast(); return; }
+  if (m === 'm') { toggleMute(); if (G.menu === 'sPause') showPause(Menu.idx); return; }
+  act(m); hint(); mhint();
+});
+// controller: edges only; anything held when the page opens is ignored until released
+let padHeld = {}, padArmed = false, padRep = { k: null, t: 0 };
+function pollPad(now) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = null;
+  for (const p of pads || []) if (p && p.connected) { gp = p; break; }
+  if (!gp) return;
+  padPS = /054c|dualsense|dualshock|playstation/i.test(gp.id) || (/wireless controller/i.test(gp.id) && !/xbox|045e/i.test(gp.id));
+  const b = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+  const st = { a: b(0), b: b(1), y: b(3), p: b(9), u: b(12) || ay < -0.5, d: b(13) || ay > 0.5, l: b(14) || ax < -0.5, r: b(15) || ax > 0.5 };
+  if (!padArmed) { if (!Object.values(st).some(Boolean)) padArmed = true; padHeld = st; return; }
+  for (const k in st) {
+    if (st[k] && !padHeld[k]) { lastDev = 'pad'; if (k === 'y') toggleFast(); else act(k); hint(); mhint(); padRep = { k, t: now + 380 }; }
+    else if (st[k] && padRep.k === k && 'udlr'.includes(k) && now > padRep.t) { act(k); padRep.t = now + 130; }
+  }
+  padHeld = st;
+}
+addEventListener('pointerdown', e => { if (e.pointerType === 'touch') lastDev = 'touch'; else if (lastDev === 'touch') lastDev = 'key'; }, true);
+function P_(ps, xb) { return padPS ? ps : xb; }
+function hint() {
+  let h = '';
+  if (lastDev === 'pad') h = (G.state === 'draw' ? P_('CROSS', 'A') + ' DRAW' : '&#9650;&#9660; PICK A MOVE &middot; &#9664;&#9654; CHANGE &middot; ' + P_('CROSS', 'A') + ' GO') + ' &middot; ' + P_('TRIANGLE', 'Y') + ' SPEED &middot; ' + P_('OPTIONS', 'START') + ' PAUSE';
+  else if (lastDev === 'touch') h = G.state === 'draw' ? 'TAP THE CARD OR THE BOARD TO DRAW' : 'TAP A MOVE TO PREVIEW IT, TAP AGAIN TO GO';
+  else h = (G.state === 'draw' ? 'ENTER DRAW' : '&#9650;&#9660; PICK A MOVE &middot; &#9664;&#9654; CHANGE &middot; ENTER GO') + ' &middot; F SPEED &middot; M SOUND &middot; ESC PAUSE';
+  $('hint').innerHTML = h;
+}
+function mhint() { $('mhint').innerHTML = lastDev === 'pad' ? '&#9650;&#9660; PICK &middot; ' + P_('CROSS', 'A') + ' SELECT' : lastDev === 'touch' ? '' : '&#9650;&#9660; PICK &middot; ENTER SELECT'; }
+
+// =====================================================================
+// LAYOUT + LOOP — the board canvas matches the screen's real pixels
+// =====================================================================
+function layout() {
+  const vw = innerWidth, vh = innerHeight, port = vh > vw * 1.1;
+  document.body.classList.toggle('port', port);
+  const size = Math.floor(port ? Math.min(vw * 0.96, vh * 0.56) : Math.min(vh * 0.94, vw * 0.6));
+  cv.style.width = cv.style.height = size + 'px';
+  const dpr = Math.min(devicePixelRatio || 1, 3), px = Math.max(300, Math.min(2600, Math.round((size - 6) * dpr)));
+  if (cv.width !== px) { cv.width = cv.height = px; layerDirty = true; }
+  SC = px / BW;
+}
+addEventListener('resize', layout);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { layerDirty = true; });
+if (document.fonts) document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { layerDirty = true; });
+let lastT = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  pollPad(now);
+  flash = Math.max(0, flash - dt * 3); shakeT = Math.max(0, shakeT - dt);
+  for (let i = fx.length - 1; i >= 0; i--) { fx[i].life -= dt; if (fx[i].life <= 0) fx.splice(i, 1); }
+  if ($('game').classList.contains('on')) drawBoard(now / 1000);
+  tickConfetti(dt);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+addEventListener('pageshow', () => { padArmed = false; });
+paintMute(); layout(); showTitle(); hint();
+requestAnimationFrame(frame);
+// exposed for automated tests only
+window.__bruh = { G, movesFor, trySeq, step, walk, absOf, relOf, tileXY, laneXY, HOME, SLIDES, newGame, act, draw, confirm, showPause, win };
+})();
+</script>
+</body>
+</html>

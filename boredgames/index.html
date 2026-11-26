@@ -21,16 +21,16 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100%;
 @keyframes buzz{0%,91%,93%,95%,100%{opacity:1}92%,94%{opacity:.3}}
 .sub{margin-top:1.4em;font-size:clamp(8px,1.1vw,13px);color:var(--yellow);letter-spacing:.14em;text-shadow:0 0 10px rgba(255,225,77,.6)}
 #tables{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:clamp(16px,3vw,40px);justify-content:center;margin:clamp(24px,5vh,60px) 16px 0}
-.tbl{width:min(340px,86vw);padding:18px 16px 20px;background:rgba(14,4,30,.88);border:4px solid #3a2a6a;text-align:center;cursor:pointer;outline:none;transition:transform .15s,border-color .15s,box-shadow .15s}
-.tbl canvas{display:block;width:100%;image-rendering:pixelated;image-rendering:crisp-edges;background:#120626;border:3px solid #2a1650}
+.tbl{width:min(360px,86vw);padding:18px 16px 20px;border-radius:20px;background:linear-gradient(180deg,rgba(40,18,80,.92),rgba(14,5,32,.94));border:2px solid #3a2a6a;box-shadow:0 12px 30px rgba(0,0,0,.5);text-align:center;cursor:pointer;outline:none;transition:transform .18s,border-color .18s,box-shadow .18s}
+.tbl canvas{display:block;width:100%;aspect-ratio:5/3;border-radius:14px;background:#120626;border:2px solid #2a1650}
 .tbl h2{font-weight:normal;font-size:clamp(18px,2.6vw,28px);margin-top:16px;color:#fff;text-shadow:0 0 10px var(--c,var(--pink))}
 .tbl p{font-size:10px;line-height:1.9;color:#cfc6ff;margin-top:12px;min-height:3.8em}
 .tbl .who{font-size:9px;color:#8a7bd8;margin-top:8px}
-.tbl.foc{border-color:var(--c,var(--pink));box-shadow:0 0 22px var(--c,var(--pink));transform:translateY(-4px)}
+.tbl.foc{border-color:var(--c,var(--pink));box-shadow:0 0 26px var(--c,var(--pink)),0 14px 34px rgba(0,0,0,.55);transform:translateY(-5px)}
 .tbl.soon{cursor:default;opacity:.55}
 .tbl.soon h2{text-shadow:none;color:#8a7bd8}
-#exit{position:relative;z-index:2;margin:clamp(24px,5vh,50px) 0 30px;font-family:inherit;font-size:12px;padding:14px 22px;background:transparent;color:var(--cyan);border:3px solid var(--cyan);cursor:pointer;outline:none}
-#exit.foc,#exit:hover{background:var(--cyan);color:#07010f;box-shadow:0 0 16px var(--cyan)}
+#exit{position:relative;z-index:2;margin:clamp(24px,5vh,50px) 0 30px;font-family:inherit;font-size:12px;padding:15px 24px;border-radius:14px;background:rgba(10,30,40,.5);color:var(--cyan);border:2px solid var(--cyan);cursor:pointer;outline:none;transition:box-shadow .15s}
+#exit.foc,#exit:hover{background:linear-gradient(180deg,#7ff4ff,#00c4dc);color:#07010f;box-shadow:0 0 20px var(--cyan)}
 #hint{position:relative;z-index:2;font-size:9px;color:#7d72b8;margin-bottom:10px;text-align:center;line-height:1.8;padding:0 10px}
 #credit{position:relative;z-index:2;font-size:9px;color:#5a4f8a;margin:6px 0 20px}
 </style>
@@ -40,14 +40,14 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100%;
 <header id="sign"><h1 style="font-weight:normal"><span class="tube">BORED</span><span class="tube b">GAMES</span></h1>
   <div class="sub">THE BACK ROOM &middot; PASS THE CONTROLLER</div></header>
 <main id="tables">
-  <div class="tbl" id="tBro" style="--c:#ff2bd6" tabindex="0" role="button" aria-label="Play Bro!">
-    <canvas id="broArt" width="120" height="72"></canvas>
-    <h2>BRO!</h2>
+  <div class="tbl" id="tBruh" style="--c:#ff2bd6" tabindex="0" role="button" aria-label="Play Bruh...">
+    <canvas id="bruhArt" width="600" height="360"></canvas>
+    <h2>BRUH...</h2>
     <p>BUMP YOUR BUDDIES FROM BEHIND AND SEND THEM HOME</p>
     <div class="who">1 PLAYER VS COMPUTER &middot; PARTY 2-6</div>
   </div>
   <div class="tbl soon" aria-hidden="true">
-    <canvas id="soonArt" width="120" height="72"></canvas>
+    <canvas id="soonArt" width="600" height="360"></canvas>
     <h2>MORE GAMES</h2>
     <p>THE TABLE'S BEING SET UP.<br>CHECK BACK SOON.</p>
     <div class="who">&nbsp;</div>
@@ -60,9 +60,9 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100%;
 <script>
 (() => {
 const $ = id => document.getElementById(id);
-const items = [$('tBro'), $('exit')];
+const items = [$('tBruh'), $('exit')];
 let foc = 0;
-const go = el => { if (el === $('tBro')) location.href = 'bro/'; else location.href = 'https://www.neonbreadent.com/'; };
+const go = el => { if (el === $('tBruh')) location.href = 'bruh/'; else location.href = 'https://www.neonbreadent.com/'; };
 function paint() { items.forEach((el, i) => el.classList.toggle('foc', i === foc)); }
 items.forEach((el, i) => { el.addEventListener('click', () => go(el)); el.addEventListener('mouseenter', () => { foc = i; paint(); }); });
 addEventListener('keydown', e => {
@@ -92,17 +92,36 @@ function poll() {
 }
 poll();
 addEventListener('pageshow', () => { armed = false; });
-// little table art: the Bro! board with a few pieces, and an empty table
-function art() {
-  const c = $('broArt').getContext('2d'); c.imageSmoothingEnabled = false;
-  c.fillStyle = '#1b0b33'; c.fillRect(0, 0, 120, 72);
-  c.fillStyle = '#2a1650'; c.fillRect(30, 4, 64, 64);
-  c.fillStyle = '#e8e0ff'; for (let i = 0; i < 16; i++) { c.fillRect(30 + i * 4, 4, 3, 3); c.fillRect(30 + i * 4, 65, 3, 3); c.fillRect(30, 4 + i * 4, 3, 3); c.fillRect(91, 4 + i * 4, 3, 3); }
-  [['#b04bff', 50, 12], ['#ff6b9d', 70, 30], ['#ffcc4d', 40, 46], ['#00e5ff', 62, 52]].forEach(([col, x, y]) => { c.fillStyle = col; c.fillRect(x, y, 6, 6); c.fillStyle = '#fff'; c.fillRect(x + 1, y + 1, 2, 2); });
-  c.fillStyle = '#ff2bd6'; c.fillRect(54, 30, 14, 10); c.fillStyle = '#fff'; c.fillRect(56, 32, 10, 6);
-  const s = $('soonArt').getContext('2d'); s.fillStyle = '#1b0b33'; s.fillRect(0, 0, 120, 72); s.fillStyle = '#2a1650'; s.fillRect(30, 10, 60, 52);
-  s.fillStyle = '#4a3a7a'; s.fillRect(50, 28, 20, 4); s.fillRect(58, 20, 4, 20);
+// little table art, drawn smooth: the Bruh... board with a few pieces, and an empty table
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function felt(g) { const bg = g.createRadialGradient(300, 150, 20, 300, 180, 380); bg.addColorStop(0, '#2c1260'); bg.addColorStop(1, '#0e0424'); g.fillStyle = bg; g.fillRect(0, 0, 600, 360); }
+function token(g, x, y, col) {
+  g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(x, y + 15, 17, 6, 0, 0, Math.PI * 2); g.fill();
+  g.save(); g.shadowColor = col; g.shadowBlur = 14;
+  const t = g.createRadialGradient(x - 6, y - 8, 2, x, y, 18); t.addColorStop(0, '#ffffff'); t.addColorStop(.35, col); t.addColorStop(1, '#1a0a30');
+  g.fillStyle = t; g.beginPath(); g.arc(x, y, 17, 0, Math.PI * 2); g.fill(); g.restore();
+  g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, 13, Math.PI * 1.1, Math.PI * 1.6); g.stroke();
 }
+function art() {
+  const g = $('bruhArt').getContext('2d'); felt(g);
+  g.save(); g.translate(300, 180); g.rotate(-.06); g.translate(-160, -160);
+  g.save(); g.shadowColor = 'rgba(176,75,255,.6)'; g.shadowBlur = 30; rr(g, 0, 0, 320, 320, 26); g.fillStyle = '#170a34'; g.fill(); g.restore();
+  rr(g, 46, 46, 228, 228, 18); g.fillStyle = '#24104e'; g.fill();
+  for (let i = 0; i < 9; i++) [[8 + i * 34, 8], [8 + i * 34, 278], [8, 8 + i * 34], [278, 8 + i * 34]].forEach(([x, y], k) => {
+    rr(g, x, y + 3, 34 - 4, 34 - 6, 7); g.fillStyle = '#6a58a8'; g.fill();
+    rr(g, x, y, 34 - 4, 34 - 6, 7); const l = g.createLinearGradient(0, y, 0, y + 28); l.addColorStop(0, '#fbf8ff'); l.addColorStop(1, '#cdbff2'); g.fillStyle = l; g.fill(); });
+  [[110, 8, '#ff6b9d'], [144, 8, '#ff6b9d'], [278, 144, '#00a5b5'], [278, 178, '#00a5b5']].forEach(([x, y, c]) => { rr(g, x + 3, y + 3, 24, 22, 6); g.fillStyle = c; g.fill(); });
+  g.font = '28px "Press Start 2P", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = '#ff2bd6'; g.shadowBlur = 18; g.fillStyle = 'rgba(255,170,240,.75)'; g.fillText('BRUH...', 160, 160); g.shadowBlur = 0;
+  token(g, 59, 23, '#b04bff'); token(g, 295, 125, '#ff6b9d'); token(g, 125, 293, '#00e5ff'); token(g, 23, 193, '#ffcc4d');
+  g.restore();
+  // a face-up card on the table
+  g.save(); g.translate(500, 250); g.rotate(.22); rr(g, -34, -48, 68, 96, 10); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 16; const cd = g.createLinearGradient(0, -48, 0, 48); cd.addColorStop(0, '#fffaf0'); cd.addColorStop(1, '#ecdcb8'); g.fillStyle = cd; g.fill(); g.shadowBlur = 0;
+  g.strokeStyle = '#ff2bd6'; g.lineWidth = 3; g.stroke(); g.fillStyle = '#2a1650'; g.font = '30px "Press Start 2P", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('7', 0, 2); g.restore();
+  const s = $('soonArt').getContext('2d'); felt(s);
+  s.save(); s.globalAlpha = .7; rr(s, 150, 40, 300, 280, 26); s.fillStyle = '#1d0d3e'; s.fill(); s.strokeStyle = '#3a2a6a'; s.lineWidth = 3; s.setLineDash([14, 10]); s.stroke(); s.setLineDash([]);
+  s.font = '64px "Press Start 2P", monospace'; s.textAlign = 'center'; s.textBaseline = 'middle'; s.fillStyle = '#4a3a7a'; s.fillText('?', 300, 184); s.restore();
+}
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(art);
 art(); paint();
 })();
 </script>
