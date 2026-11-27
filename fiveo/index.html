@@ -2836,7 +2836,7 @@ function enemyAttack(e) {
   if (e.t === 'thr') { throwBottle(e); return; }
   Audio2.sfx('enemyShot');
   if (PL.inCover) { hitCover(PL.cover, 1); Audio2.sfx('ricochet'); return; }
-  damagePlayer(15);
+  damagePlayer(8);      // a regular Stray's gunshot (Elijah, Nov 27: was 15)
 }
 function hitEnemy(e, part, dmg, dz) {
   if (part === 'head' || (e.hp -= dmg) <= 0) { killEnemy(e, part === 'head', dz); return; }
