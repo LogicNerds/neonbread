@@ -236,10 +236,10 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
     // ---- cheat cards: codes live in w.owned like any prize; w.cheats[id] = switched on
     cheatsFor(game) { return Tickets.catalog.filter(i => i.cheat && i.game === game); },
-    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !w.owned[i.id]).length; },
+    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !i.perk && !w.owned[i.id]).length; },
     // buy an envelope: takes the tickets and reveals one code you don't have yet, at random
     openEnvelope(game) {
-      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !w.owned[i.id]);
+      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !i.perk && !w.owned[i.id]);
       if (!env || !left.length || w.bal < env.price) return null;
       const got = left[Math.floor(Math.random() * left.length)];
       w.bal -= env.price; w.spent += env.price; w.owned[got.id] = Date.now(); tkSave(w); return got;
@@ -249,7 +249,11 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
       if (w.owned[id] && w.cheats && w.cheats[id]) return true;
       const it = Tickets.item(id); return !!(it && it.freeDay && it.freeDay === pacificDay());   // free for everyone that day
     },
-    setCheat(id, on) { const w = tkLoad(); w.cheats = w.cheats || {}; if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w); },
+    setCheat(id, on) {
+      const w = tkLoad(), it = Tickets.item(id); w.cheats = w.cheats || {};
+      if (on && it && it.group) Tickets.catalog.forEach(o => { if (o.group === it.group && o.id !== id) delete w.cheats[o.id]; });   // one of a group at a time (Five O starting guns)
+      if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w);
+    },
     // a run with any gameplay (T) code switched on is tagged on the leaderboard
     tagged(game) { return Tickets.cheatsFor(game).some(i => i.tag && Tickets.cheatOn(game, i.id.split('.')[2])); },
     // work out what a finished run pays (doesn't save). A tagged run can't set a personal best.
@@ -298,6 +302,8 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     { id: 'col.chonx', shelf: 'collect', name: 'CHONX PLUSH', price: 800 },
     { id: 'col.gerb', shelf: 'collect', name: 'GERB PLUSH', price: 900 },
     { id: 'col.mittens', shelf: 'collect', name: 'CHAIRMAN MITTENS PLUSH', price: 1200 },
+    { id: 'col.badge', shelf: 'collect', name: 'CHONX BADGE PIN', price: 450 },
+    { id: 'col.mangebob', shelf: 'collect', name: 'MANGE BOBBLEHEAD', price: 700 },
     { id: 'top.giant', shelf: 'top', name: 'GIANT CHONX PLUSH', price: 10000 },
     { id: 'top.token', shelf: 'top', name: 'GOLD ARCADE TOKEN', price: 25000 },
   ];
@@ -329,6 +335,10 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
   add('cheekyops', 'reticle', [['paw', 'HAMSTER-PAW RETICLE', 300], ['heart', 'HEART RETICLE', 300], ['skull', 'SKULL RETICLE', 400], ['sixseven', '"6 7" RETICLE', 400], ['gold', 'GOLD RETICLE', 800]]);
   add('cheekyops', 'rifle', [['camo', 'CAMO RIFLE', 400], ['wood', 'WOOD-STOCK RIFLE', 500], ['neon', 'NEON RIFLE', 600], ['gold', 'GOLD RIFLE', 2500]]);
   add('cheekyops', 'outfit', [['tux', 'SPY TUXEDO', 1200]]);
+  add('fiveo', 'outfit', [['trench', 'DETECTIVE TRENCH COAT', 800], ['riot', 'RIOT HELMET', 900], ['swat', 'SWAT GEAR', 1000], ['moto', 'MOTORCYCLE COP', 1000], ['miami', 'MIAMI PASTEL SUIT', 1200]]);
+  add('fiveo', 'gun', [['wood', 'WOOD-GRIP PISTOL', 300], ['chrome', 'CHROME PISTOL', 400], ['neon', 'NEON PISTOL', 600], ['gold', 'GOLD PISTOL', 1500]]);
+  add('fiveo', 'reticle', [['badge', 'BADGE CROSSHAIR', 300], ['donut', 'DONUT CROSSHAIR', 300], ['star', 'STAR CROSSHAIR', 300], ['skull', 'SKULL CROSSHAIR', 400]]);
+  add('fiveo', 'flash', [['blue', 'BLUE MUZZLE FLASH', 250], ['green', 'GREEN MUZZLE FLASH', 250], ['pink', 'PINK MUZZLE FLASH', 250], ['rainbow', 'RAINBOW MUZZLE FLASH', 600]]);
   add('pedxing', 'livery', [['student', 'STUDENT DRIVER', 300], ['stripes', 'RACING STRIPES', 400], ['camo', 'CAMO', 400], ['checker', 'CHECKERBOARD', 500], ['wood', 'WOOD PANEL', 500], ['pizza', 'PIZZA DELIVERY', 500], ['flames', 'FLAMES', 600], ['neonbread', 'NEON BREAD DELIVERY', 700], ['chrome', 'CHROME', 2000], ['gold', 'GOLD', 5000]]);
   add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
   add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
@@ -341,14 +351,20 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     chonx: [['bighead', 'BIG HEAD MODE', 'C'], ['paintball', 'PAINTBALL MODE', 'C'], ['jetpack', 'INFINITE JETPACK', 'T']],
     cheekyops: [['hats', 'PARTY HATS', 'C'], ['confetti', 'CONFETTI INSTEAD OF GORE', 'C'], ['nosway', 'NO SWAY', 'T']],
     gta: [['hamster', 'HAMSTER GRANNIES', 'C'], ['monster', 'MONSTER VAN', 'C'], ['turbo', 'TURBO VAN', 'T']],
+    fiveo: [['bighead', 'BIG HEAD STRAYS', 'C'], ['donut', 'DONUT AMMO', 'C'], ['bottomless', 'BOTTOMLESS MAG', 'T']],
   };
-  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY' };
+  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY', 'fiveo.bighead': 'LOOKS ONLY', 'fiveo.donut': 'SPRINKLES INSTEAD OF GORE' };
   Tickets.CHEAT_PRICE = 750;
   Object.keys(CHEATS).forEach(game => {
     Tickets.catalog.push({ id: 'env.' + game, shelf: 'cheats', game, envelope: true, name: GAMES[game].title + ' CHEATS', note: '1 OF 3 CODES, AT RANDOM', price: Tickets.CHEAT_PRICE });
     CHEATS[game].forEach(([key, name, kind]) => Tickets.catalog.push({ id: 'cheat.' + game + '.' + key, shelf: 'codes', game, cheat: true, tag: kind === 'T', name, price: 0,
       note: kind === 'T' ? 'TAGS YOUR SCORE' : (CHEAT_NOTES[game + '.' + key] || '') }));
   });
+  // ---- Five O loadout: bought outright at the counter (not in the envelope), switched ON/OFF in the game's PRIZES menu.
+  // They change the game, so a run with any of them on is tagged, like a T cheat code. Starting guns: one at a time.
+  [['armor', 'START WITH BODY ARMOR', 1500], ['shotgun', 'START WITH A SHOTGUN', 1000, 'gun'], ['smg', 'START WITH AN SMG', 1000, 'gun'], ['magnum', 'START WITH A MAGNUM', 1200, 'gun'],
+   ['medkit', 'EXTRA MED KIT EVERY ZONE', 1200], ['mag8', 'EXTENDED MAG (8 ROUNDS)', 800], ['reload', 'FAST RELOAD', 800]]
+    .forEach(([key, name, price, grp]) => Tickets.catalog.push({ id: 'cheat.fiveo.' + key, shelf: 'fiveo', game: 'fiveo', cheat: true, perk: true, tag: true, group: grp ? 'fiveo.' + grp : undefined, name, price, note: 'TAGS YOUR SCORE' }));
   // ---- seasonal: sold only in their window (Pacific dates, from the device clock), kept forever, equipped like anything else
   const SEASONS = {
     holidays: ['2026-12-01', '2026-12-31', 'HOLIDAYS'], newyear: ['2026-12-31', '2027-01-02', "NEW YEAR'S"],
@@ -412,7 +428,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     const [t, n, ok] = list[h % list.length];
     return { t, n, ok, done: tkLoad().chal[game] === d };
   };
-  Tickets.shelves = { seasonal: 'SEASONAL', cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
+  Tickets.shelves = { seasonal: 'SEASONAL', cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING', fiveo: 'CHONX FIVE O' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
@@ -420,6 +436,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
     pedxing: { livery: 'LIVERY', horn: 'HORN', dash: 'DASHBOARD' },
+    fiveo: { outfit: 'OUTFIT', gun: 'PISTOL', reticle: 'CROSSHAIR', flash: 'MUZZLE FLASH' },
   };
   Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   // ---- prize icons: 16x16 pixel art drawn in code (shown at the counter and in each game's PRIZES menu)
@@ -590,6 +607,39 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     'cheekyops.rifle.neon': p => { rifleArt(p, '#ff2bd6', '#00e5ff', '#00e5ff'); },
     'cheekyops.rifle.gold': p => { rifleArt(p, '#ffcc00', '#d4a800', '#fff3a0'); },
     'cheekyops.outfit.tux': p => { p.rect(3, 3, 10, 12, '#111111'); p.rect(7, 3, 2, 12, '#ffffff'); p.rect(6, 3, 4, 2, '#e53935'); p.set(8, 7, '#111'); p.set(8, 10, '#111'); p.line(4, 3, 7, 8, '#2a2a2a'); p.line(12, 3, 9, 8, '#2a2a2a'); },
+  });
+  // ---- Chonx Five O
+  const chonxBack = (p, cap, shirt, ear = true) => { p.ell(8, 15, 7, 4, shirt); p.ell(8, 9, 5, 4.6, '#d9893b'); if (ear) { p.ell(3.5, 7, 1.4, 1.6, '#d9893b'); p.ell(12.5, 7, 1.4, 1.6, '#d9893b'); } if (cap) cap(p); };
+  const pistolArt = (p, a, b) => { p.rect(2, 6, 10, 3, a); p.rect(2, 6, 10, 1, b); p.rect(9, 9, 3, 5, a); p.rect(10, 10, 1, 3, b); p.rect(6, 9, 2, 2, a); };
+  const xhair = (p, c) => { p.ell(8, 8, 6, 6, c); p.ell(8, 8, 4.8, 4.8, null); p.rect(8, 0, 1, 4, c); p.rect(8, 13, 1, 3, c); p.rect(0, 8, 4, 1, c); p.rect(13, 8, 3, 1, c); };
+  const flashArt = (p, c1, c2) => { for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4, r = a % 2 ? 4 : 7; p.line(8, 8, 8 + Math.cos(ang) * r, 8 + Math.sin(ang) * r, c1); } p.ell(8, 8, 2.5, 2.5, c2); };
+  Object.assign(ICON_ART, {
+    'fiveo.outfit.trench': p => chonxBack(p, p => { p.rect(3, 3, 10, 2, '#5a4632'); p.rect(1, 5, 14, 1, '#5a4632'); p.rect(3, 4, 10, 1, '#2a2018'); }, '#b89a6a'),
+    'fiveo.outfit.riot': p => chonxBack(p, p => { p.ell(8, 7, 6, 5.5, '#1a2550'); p.rect(2, 8, 12, 3, '#9ac0e0'); p.rect(2, 8, 12, 1, '#d8ecff'); }, '#1a2550', false),
+    'fiveo.outfit.swat': p => { chonxBack(p, p => { p.ell(8, 6, 5.5, 4, '#1a1a1e'); p.rect(3, 7, 10, 1, '#3a3a40'); }, '#1a1a1e', false); p.rect(3, 13, 10, 3, '#1a1a1e'); [[4, '1110'], [7, '1011'], [10, '1110']].forEach(([x]) => p.rect(x, 13, 2, 2, '#e8e8e8')); },
+    'fiveo.outfit.moto': p => chonxBack(p, p => { p.ell(8, 6, 6, 5, '#f4f4f4'); p.rect(2, 7, 12, 2, '#1a2550'); p.set(8, 2, '#ffd23a'); }, '#6a3a1e', false),
+    'fiveo.outfit.miami': p => { chonxBack(p, null, '#ff9ad0'); p.rect(6, 12, 4, 4, '#7af0e0'); p.ell(8, 6, 4.6, 2, '#a8621f'); },
+    'fiveo.gun.wood': p => pistolArt(p, '#2a2d36', '#5a606c') || p.rect(9, 9, 3, 5, '#8d5524'),
+    'fiveo.gun.chrome': p => pistolArt(p, '#c8ccd4', '#ffffff'),
+    'fiveo.gun.neon': p => pistolArt(p, '#ff2bd6', '#2bf3ff'),
+    'fiveo.gun.gold': p => pistolArt(p, '#ffcc00', '#fff3a0'),
+    'fiveo.reticle.badge': p => { xhair(p, '#ffffff'); p.ell(8, 8, 2.6, 2.8, '#ffd23a'); p.set(8, 8, '#2b6bff'); },
+    'fiveo.reticle.donut': p => { p.ell(8, 8, 6.5, 6.5, '#e8a860'); p.ell(8, 8, 5.5, 5.5, '#ff8ac8'); p.ell(8, 8, 2, 2, null); [[5, 4, '#2bf3ff'], [11, 5, '#ffe14d'], [4, 10, '#ffffff'], [11, 11, '#7dff4a'], [8, 3, '#ff2a3d']].forEach(([x, y, c]) => p.set(x, y, c)); },
+    'fiveo.reticle.star': p => { xhair(p, '#ffffff'); p.rect(7, 6, 3, 5, '#ffd23a'); p.rect(6, 7, 5, 2, '#ffd23a'); },
+    'fiveo.reticle.skull': p => { xhair(p, '#ffffff'); p.ell(8, 7.5, 2.4, 2.2, '#ffffff'); p.rect(7, 9, 3, 1, '#ffffff'); p.set(7, 7, '#111'); p.set(9, 7, '#111'); },
+    'fiveo.flash.blue': p => flashArt(p, '#2b6bff', '#bfe0ff'),
+    'fiveo.flash.green': p => flashArt(p, '#39ff6a', '#d8ffd8'),
+    'fiveo.flash.pink': p => flashArt(p, '#ff2bd6', '#ffd3f6'),
+    'fiveo.flash.rainbow': p => { ['#ff3b3b', '#ff9a1f', '#ffe14d', '#3ddc5a', '#2f8cff', '#9b4bff', '#ff2bd6', '#2bf3ff'].forEach((c, a) => { const ang = a * Math.PI / 4, r = a % 2 ? 4 : 7; p.line(8, 8, 8 + Math.cos(ang) * r, 8 + Math.sin(ang) * r, c); }); p.ell(8, 8, 2.5, 2.5, '#ffffff'); },
+    'cheat.fiveo.armor': p => { p.rect(3, 2, 10, 12, '#2a3a6a'); p.rect(3, 2, 3, 3, null); p.rect(10, 2, 3, 3, null); p.rect(5, 6, 6, 6, '#3a4e8a'); p.rect(7, 7, 2, 3, '#ffd23a'); p.rect(3, 13, 10, 1, '#1a2550'); },
+    'cheat.fiveo.shotgun': p => { p.rect(1, 6, 14, 2, '#3a3e46'); p.rect(1, 5, 9, 1, '#6a707c'); p.rect(10, 6, 5, 4, '#8a5a2a'); p.rect(6, 8, 3, 2, '#5a3a1a'); },
+    'cheat.fiveo.smg': p => { p.rect(3, 5, 10, 4, '#26282e'); p.rect(3, 5, 10, 1, '#5a606c'); p.rect(7, 9, 2, 5, '#26282e'); p.rect(11, 9, 2, 3, '#26282e'); p.rect(0, 6, 3, 2, '#3a3e46'); },
+    'cheat.fiveo.magnum': p => { p.rect(1, 6, 9, 3, '#c8ccd4'); p.rect(1, 6, 9, 1, '#ffffff'); p.ell(10, 7.5, 2.5, 2.5, '#9aa0aa'); p.rect(11, 9, 3, 5, '#5a3a1a'); },
+    'cheat.fiveo.medkit': p => { p.rect(2, 4, 12, 10, '#f4f4f4'); p.rect(6, 2, 4, 2, '#a0a0a0'); p.rect(7, 6, 2, 6, '#e8202a'); p.rect(5, 8, 6, 2, '#e8202a'); },
+    'cheat.fiveo.mag8': p => { p.rect(5, 2, 6, 13, '#3a3e46'); p.rect(5, 2, 6, 1, '#6a707c'); for (let k = 0; k < 4; k++) p.rect(6, 4 + k * 3, 4, 2, '#e8c040'); },
+    'cheat.fiveo.reload': p => { p.rect(5, 4, 6, 11, '#3a3e46'); p.rect(6, 6, 4, 2, '#e8c040'); p.line(1, 2, 4, 2, '#2bf3ff'); p.line(0, 5, 3, 5, '#2bf3ff'); p.line(12, 9, 15, 9, '#2bf3ff'); },
+    'col.badge': p => { p.ell(8, 8, 6, 7, '#ffd23a'); p.ell(8, 8, 4, 5, '#e8a800'); p.ell(8, 8, 2, 2.4, '#2b6bff'); p.rect(7, 1, 2, 2, '#ffd23a'); },
+    'col.mangebob': p => { p.rect(5, 13, 6, 2, '#333'); p.rect(7, 10, 2, 3, '#2a2a30'); p.ell(8, 6, 5, 4.6, '#6e6e74'); p.ell(3, 4, 1.6, 2.6, '#48484e'); p.ell(13, 4, 1.6, 2.6, '#48484e'); p.rect(5, 5, 3, 2, '#111'); p.set(10, 5, '#111'); p.ell(8, 8, 2.4, 1.6, '#9a9aa2'); p.set(8, 7, '#111'); p.rect(6, 10, 4, 1, '#2a2a2a'); },
   });
   // ---- seasonal icons
   const heart = (p, x, y, c) => { p.rect(x, y, 2, 2, c); p.rect(x + 3, y, 2, 2, c); p.rect(x, y + 1, 5, 2, c); p.rect(x + 1, y + 3, 3, 1, c); p.set(x + 2, y + 4, c); };
@@ -1089,7 +1139,9 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
       const last = rows[rows.length - 1];
       if (last && last.title === slots[sl]) last.items = last.items.concat(items); else rows.push({ title: slots[sl], items });
     });
-    const codes = Tickets.cheatsFor(game).filter(i => w.owned[i.id]);
+    const perks = Tickets.cheatsFor(game).filter(i => i.perk && w.owned[i.id]);
+    if (perks.length) rows.push({ title: 'LOADOUT (TAGS YOUR SCORE)', items: perks });
+    const codes = Tickets.cheatsFor(game).filter(i => !i.perk && w.owned[i.id]);
     if (codes.length) rows.push({ title: 'CHEAT CODES', items: codes });
     return rows;
   }

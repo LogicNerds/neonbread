@@ -244,10 +244,10 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     setEquip(game, slot, id) { const w = tkLoad(); w.equip[game] = w.equip[game] || {}; if (id) w.equip[game][slot] = id; else delete w.equip[game][slot]; tkSave(w); },
     // ---- cheat cards: codes live in w.owned like any prize; w.cheats[id] = switched on
     cheatsFor(game) { return Tickets.catalog.filter(i => i.cheat && i.game === game); },
-    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !w.owned[i.id]).length; },
+    envelopeLeft(game) { const w = tkLoad(); return Tickets.cheatsFor(game).filter(i => !i.perk && !w.owned[i.id]).length; },
     // buy an envelope: takes the tickets and reveals one code you don't have yet, at random
     openEnvelope(game) {
-      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !w.owned[i.id]);
+      const w = tkLoad(), env = Tickets.item('env.' + game), left = Tickets.cheatsFor(game).filter(i => !i.perk && !w.owned[i.id]);
       if (!env || !left.length || w.bal < env.price) return null;
       const got = left[Math.floor(Math.random() * left.length)];
       w.bal -= env.price; w.spent += env.price; w.owned[got.id] = Date.now(); tkSave(w); return got;
@@ -257,7 +257,11 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
       if (w.owned[id] && w.cheats && w.cheats[id]) return true;
       const it = Tickets.item(id); return !!(it && it.freeDay && it.freeDay === pacificDay());   // free for everyone that day
     },
-    setCheat(id, on) { const w = tkLoad(); w.cheats = w.cheats || {}; if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w); },
+    setCheat(id, on) {
+      const w = tkLoad(), it = Tickets.item(id); w.cheats = w.cheats || {};
+      if (on && it && it.group) Tickets.catalog.forEach(o => { if (o.group === it.group && o.id !== id) delete w.cheats[o.id]; });   // one of a group at a time (Five O starting guns)
+      if (on) w.cheats[id] = 1; else delete w.cheats[id]; tkSave(w);
+    },
     // a run with any gameplay (T) code switched on is tagged on the leaderboard
     tagged(game) { return Tickets.cheatsFor(game).some(i => i.tag && Tickets.cheatOn(game, i.id.split('.')[2])); },
     // work out what a finished run pays (doesn't save). A tagged run can't set a personal best.
@@ -306,6 +310,8 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     { id: 'col.chonx', shelf: 'collect', name: 'CHONX PLUSH', price: 800 },
     { id: 'col.gerb', shelf: 'collect', name: 'GERB PLUSH', price: 900 },
     { id: 'col.mittens', shelf: 'collect', name: 'CHAIRMAN MITTENS PLUSH', price: 1200 },
+    { id: 'col.badge', shelf: 'collect', name: 'CHONX BADGE PIN', price: 450 },
+    { id: 'col.mangebob', shelf: 'collect', name: 'MANGE BOBBLEHEAD', price: 700 },
     { id: 'top.giant', shelf: 'top', name: 'GIANT CHONX PLUSH', price: 10000 },
     { id: 'top.token', shelf: 'top', name: 'GOLD ARCADE TOKEN', price: 25000 },
   ];
@@ -337,6 +343,10 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
   add('cheekyops', 'reticle', [['paw', 'HAMSTER-PAW RETICLE', 300], ['heart', 'HEART RETICLE', 300], ['skull', 'SKULL RETICLE', 400], ['sixseven', '"6 7" RETICLE', 400], ['gold', 'GOLD RETICLE', 800]]);
   add('cheekyops', 'rifle', [['camo', 'CAMO RIFLE', 400], ['wood', 'WOOD-STOCK RIFLE', 500], ['neon', 'NEON RIFLE', 600], ['gold', 'GOLD RIFLE', 2500]]);
   add('cheekyops', 'outfit', [['tux', 'SPY TUXEDO', 1200]]);
+  add('fiveo', 'outfit', [['trench', 'DETECTIVE TRENCH COAT', 800], ['riot', 'RIOT HELMET', 900], ['swat', 'SWAT GEAR', 1000], ['moto', 'MOTORCYCLE COP', 1000], ['miami', 'MIAMI PASTEL SUIT', 1200]]);
+  add('fiveo', 'gun', [['wood', 'WOOD-GRIP PISTOL', 300], ['chrome', 'CHROME PISTOL', 400], ['neon', 'NEON PISTOL', 600], ['gold', 'GOLD PISTOL', 1500]]);
+  add('fiveo', 'reticle', [['badge', 'BADGE CROSSHAIR', 300], ['donut', 'DONUT CROSSHAIR', 300], ['star', 'STAR CROSSHAIR', 300], ['skull', 'SKULL CROSSHAIR', 400]]);
+  add('fiveo', 'flash', [['blue', 'BLUE MUZZLE FLASH', 250], ['green', 'GREEN MUZZLE FLASH', 250], ['pink', 'PINK MUZZLE FLASH', 250], ['rainbow', 'RAINBOW MUZZLE FLASH', 600]]);
   add('pedxing', 'livery', [['student', 'STUDENT DRIVER', 300], ['stripes', 'RACING STRIPES', 400], ['camo', 'CAMO', 400], ['checker', 'CHECKERBOARD', 500], ['wood', 'WOOD PANEL', 500], ['pizza', 'PIZZA DELIVERY', 500], ['flames', 'FLAMES', 600], ['neonbread', 'NEON BREAD DELIVERY', 700], ['chrome', 'CHROME', 2000], ['gold', 'GOLD', 5000]]);
   add('pedxing', 'horn', [['duck', 'DUCK-QUACK HORN', 250], ['clown', 'CLOWN HONK', 300], ['goose', 'GOOSE HORN', 300], ['train', 'TRAIN HORN', 600]]);
   add('pedxing', 'dash', [['dice', 'FUZZY DICE', 150], ['bobble', 'CHONX DASHBOARD BOBBLE', 300]]);
@@ -349,14 +359,20 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     chonx: [['bighead', 'BIG HEAD MODE', 'C'], ['paintball', 'PAINTBALL MODE', 'C'], ['jetpack', 'INFINITE JETPACK', 'T']],
     cheekyops: [['hats', 'PARTY HATS', 'C'], ['confetti', 'CONFETTI INSTEAD OF GORE', 'C'], ['nosway', 'NO SWAY', 'T']],
     gta: [['hamster', 'HAMSTER GRANNIES', 'C'], ['monster', 'MONSTER VAN', 'C'], ['turbo', 'TURBO VAN', 'T']],
+    fiveo: [['bighead', 'BIG HEAD STRAYS', 'C'], ['donut', 'DONUT AMMO', 'C'], ['bottomless', 'BOTTOMLESS MAG', 'T']],
   };
-  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY' };
+  const CHEAT_NOTES = { 'pedxing.chonx': 'HIDDEN CHONX PEDESTRIANS', 'chonx.bighead': 'LOOKS ONLY', 'fiveo.bighead': 'LOOKS ONLY', 'fiveo.donut': 'SPRINKLES INSTEAD OF GORE' };
   Tickets.CHEAT_PRICE = 750;
   Object.keys(CHEATS).forEach(game => {
     Tickets.catalog.push({ id: 'env.' + game, shelf: 'cheats', game, envelope: true, name: GAMES[game].title + ' CHEATS', note: '1 OF 3 CODES, AT RANDOM', price: Tickets.CHEAT_PRICE });
     CHEATS[game].forEach(([key, name, kind]) => Tickets.catalog.push({ id: 'cheat.' + game + '.' + key, shelf: 'codes', game, cheat: true, tag: kind === 'T', name, price: 0,
       note: kind === 'T' ? 'TAGS YOUR SCORE' : (CHEAT_NOTES[game + '.' + key] || '') }));
   });
+  // ---- Five O loadout: bought outright at the counter (not in the envelope), switched ON/OFF in the game's PRIZES menu.
+  // They change the game, so a run with any of them on is tagged, like a T cheat code. Starting guns: one at a time.
+  [['armor', 'START WITH BODY ARMOR', 1500], ['shotgun', 'START WITH A SHOTGUN', 1000, 'gun'], ['smg', 'START WITH AN SMG', 1000, 'gun'], ['magnum', 'START WITH A MAGNUM', 1200, 'gun'],
+   ['medkit', 'EXTRA MED KIT EVERY ZONE', 1200], ['mag8', 'EXTENDED MAG (8 ROUNDS)', 800], ['reload', 'FAST RELOAD', 800]]
+    .forEach(([key, name, price, grp]) => Tickets.catalog.push({ id: 'cheat.fiveo.' + key, shelf: 'fiveo', game: 'fiveo', cheat: true, perk: true, tag: true, group: grp ? 'fiveo.' + grp : undefined, name, price, note: 'TAGS YOUR SCORE' }));
   // ---- seasonal: sold only in their window (Pacific dates, from the device clock), kept forever, equipped like anything else
   const SEASONS = {
     holidays: ['2026-12-01', '2026-12-31', 'HOLIDAYS'], newyear: ['2026-12-31', '2027-01-02', "NEW YEAR'S"],
@@ -420,7 +436,7 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     const [t, n, ok] = list[h % list.length];
     return { t, n, ok, done: tkLoad().chal[game] === d };
   };
-  Tickets.shelves = { seasonal: 'SEASONAL', cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING' };
+  Tickets.shelves = { seasonal: 'SEASONAL', cheats: 'CHEAT CARDS', junk: 'JUNK', collect: 'COLLECTIBLES', top: 'TOP SHELF', chonx: "CHONX '26", cheekyops: 'CHEEKY OPS', yeet: 'YEET THE BABY', gta: 'GRANDMA THEFT AUTO', karen: 'BODY THE KAREN', pedxing: 'PED X-ING', fiveo: 'CHONX FIVE O' };
   Tickets.slots = {
     yeet: { hat: 'HATS', face: 'FACE', outfit: 'OUTFIT', trail: 'FLIGHT TRAIL' },
     chonx: { skin: 'SKINS', shots: 'SHOTS' },
@@ -428,6 +444,7 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     karen: { cone: 'THROWABLES', dentures: 'THROWABLES', clanker: 'THROWABLES', casserole: 'THROWABLES', review: 'THROWABLES', rat: 'THROWABLES', plush: 'THROWABLES', brain: 'THROWABLES', monocle: 'THROWABLES', baby: 'THROWABLES', band: 'SLINGSHOT', pouch: 'SLINGSHOT', frame: 'SLINGSHOT' },
     gta: { hat: 'GRANDMA: HATS', eyes: 'GRANDMA: GLASSES', neck: 'GRANDMA: NECK', body: 'GRANDMA: CARDIGAN', bag: 'GRANDMA: HANDBAG', feet: 'GRANDMA: SLIPPERS', walker: 'GRANDMA: WALKER', livery: 'VAN: LIVERY', horn: 'VAN: HORN' },
     pedxing: { livery: 'LIVERY', horn: 'HORN', dash: 'DASHBOARD' },
+    fiveo: { outfit: 'OUTFIT', gun: 'PISTOL', reticle: 'CROSSHAIR', flash: 'MUZZLE FLASH' },
   };
   Tickets.item = id => Tickets.catalog.find(i => i.id === id) || null;
   // ---- prize icons: 16x16 pixel art drawn in code (shown at the counter and in each game's PRIZES menu)
@@ -598,6 +615,39 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
     'cheekyops.rifle.neon': p => { rifleArt(p, '#ff2bd6', '#00e5ff', '#00e5ff'); },
     'cheekyops.rifle.gold': p => { rifleArt(p, '#ffcc00', '#d4a800', '#fff3a0'); },
     'cheekyops.outfit.tux': p => { p.rect(3, 3, 10, 12, '#111111'); p.rect(7, 3, 2, 12, '#ffffff'); p.rect(6, 3, 4, 2, '#e53935'); p.set(8, 7, '#111'); p.set(8, 10, '#111'); p.line(4, 3, 7, 8, '#2a2a2a'); p.line(12, 3, 9, 8, '#2a2a2a'); },
+  });
+  // ---- Chonx Five O
+  const chonxBack = (p, cap, shirt, ear = true) => { p.ell(8, 15, 7, 4, shirt); p.ell(8, 9, 5, 4.6, '#d9893b'); if (ear) { p.ell(3.5, 7, 1.4, 1.6, '#d9893b'); p.ell(12.5, 7, 1.4, 1.6, '#d9893b'); } if (cap) cap(p); };
+  const pistolArt = (p, a, b) => { p.rect(2, 6, 10, 3, a); p.rect(2, 6, 10, 1, b); p.rect(9, 9, 3, 5, a); p.rect(10, 10, 1, 3, b); p.rect(6, 9, 2, 2, a); };
+  const xhair = (p, c) => { p.ell(8, 8, 6, 6, c); p.ell(8, 8, 4.8, 4.8, null); p.rect(8, 0, 1, 4, c); p.rect(8, 13, 1, 3, c); p.rect(0, 8, 4, 1, c); p.rect(13, 8, 3, 1, c); };
+  const flashArt = (p, c1, c2) => { for (let a = 0; a < 8; a++) { const ang = a * Math.PI / 4, r = a % 2 ? 4 : 7; p.line(8, 8, 8 + Math.cos(ang) * r, 8 + Math.sin(ang) * r, c1); } p.ell(8, 8, 2.5, 2.5, c2); };
+  Object.assign(ICON_ART, {
+    'fiveo.outfit.trench': p => chonxBack(p, p => { p.rect(3, 3, 10, 2, '#5a4632'); p.rect(1, 5, 14, 1, '#5a4632'); p.rect(3, 4, 10, 1, '#2a2018'); }, '#b89a6a'),
+    'fiveo.outfit.riot': p => chonxBack(p, p => { p.ell(8, 7, 6, 5.5, '#1a2550'); p.rect(2, 8, 12, 3, '#9ac0e0'); p.rect(2, 8, 12, 1, '#d8ecff'); }, '#1a2550', false),
+    'fiveo.outfit.swat': p => { chonxBack(p, p => { p.ell(8, 6, 5.5, 4, '#1a1a1e'); p.rect(3, 7, 10, 1, '#3a3a40'); }, '#1a1a1e', false); p.rect(3, 13, 10, 3, '#1a1a1e'); [[4, '1110'], [7, '1011'], [10, '1110']].forEach(([x]) => p.rect(x, 13, 2, 2, '#e8e8e8')); },
+    'fiveo.outfit.moto': p => chonxBack(p, p => { p.ell(8, 6, 6, 5, '#f4f4f4'); p.rect(2, 7, 12, 2, '#1a2550'); p.set(8, 2, '#ffd23a'); }, '#6a3a1e', false),
+    'fiveo.outfit.miami': p => { chonxBack(p, null, '#ff9ad0'); p.rect(6, 12, 4, 4, '#7af0e0'); p.ell(8, 6, 4.6, 2, '#a8621f'); },
+    'fiveo.gun.wood': p => pistolArt(p, '#2a2d36', '#5a606c') || p.rect(9, 9, 3, 5, '#8d5524'),
+    'fiveo.gun.chrome': p => pistolArt(p, '#c8ccd4', '#ffffff'),
+    'fiveo.gun.neon': p => pistolArt(p, '#ff2bd6', '#2bf3ff'),
+    'fiveo.gun.gold': p => pistolArt(p, '#ffcc00', '#fff3a0'),
+    'fiveo.reticle.badge': p => { xhair(p, '#ffffff'); p.ell(8, 8, 2.6, 2.8, '#ffd23a'); p.set(8, 8, '#2b6bff'); },
+    'fiveo.reticle.donut': p => { p.ell(8, 8, 6.5, 6.5, '#e8a860'); p.ell(8, 8, 5.5, 5.5, '#ff8ac8'); p.ell(8, 8, 2, 2, null); [[5, 4, '#2bf3ff'], [11, 5, '#ffe14d'], [4, 10, '#ffffff'], [11, 11, '#7dff4a'], [8, 3, '#ff2a3d']].forEach(([x, y, c]) => p.set(x, y, c)); },
+    'fiveo.reticle.star': p => { xhair(p, '#ffffff'); p.rect(7, 6, 3, 5, '#ffd23a'); p.rect(6, 7, 5, 2, '#ffd23a'); },
+    'fiveo.reticle.skull': p => { xhair(p, '#ffffff'); p.ell(8, 7.5, 2.4, 2.2, '#ffffff'); p.rect(7, 9, 3, 1, '#ffffff'); p.set(7, 7, '#111'); p.set(9, 7, '#111'); },
+    'fiveo.flash.blue': p => flashArt(p, '#2b6bff', '#bfe0ff'),
+    'fiveo.flash.green': p => flashArt(p, '#39ff6a', '#d8ffd8'),
+    'fiveo.flash.pink': p => flashArt(p, '#ff2bd6', '#ffd3f6'),
+    'fiveo.flash.rainbow': p => { ['#ff3b3b', '#ff9a1f', '#ffe14d', '#3ddc5a', '#2f8cff', '#9b4bff', '#ff2bd6', '#2bf3ff'].forEach((c, a) => { const ang = a * Math.PI / 4, r = a % 2 ? 4 : 7; p.line(8, 8, 8 + Math.cos(ang) * r, 8 + Math.sin(ang) * r, c); }); p.ell(8, 8, 2.5, 2.5, '#ffffff'); },
+    'cheat.fiveo.armor': p => { p.rect(3, 2, 10, 12, '#2a3a6a'); p.rect(3, 2, 3, 3, null); p.rect(10, 2, 3, 3, null); p.rect(5, 6, 6, 6, '#3a4e8a'); p.rect(7, 7, 2, 3, '#ffd23a'); p.rect(3, 13, 10, 1, '#1a2550'); },
+    'cheat.fiveo.shotgun': p => { p.rect(1, 6, 14, 2, '#3a3e46'); p.rect(1, 5, 9, 1, '#6a707c'); p.rect(10, 6, 5, 4, '#8a5a2a'); p.rect(6, 8, 3, 2, '#5a3a1a'); },
+    'cheat.fiveo.smg': p => { p.rect(3, 5, 10, 4, '#26282e'); p.rect(3, 5, 10, 1, '#5a606c'); p.rect(7, 9, 2, 5, '#26282e'); p.rect(11, 9, 2, 3, '#26282e'); p.rect(0, 6, 3, 2, '#3a3e46'); },
+    'cheat.fiveo.magnum': p => { p.rect(1, 6, 9, 3, '#c8ccd4'); p.rect(1, 6, 9, 1, '#ffffff'); p.ell(10, 7.5, 2.5, 2.5, '#9aa0aa'); p.rect(11, 9, 3, 5, '#5a3a1a'); },
+    'cheat.fiveo.medkit': p => { p.rect(2, 4, 12, 10, '#f4f4f4'); p.rect(6, 2, 4, 2, '#a0a0a0'); p.rect(7, 6, 2, 6, '#e8202a'); p.rect(5, 8, 6, 2, '#e8202a'); },
+    'cheat.fiveo.mag8': p => { p.rect(5, 2, 6, 13, '#3a3e46'); p.rect(5, 2, 6, 1, '#6a707c'); for (let k = 0; k < 4; k++) p.rect(6, 4 + k * 3, 4, 2, '#e8c040'); },
+    'cheat.fiveo.reload': p => { p.rect(5, 4, 6, 11, '#3a3e46'); p.rect(6, 6, 4, 2, '#e8c040'); p.line(1, 2, 4, 2, '#2bf3ff'); p.line(0, 5, 3, 5, '#2bf3ff'); p.line(12, 9, 15, 9, '#2bf3ff'); },
+    'col.badge': p => { p.ell(8, 8, 6, 7, '#ffd23a'); p.ell(8, 8, 4, 5, '#e8a800'); p.ell(8, 8, 2, 2.4, '#2b6bff'); p.rect(7, 1, 2, 2, '#ffd23a'); },
+    'col.mangebob': p => { p.rect(5, 13, 6, 2, '#333'); p.rect(7, 10, 2, 3, '#2a2a30'); p.ell(8, 6, 5, 4.6, '#6e6e74'); p.ell(3, 4, 1.6, 2.6, '#48484e'); p.ell(13, 4, 1.6, 2.6, '#48484e'); p.rect(5, 5, 3, 2, '#111'); p.set(10, 5, '#111'); p.ell(8, 8, 2.4, 1.6, '#9a9aa2'); p.set(8, 7, '#111'); p.rect(6, 10, 4, 1, '#2a2a2a'); },
   });
   // ---- seasonal icons
   const heart = (p, x, y, c) => { p.rect(x, y, 2, 2, c); p.rect(x + 3, y, 2, 2, c); p.rect(x, y + 1, 5, 2, c); p.rect(x + 1, y + 3, 3, 1, c); p.set(x + 2, y + 4, c); };
@@ -1097,7 +1147,9 @@ h1.big{font-size:72px;color:var(--blue);text-shadow:0 0 20px var(--blue),5px 5px
       const last = rows[rows.length - 1];
       if (last && last.title === slots[sl]) last.items = last.items.concat(items); else rows.push({ title: slots[sl], items });
     });
-    const codes = Tickets.cheatsFor(game).filter(i => w.owned[i.id]);
+    const perks = Tickets.cheatsFor(game).filter(i => i.perk && w.owned[i.id]);
+    if (perks.length) rows.push({ title: 'LOADOUT (TAGS YOUR SCORE)', items: perks });
+    const codes = Tickets.cheatsFor(game).filter(i => !i.perk && w.owned[i.id]);
     if (codes.length) rows.push({ title: 'CHEAT CODES', items: codes });
     return rows;
   }
@@ -1805,25 +1857,44 @@ function civSprite(sp, ci, pose) { const k = 'c|' + sp + '|' + ci + '|' + pose; 
 
 // ---------- Chonx from behind (over-the-shoulder), 50x60, drawn x2 ----------
 const CH = { fur: '#d9893b', furD: '#a8621f', furL: '#f6c98a', pink: '#ff9fb0', navy: '#1a2550', navyD: '#0e1634', navyL: '#33468a', shirt: '#26346c', gold: '#ffd23a', patch: '#3a6ad0' };
-function chonxBackPX(f) {
-  const p = new PX(50, 60), cx = 22;
-  // shoulders + back (navy uniform shirt)
-  p.ell(cx, 56, 21, 16, CH.shirt); p.rect(1, 50, 42, 10, CH.shirt);
-  p.shadeEll(cx, 56, 21, 16, CH.shirt, CH.navyD, CH.navyL); p.rect(1, 56, 42, 4, CH.shirt);
-  p.rect(cx - 1, 44, 2, 16, CH.navyD);                                  // back seam
-  p.ell(cx - 15, 49, 5, 4, CH.navyL); p.rect(cx - 19, 46, 8, 2, CH.navy); // left shoulder epaulette
-  p.ell(cx - 17, 53, 3, 3.4, CH.patch); p.set(cx - 17, 53, CH.gold); p.set(cx - 17, 52, CH.gold);   // shoulder patch
-  p.rect(cx + 12, 46, 8, 2, CH.navy);
+// outfits from the prize counter (PRIZES on the title menu)
+const OUTFIT = {
+  std: { sh: CH.shirt, d: CH.navyD, l: CH.navyL, hat: 'cap' },
+  trench: { sh: '#b89a6a', d: '#8a7048', l: '#d8bc8a', hat: 'fedora', collar: '#a08458' },
+  riot: { sh: '#1a2550', d: '#0e1634', l: '#33468a', hat: 'helmet', hc: '#1a2550', text: 'POLICE' },
+  swat: { sh: '#1c1c22', d: '#0c0c10', l: '#3a3a44', hat: 'helmet', hc: '#1c1c22', text: 'SWAT' },
+  moto: { sh: '#6a3a1e', d: '#4a2612', l: '#8a5a32', hat: 'helmet', hc: '#f0f0f0', stripe: '#1a2550' },
+  miami: { sh: '#ff9ad0', d: '#d870a8', l: '#ffc8e8', hat: 'none' },
+};
+function chonxBackPX(key) {
+  const o = OUTFIT[key] || OUTFIT.std, p = new PX(50, 60), cx = 22;
+  // shoulders + back
+  p.ell(cx, 56, 21, 16, o.sh); p.rect(1, 50, 42, 10, o.sh);
+  p.shadeEll(cx, 56, 21, 16, o.sh, o.d, o.l); p.rect(1, 56, 42, 4, o.sh);
+  p.rect(cx - 1, 44, 2, 16, o.d);                                       // back seam
+  if (!key) {
+    p.ell(cx - 15, 49, 5, 4, CH.navyL); p.rect(cx - 19, 46, 8, 2, CH.navy);   // left shoulder epaulette
+    p.ell(cx - 17, 53, 3, 3.4, CH.patch); p.set(cx - 17, 53, CH.gold); p.set(cx - 17, 52, CH.gold);   // shoulder patch
+    p.rect(cx + 12, 46, 8, 2, CH.navy);
+  }
+  if (o.text) { const w = o.text.length * 4 - 1; let x0 = cx - Math.floor(w / 2); for (const ch of o.text) { const g = MINI[ch]; for (let j = 0; j < 5; j++) for (let i = 0; i < 3; i++) if (g[j][i] === '1') p.set(x0 + i, 50 + j, '#e8e8e8'); x0 += 4; } p.rect(cx - 1, 49, 2, 7, o.sh); for (let j = 0; j < 5; j++) { } }
+  if (o.collar) { p.ell(cx, 44, 13, 4, o.collar); p.rect(cx - 13, 44, 26, 3, o.collar); }
   // head (back of a hamster head) + cheeks poking out
   p.ell(cx - 11, 33, 4, 4.4, CH.fur); p.ell(cx + 11, 33, 4, 4.4, CH.fur);
   p.shadeEll(cx, 30, 12.5, 12, CH.fur, CH.furD, CH.furL);
   p.ell(cx, 38, 8, 4, CH.furD);
-  // ears under the cap
-  p.ell(cx - 11, 19, 3, 3.2, CH.fur); p.ell(cx + 11, 19, 3, 3.2, CH.fur); p.ell(cx - 11, 19, 1.4, 1.6, CH.pink); p.ell(cx + 11, 19, 1.4, 1.6, CH.pink);
-  // police cap from behind
-  p.ell(cx, 17, 12, 6.5, CH.navy); p.shadeEll(cx, 16, 12, 6.5, CH.navy, CH.navyD, CH.navyL);
-  p.rect(cx - 11, 20, 22, 3, '#0a0a0a'); p.rect(cx - 10, 20, 20, 1, '#3a3a3a');
-  p.rect(cx - 1, 9, 2, 2, CH.gold);
+  if (o.hat === 'cap' || o.hat === 'fedora' || o.hat === 'none') { p.ell(cx - 11, 19, 3, 3.2, CH.fur); p.ell(cx + 11, 19, 3, 3.2, CH.fur); p.ell(cx - 11, 19, 1.4, 1.6, CH.pink); p.ell(cx + 11, 19, 1.4, 1.6, CH.pink); }
+  if (o.hat === 'cap') {
+    p.ell(cx, 17, 12, 6.5, CH.navy); p.shadeEll(cx, 16, 12, 6.5, CH.navy, CH.navyD, CH.navyL);
+    p.rect(cx - 11, 20, 22, 3, '#0a0a0a'); p.rect(cx - 10, 20, 20, 1, '#3a3a3a');
+    p.rect(cx - 1, 9, 2, 2, CH.gold);
+  } else if (o.hat === 'fedora') {
+    p.rect(cx - 16, 21, 32, 3, '#4a3826'); p.rect(cx - 16, 21, 32, 1, '#6a5238');
+    p.ell(cx, 16, 10, 6, '#5a4632'); p.shadeEll(cx, 16, 10, 6, '#5a4632', '#3a2a1c', '#7a6248'); p.rect(cx - 10, 18, 20, 3, '#2a1e14');
+  } else if (o.hat === 'helmet') {
+    p.shadeEll(cx, 24, 14, 13, o.hc, shade(o.hc, .65), shade(o.hc, 1.3)); p.rect(cx - 14, 31, 28, 3, shade(o.hc, .55));
+    if (o.stripe) p.rect(cx - 2, 11, 4, 20, o.stripe);
+  } else if (o.hat === 'none') { p.ell(cx, 22, 10, 5, CH.furD); for (let x = cx - 8; x <= cx + 8; x += 3) p.line(x, 18, x + 1, 26, '#8a4e16'); }
   p.outline(OL);
   return p;
 }
@@ -1831,7 +1902,7 @@ function chonxBackPX(f) {
 // ---------- pickups ----------
 const PICK = {
   shotgun: { name: 'SHOTGUN', col: '#ff9a3a' }, smg: { name: 'SMG', col: '#2bf3ff' }, magnum: { name: 'MAGNUM', col: '#ff4bd8' },
-  aid: { name: 'FIRST AID', col: '#39ff6a' }, vest: { name: 'VEST', col: '#7fa6ff' },
+  aid: { name: 'FIRST AID', col: '#39ff6a' }, vest: { name: 'BODY ARMOR', col: '#7fa6ff' },
 };
 function pickPX(k) {
   const p = new PX(24, 14);
@@ -1977,9 +2048,26 @@ function compactorPX() { const p = new PX(124, 58); p.rect(4, 14, 116, 42, '#e8b
 
 // ---------- arm/gun (drawn live on the world canvas) ----------
 const GUNCOL = { pistol: ['#22252c', '#5a606c'], shotgun: ['#3a3e46', '#8a5a2a'], smg: ['#26282e', '#5a606c'], magnum: ['#c8ccd4', '#ffffff'] };
+// ---------- prize counter: cosmetics (equipped in PRIZES), loadout + cheat codes (ON/OFF in PRIZES) ----------
+const PISTOL_SKINS = { wood: ['#2a2d36', '#8d5524'], chrome: ['#c8ccd4', '#ffffff'], neon: ['#ff2bd6', '#2bf3ff'], gold: ['#ffcc00', '#fff3a0'] };
+const FLASHES = { blue: ['#2b6bff', '#d0e4ff'], green: ['#39ff6a', '#e0ffe0'], pink: ['#ff2bd6', '#ffe0f6'] };
+const BLOOD_REAL = BLOOD.slice(), SPRINKLES = ['#ff8ac8', '#2bf3ff', '#ffe14d', '#ffffff', '#7dff4a', '#c87a3a'];
+let POOLCOLS = ['#7a0010', '#8a0014', '#6a000e'];
+const FX = { eq: {}, armor: false, gun: null, medkit: false, mag8: false, reload: false, bighead: false, donut: false, bottomless: false };
+function refreshFX() {
+  const T = window.NBTickets, on = k => { try { return !!(T && T.cheatOn('fiveo', k)); } catch (e) { return false; } };
+  ['armor', 'medkit', 'mag8', 'reload', 'bighead', 'donut', 'bottomless'].forEach(k => FX[k] = on(k));
+  FX.gun = ['shotgun', 'smg', 'magnum'].find(on) || null;
+  FX.eq = {}; try { const e = (T && T.equipped('fiveo')) || {}; Object.keys(e).forEach(k => FX.eq[k] = (e[k] || '').split('.')[2]); } catch (err) { }
+  GUNCOL.pistol = PISTOL_SKINS[FX.eq.gun] || ['#22252c', '#5a606c'];
+  BLOOD.splice(0, BLOOD.length, ...(FX.donut ? SPRINKLES : BLOOD_REAL));         // Donut Ammo: sprinkles instead of gore
+  POOLCOLS = FX.donut ? ['#ff8ac8', '#ffb0d8', '#e86aa8'] : ['#7a0010', '#8a0014', '#6a000e'];
+  if (S.chonx) S.chonx = mkSprite(chonxBackPX(FX.eq.outfit));
+}
+const PMAG = () => FX.mag8 ? 8 : 6, RELOAD_T = () => FX.reload ? 27 : 48;
 
 function buildSprites() {
-  S.chonx = mkSprite(chonxBackPX());
+  S.chonx = mkSprite(chonxBackPX(FX.eq.outfit));
   S.pick = {}; Object.keys(PICK).forEach(k => S.pick[k] = mkSprite(pickPX(k)));
   S.car = {}; ['#c83a3a', '#3a6ac8', '#e8e0d0', '#4a4a52', '#3a8a5a', '#d8a030', '#7a3ab0'].forEach(c => S.car[c] = [0, 1, 2].map(d => mkSprite(carPX(c, d))));
   S.dumpster = [0, 1, 2].map(d => mkSprite(dumpsterPX(d)));
@@ -2405,7 +2493,7 @@ function drawPart(p) {
   wctx.globalAlpha = Math.min(1, p.life / 12); wctx.fillStyle = p.col; wctx.fillRect(Math.round(q.x - s / 2), Math.round(q.y - s / 2), s, s); wctx.globalAlpha = 1;
 }
 const Pools = [];
-function addPool(x, z, r) { if (Pools.length > 120) Pools.shift(); Pools.push({ x, z, r: r * rand(.8, 1.3), col: pick(['#7a0010', '#8a0014', '#6a000e']) }); }
+function addPool(x, z, r) { if (Pools.length > 120) Pools.shift(); Pools.push({ x, z, r: r * rand(.8, 1.3), col: pick(POOLCOLS) }); }
 const Shells = [];   // screen-space brass from Chonx's gun
 function updateShells() { for (let i = Shells.length - 1; i >= 0; i--) { const s = Shells[i]; s.vy += 0.25; s.x += s.vx; s.y += s.vy; s.r += 0.4; if (--s.life <= 0 || s.y > VH + 4) Shells.splice(i, 1); } }
 
@@ -2429,8 +2517,9 @@ function drawChonx() {
   }
   for (let i = 0; i <= steps; i++) {
     const k = i / steps, x = shX + (ex - shX) * k, y = shY + (ey - shY) * k, r = lerp(9, 6, k);
-    wctx.fillStyle = k < 0.72 ? CH.shirt : CH.fur; wctx.fillRect(Math.round(x - r), Math.round(y - r), Math.round(r * 2), Math.round(r * 2));
-    wctx.fillStyle = k < 0.72 ? CH.navyL : CH.furL; wctx.fillRect(Math.round(x - r + 1), Math.round(y - r + 1), Math.round(r), 2);
+    const OF = OUTFIT[FX.eq.outfit] || OUTFIT.std;
+    wctx.fillStyle = k < 0.72 ? OF.sh : CH.fur; wctx.fillRect(Math.round(x - r), Math.round(y - r), Math.round(r * 2), Math.round(r * 2));
+    wctx.fillStyle = k < 0.72 ? OF.l : CH.furL; wctx.fillRect(Math.round(x - r + 1), Math.round(y - r + 1), Math.round(r), 2);
   }
   // gun (seen from behind: a block pointing at the target)
   const gc = GUNCOL[P.weapon] || GUNCOL.pistol, gl = P.weapon === 'shotgun' ? 18 : P.weapon === 'smg' ? 13 : P.weapon === 'magnum' ? 14 : 10;
@@ -2445,8 +2534,9 @@ function drawChonx() {
   // muzzle flash at the end of the barrel
   if (P.flash > 0) {
     const mx = ex + Math.cos(ang) * (gl + 4), my = ey + Math.sin(ang) * (gl + 4), R = P.weapon === 'shotgun' || P.weapon === 'magnum' ? 13 : 9;
-    wctx.fillStyle = '#ffd23a'; for (let a = 0; a < 8; a++) { const aa = a * Math.PI / 4 + P.flash; wctx.fillRect(Math.round(mx + Math.cos(aa) * R * (a % 2 ? .5 : 1) - 2), Math.round(my + Math.sin(aa) * R * (a % 2 ? .5 : 1) - 2), 4, 4); }
-    wctx.fillStyle = '#fff7c0'; wctx.fillRect(Math.round(mx - 4), Math.round(my - 4), 8, 8);
+    const FC = FX.eq.flash === 'rainbow' ? [['#ff3b3b', '#ff9a1f', '#ffe14d', '#3ddc5a', '#2f8cff', '#9b4bff', '#ff2bd6', '#2bf3ff'][Math.floor(G.t / 3) % 8], '#ffffff'] : FLASHES[FX.eq.flash] || ['#ffd23a', '#fff7c0'];
+    wctx.fillStyle = FC[0]; for (let a = 0; a < 8; a++) { const aa = a * Math.PI / 4 + P.flash; wctx.fillRect(Math.round(mx + Math.cos(aa) * R * (a % 2 ? .5 : 1) - 2), Math.round(my + Math.sin(aa) * R * (a % 2 ? .5 : 1) - 2), 4, 4); }
+    wctx.fillStyle = FC[1]; wctx.fillRect(Math.round(mx - 4), Math.round(my - 4), 8, 8);
   }
   // body over the base of the arm
   wctx.drawImage(P.hurtT > 0 && P.hurtT % 6 < 3 ? sp.flash : sp.img, ox - sp.w, oy - sp.h * 2, sp.w * 2, sp.h * 2);
@@ -2524,6 +2614,8 @@ function buildStage(si) {
     zone.covers.forEach(c => { const k = COVER[c.k]; st.objs.push(Object.assign({ w: k.w, d: k.d, h: k.h, hp: k.hp, max: k.hp, dmg: 0, def: k }, c, { z: zone.z0 + c.z, zone })); });
     zone.props.forEach(p => st.props.push(Object.assign({}, p, { z: zone.z0 + p.z })));
     zone.pk.forEach(p => st.picks.push({ k: p.k, x: p.x, z: zone.z0 + p.z, t: Math.random() * 100 }));
+    if (zone.armor) st.picks.push({ k: 'vest', x: zone.armor[0], z: zone.z0 + zone.armor[1], t: Math.random() * 100 });
+    if (FX.medkit && i > 0 && !zone.boss) st.picks.push({ k: 'aid', x: (i % 2 ? 1 : -1) * (zone.hw - 1.2), z: zone.z0 + 2.5, t: 0 });
     // street lights every 9 units on both sidewalks
     if (zone.lights) for (let lz = 4; lz < zone.len; lz += 9) { st.props.push({ k: 'light', x: -(zone.hw - 0.7), z: zone.z0 + lz }); st.props.push({ k: 'light', x: zone.hw - 0.7, z: zone.z0 + lz + 4.5 }); }
     st.zones.push(zone);
@@ -2537,7 +2629,7 @@ function curZone() { return STG.zones[STG.zi]; }
 
 // ---------------------------------------------------------------- player
 function newPlayer() {
-  return { x: 0, z: 1.5, hp: 100, vest: 0, weapon: 'pistol', mag: 6, ammo: 0, reloadT: 0, fireCD: 0, duck: 0, ducking: false, cover: null, walkT: 0, moving: 0, hurtT: 0, flash: 0, kick: 0, dead: false, stepT: 0, emptyT: 0 };
+  return { x: 0, z: 1.5, hp: 100, armor: 0, weapon: 'pistol', mag: PMAG(), ammo: 0, reloadT: 0, fireCD: 0, duck: 0, ducking: false, cover: null, walkT: 0, moving: 0, hurtT: 0, flash: 0, kick: 0, dead: false, stepT: 0, emptyT: 0 };
 }
 const WEAPONS = {
   pistol: { cd: 10, dmg: 1, auto: false, snd: 'pistol' },
@@ -2609,8 +2701,8 @@ function updatePlayer() {
   if (P.kick > 0) P.kick = Math.max(0, P.kick - 0.15);
   if (P.hurtT > 0) P.hurtT--;
   if (P.emptyT > 0) P.emptyT--;
-  if (P.reloadT > 0 && --P.reloadT === 0) { P.mag = 6; }
-  if (Input.edge.reload && P.weapon === 'pistol' && P.mag < 6 && P.reloadT === 0) { P.reloadT = 48; Audio2.sfx('reload'); }
+  if (P.reloadT > 0 && --P.reloadT === 0) { P.mag = PMAG(); }
+  if (Input.edge.reload && P.weapon === 'pistol' && P.mag < PMAG() && P.reloadT === 0) { P.reloadT = RELOAD_T(); Audio2.sfx('reload'); }
   const W = WEAPONS[P.weapon];
   const wants = Input.edge.fire || (W.auto && fireHeld());
   if (wants && P.fireCD === 0) {
@@ -2630,13 +2722,15 @@ function updatePlayer() {
 function grabPick(k) {
   const P = PL;
   if (k === 'aid') { P.hp = Math.min(100, P.hp + 30); Audio2.sfx('heal'); floatS('+30 HP', '#39ff6a'); }
-  else if (k === 'vest') { P.vest = 50; Audio2.sfx('pickup'); floatS('VEST ON', '#7fa6ff'); }
+  else if (k === 'vest') { P.armor = 100; Audio2.sfx('pickup'); floatS('BODY ARMOR', '#7fa6ff'); }
   else { P.weapon = k; P.ammo = WEAPONS[k].ammo; P.reloadT = 0; Audio2.sfx('pickup'); floatS(PICK[k].name + '!', PICK[k].col); }
 }
 function damagePlayer(n, why) {
   const P = PL; if (P.dead || G.state !== 'play') return;
   curZone().dmg = true;
-  if (P.vest > 0) { const a = Math.min(P.vest, n); P.vest -= a; n -= a; Audio2.sfx('metal'); }
+  // body armor soaks hits first and takes half damage, so it takes 2x the damage to get through it (Elijah, Nov 27)
+  if (P.armor > 0) { const need = n / 2; if (P.armor >= need) { P.armor -= need; n = 0; } else { n = (need - P.armor) * 2; P.armor = 0; } Audio2.sfx('metal'); }
+  n = Math.round(n);
   P.hp = Math.max(0, P.hp - n); P.hurtT = 24; G.hurtFlash = 22; shake(6); Audio2.sfx('hurt');
   if (P.hp <= 0) playerDown(why);
 }
@@ -2680,7 +2774,7 @@ function fireWeapon() {
   P.fireCD = W.cd; P.flash = 1; P.kick = 1; shake(P.weapon === 'pistol' || P.weapon === 'smg' ? 1.5 : 4);
   Audio2.sfx(W.snd);
   STG.stats.shots++;
-  if (P.weapon === 'pistol') P.mag--; else if (--P.ammo <= 0) { P.weapon = 'pistol'; floatS('BACK TO THE PISTOL', '#fff'); }
+  if (P.weapon === 'pistol') { if (!FX.bottomless) P.mag--; } else if (--P.ammo <= 0) { P.weapon = 'pistol'; floatS('BACK TO THE PISTOL', '#fff'); }
   Shells.push({ x: 150, y: 190, vx: rand(1.5, 3), vy: rand(-5, -3), r: 0, life: 50 });
   let hit = false;
   const n = W.pellets || 1;
@@ -2859,6 +2953,7 @@ function killEnemy(e, head, dz) {
   }
   if (G.gore === 'max' && PL.weapon === 'shotgun' && dz < 6) { for (let k = 0; k < 3; k++) partSprite(e.x, 1, e.z, limbSprite(e), rand(-3, 3), rand(2, 5), rand(-1, 2), rand(-15, 15), 120); }
   if (e.at === 'win') { e.fallY = e.sill - 0.5; e.vy = 0.5; e.x -= e.side * 0.7; e.falling = true; }
+  if (!e.drop && e.t === 'hvy' && Math.random() < 0.4) e.drop = 'vest';
   if (e.drop) STG.picks.push({ k: e.drop, x: clamp(e.x, -(e.zone.hw - 1), e.zone.hw - 1), z: e.z - (e.at === 'cov' ? e.cov.d + 0.6 : 0.4), t: 0 });
   if (e.t === 'hos') { e.civ.free = true; e.civ.fx = e.x - 0.25; e.civ.t = 0; Audio2.sfx('civ'); floatW(e.x, 1.5, e.z, 'HOSTAGE SAFE', '#39ff6a'); }
   e.rot = 0; e.rotDir = e.x < PL.x ? -1 : 1;
@@ -2873,6 +2968,8 @@ function updateDead(e) {
   if (e.civ && e.civ.free) { e.civ.t++; e.civ.fx += 0.06; }
 }
 const HEADSPR = {};
+// Big Head Strays cheat: the same head, no neck stump, drawn bigger over the real one (hitbox unchanged)
+function bigHeadSprite(e) { const key = 'big' + e.sp + e.pal; if (HEADSPR[key]) return HEADSPR[key]; const p = new PX(18, 18); drawHead(p, e.sp, SPECIES[e.sp][e.pal % SPECIES[e.sp].length], 9, 10, {}); p.outline(OL); return HEADSPR[key] = mkSprite(p); }
 function mkHeadSprite(e) {
   const key = e.sp + e.pal; if (HEADSPR[key]) return HEADSPR[key];
   const p = new PX(18, 18); drawHead(p, e.sp, SPECIES[e.sp][e.pal % SPECIES[e.sp].length], 9, 10, {}); p.rect(6, 15, 6, 3, '#a8001a'); p.outline(OL);
@@ -3307,7 +3404,7 @@ const STAGES = [
     brief: 'Robbery in progress at the <b>SAV-MOR</b> on Maple. Shots fired. Their getaway van is idling in the back lot.',
     after: 'Skids is in cuffs and the SAV-MOR opens again tomorrow. Mostly.',
     zones: [
-      { name: 'MAPLE AVE', theme: 'street', hw: 8, len: 36, lights: true,
+      { name: 'MAPLE AVE', armor: [-1.5, 18], theme: 'street', hw: 8, len: 36, lights: true,
         covers: [{ k: 'car', x: -4.3, z: 11, col: '#3a6ac8' }, { k: 'car', x: 4.3, z: 19, col: '#e8e0d0' }, { k: 'dumpster', x: -6.6, z: 24 }, { k: 'car', x: -4.3, z: 30, col: '#d8a030' }],
         props: [{ k: 'hydrant', x: 6.4, z: 7 }, { k: 'trash', x: -6.6, z: 16 }, { k: 'cone', x: 1, z: 22 }],
         pk: [{ k: 'aid', x: 6.6, z: 26 }],
@@ -3317,7 +3414,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'pop', at: 'cov', c: 1, drop: 'shotgun' }, { t: 'pop', at: 'door', s: 1, z: 27 }, { t: 'rush', x: 1.5, z: 31 }] },
           { need: 14, e: [{ t: 'thr', at: 'win', s: -1, z: 28 }, { t: 'pop', at: 'cov', c: 2 }, { t: 'civ', at: 'run', z: 25 }, { t: 'pop', at: 'cov', c: 3, sp: 'dog' }] },
         ] },
-      { name: 'SAV-MOR', theme: 'store', hw: 4.6, len: 30, capSign: 'SAV-MOR', capCol: '#ff4a4a',
+      { name: 'SAV-MOR', armor: [3.6, 17], theme: 'store', hw: 4.6, len: 30, capSign: 'SAV-MOR', capCol: '#ff4a4a',
         covers: [{ k: 'shelf', x: -2.4, z: 8 }, { k: 'shelf', x: 2.4, z: 13 }, { k: 'counter', x: 2.0, z: 22 }, { k: 'shelf', x: -2.4, z: 20 }],
         pk: [{ k: 'smg', x: -3.6, z: 16 }],
         waves: [
@@ -3325,7 +3422,7 @@ const STAGES = [
           { need: 4, e: [{ t: 'pop', at: 'cov', c: 1 }, { t: 'civ', at: 'door', s: 1, z: 9 }, { t: 'rush', x: -1, z: 18 }] },
           { need: 9, e: [{ t: 'pop', at: 'cov', c: 2, sp: 'possum' }, { t: 'pop', at: 'cov', c: 3 }, { t: 'thr', at: 'st', x: -1.5, z: 27 }] },
         ] },
-      { name: 'STOCKROOM', theme: 'stock', hw: 4.6, len: 26,
+      { name: 'STOCKROOM', armor: [-3.5, 14], theme: 'stock', hw: 4.6, len: 26,
         covers: [{ k: 'crate', x: -2.2, z: 8 }, { k: 'crate', x: 2.5, z: 12 }, { k: 'crate', x: -1.6, z: 18 }, { k: 'barrel', x: 3.4, z: 20, col: 'orange' }],
         pk: [{ k: 'aid', x: 3, z: 16 }],
         waves: [
@@ -3333,7 +3430,7 @@ const STAGES = [
           { need: 5, e: [{ t: 'hvy', x: 0, z: 23 }, { t: 'pop', at: 'door', s: 1, z: 15 }] },
           { need: 9, e: [{ t: 'rush', x: 1, z: 22 }, { t: 'rush', x: -1.5, z: 24 }, { t: 'pop', at: 'cov', c: 2, drop: 'vest' }] },
         ] },
-      { name: 'BACK ALLEY', theme: 'alley', hw: 5, len: 32,
+      { name: 'BACK ALLEY', armor: [-3.8, 19], theme: 'alley', hw: 5, len: 32,
         covers: [{ k: 'dumpster', x: -3.1, z: 10 }, { k: 'dumpster', x: 3.1, z: 17 }, { k: 'crate', x: -2.6, z: 24 }, { k: 'barrel', x: 2.8, z: 26, col: 'gray' }],
         props: [{ k: 'fire', x: 3.8, z: 6 }],
         pk: [{ k: 'magnum', x: 0, z: 14 }],
@@ -3351,7 +3448,7 @@ const STAGES = [
     brief: 'The Strays are unloading stolen goods off a freight line. Their rail boss, <b>BANDIT</b>, rides the trains with a sawed-off.',
     after: 'Bandit missed his stop. The yard is quiet again.',
     zones: [
-      { name: 'YARD GATE', theme: 'yard', hw: 8, len: 34,
+      { name: 'YARD GATE', armor: [5.5, 17], theme: 'yard', hw: 8, len: 34,
         covers: [{ k: 'crateG', x: -2, z: 9 }, { k: 'spool', x: 2.6, z: 13 }, { k: 'barrel', x: -1, z: 19, col: 'blue' }, { k: 'crateG', x: 1.4, z: 24 }, { k: 'tires', x: -2.4, z: 28 }],
         props: [{ k: 'signal', x: -7, z: 6 }, { k: 'signal', x: 7, z: 20 }, { k: 'fire', x: 6.6, z: 12 }],
         pk: [{ k: 'aid', x: -6.5, z: 22 }],
@@ -3361,7 +3458,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'pop', at: 'door', s: 1, z: 21 }, { t: 'civ', at: 'door', s: -1, z: 16 }, { t: 'rush', x: 0, z: 30 }, { t: 'rush', x: 2, z: 31 }] },
           { need: 13, e: [{ t: 'pop', at: 'cov', c: 3, drop: 'smg' }, { t: 'pop', at: 'cov', c: 4 }, { t: 'hvy', x: 4, z: 32 }] },
         ] },
-      { name: 'BOXCAR ROW', theme: 'yard', hw: 5, len: 34, capStyle: 'yard',
+      { name: 'BOXCAR ROW', armor: [-3.8, 19], theme: 'yard', hw: 5, len: 34, capStyle: 'yard',
         covers: [{ k: 'crate', x: -2.6, z: 8 }, { k: 'barrel', x: 2.8, z: 12, col: 'orange' }, { k: 'crateG', x: -2, z: 17 }, { k: 'spool', x: 2.4, z: 22 }, { k: 'crate', x: 0, z: 27 }],
         pk: [{ k: 'shotgun', x: 3.5, z: 7 }],
         waves: [
@@ -3370,14 +3467,14 @@ const STAGES = [
           { need: 9, e: [{ t: 'thr', at: 'door', s: 1, z: 24 }, { t: 'rush', x: -1, z: 26 }, { t: 'pop', at: 'cov', c: 3, drop: 'aid' }] },
           { need: 14, e: [{ t: 'hvy', x: 0, z: 31 }, { t: 'pop', at: 'cov', c: 4, sp: 'cat' }, { t: 'run', z: 29, dir: -1 }] },
         ] },
-      { name: 'SIGNAL HOUSE', theme: 'shed', hw: 4, len: 24, capStyle: 'shed', capSign: 'SIGNAL 9', capCol: '#ffd23a',
+      { name: 'SIGNAL HOUSE', armor: [-2.8, 14], theme: 'shed', hw: 4, len: 24, capStyle: 'shed', capSign: 'SIGNAL 9', capCol: '#ffd23a',
         covers: [{ k: 'bench', x: -1.6, z: 8 }, { k: 'crate', x: 2, z: 13 }, { k: 'bench', x: 1.2, z: 18 }],
         waves: [
           { e: [{ t: 'pop', at: 'cov', c: 0, sp: 'dog' }, { t: 'pop', at: 'door', s: 1, z: 11 }] },
           { need: 4, e: [{ t: 'rush', x: 0, z: 17 }, { t: 'rush', x: 1.5, z: 19 }, { t: 'civ', at: 'door', s: -1, z: 14 }] },
           { need: 8, e: [{ t: 'hvy', x: -1, z: 22 }, { t: 'pop', at: 'cov', c: 2, drop: 'magnum' }] },
         ] },
-      { name: 'COAL TIPPLE', theme: 'yard', hw: 7, len: 32,
+      { name: 'COAL TIPPLE', armor: [-5.5, 18], theme: 'yard', hw: 7, len: 32,
         covers: [{ k: 'tires', x: -3, z: 7 }, { k: 'crateG', x: 3, z: 11 }, { k: 'barrel', x: -1.2, z: 15, col: 'gray' }, { k: 'spool', x: 2.6, z: 20 }, { k: 'crate', x: -3.5, z: 25 }],
         props: [{ k: 'fire', x: -6, z: 10 }],
         pk: [{ k: 'aid', x: 5.5, z: 16 }],
@@ -3395,7 +3492,7 @@ const STAGES = [
     brief: 'The Strays launder money through a club called the <b>LITTER BOX</b>. <b>TWO-GUN VEX</b> runs the door and the roof.',
     after: 'Vex is out of bullets and out of the club business.',
     zones: [
-      { name: 'NEON STRIP', theme: 'clubx', hw: 8, len: 34, lights: true, dark: true,
+      { name: 'NEON STRIP', armor: [1.5, 17], theme: 'clubx', hw: 8, len: 34, lights: true, dark: true,
         covers: [{ k: 'car', x: -4.3, z: 10, col: '#7a3ab0' }, { k: 'car', x: 4.3, z: 16, col: '#4a4a52' }, { k: 'barrier', x: -1.5, z: 22 }, { k: 'car', x: 4.3, z: 28, col: '#c83a3a' }],
         pk: [{ k: 'aid', x: -6.6, z: 18 }],
         waves: [
@@ -3404,7 +3501,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'run', z: 22, dir: 1 }, { t: 'run', z: 25, dir: -1, d: 40 }, { t: 'pop', at: 'cov', c: 2, drop: 'smg' }, { t: 'civ', at: 'door', s: 1, z: 21 }] },
           { need: 14, e: [{ t: 'hvy', x: 0, z: 32 }, { t: 'pop', at: 'cov', c: 3 }, { t: 'pop', at: 'win', s: 1, z: 29 }, { t: 'rush', x: -2, z: 31 }] },
         ] },
-      { name: 'THE BAR', theme: 'bar', hw: 5, len: 30, capStyle: 'clubx', capSign: 'LITTER BOX', capCol: '#ff2bd6',
+      { name: 'THE BAR', armor: [3.8, 16], theme: 'bar', hw: 5, len: 30, capStyle: 'clubx', capSign: 'LITTER BOX', capCol: '#ff2bd6',
         covers: [{ k: 'booth', x: -3, z: 8 }, { k: 'bar', x: 2.4, z: 12 }, { k: 'booth', x: -3, z: 17 }, { k: 'speaker', x: 3.6, z: 22 }, { k: 'bar', x: -1.5, z: 25 }],
         waves: [
           { e: [{ t: 'pop', at: 'cov', c: 1, sp: 'possum' }, { t: 'pop', at: 'cov', c: 0 }] },
@@ -3412,7 +3509,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'rush', x: 1, z: 22 }, { t: 'rush', x: -1, z: 23, d: 30 }, { t: 'pop', at: 'cov', c: 3, drop: 'vest' }] },
           { need: 13, e: [{ t: 'thr', at: 'st', x: 2.6, z: 28 }, { t: 'pop', at: 'cov', c: 4 }, { t: 'pop', at: 'door', s: -1, z: 23 }] },
         ] },
-      { name: 'DANCE FLOOR', theme: 'dance', hw: 6, len: 30, strobe: true,
+      { name: 'DANCE FLOOR', armor: [5, 16], theme: 'dance', hw: 6, len: 30, strobe: true,
         covers: [{ k: 'speaker', x: -3.5, z: 8 }, { k: 'speaker', x: 3.5, z: 8 }, { k: 'booth', x: 0, z: 14 }, { k: 'speaker', x: -3, z: 21 }, { k: 'speaker', x: 3, z: 21 }],
         pk: [{ k: 'magnum', x: 0, z: 10 }, { k: 'aid', x: -5, z: 18 }],
         waves: [
@@ -3421,7 +3518,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'hvy', x: -2, z: 28 }, { t: 'hvy', x: 2, z: 28, d: 40 }, { t: 'pop', at: 'cov', c: 3 }] },
           { need: 13, e: [{ t: 'pop', at: 'cov', c: 4, drop: 'shotgun' }, { t: 'rush', x: 0, z: 28 }, { t: 'hos', x: -2.5, z: 27 }] },
         ] },
-      { name: 'BACK STAIRS', theme: 'hall', hw: 3.6, len: 26, capStyle: 'dance',
+      { name: 'BACK STAIRS', armor: [-2.4, 15], theme: 'hall', hw: 3.6, len: 26, capStyle: 'dance',
         covers: [{ k: 'crate', x: -1.6, z: 9 }, { k: 'barrel', x: 1.8, z: 14, col: 'gray' }, { k: 'crate', x: 1.2, z: 20 }],
         waves: [
           { e: [{ t: 'rush', x: 0, z: 14 }, { t: 'pop', at: 'door', s: 1, z: 11 }] },
@@ -3436,7 +3533,7 @@ const STAGES = [
   { id: 'junk', name: 'THE JUNKYARD', rank: 'FINAL', final: true, seed: 53, aimT: 60, sky: ['#1a1018', '#4a2020', '#a04a2a', '#2e1616', '#1c0c0c'], fog: '#3a1a16', win: '#ff9a4a', rain: true,
     brief: 'Every call led back here. <b>MANGE</b> is holed up in his junkyard with everything he has left.<br><br><i>SARGE:</i> "No backup is coming. Go get him."',
     zones: [
-      { name: 'FRONT GATE', theme: 'junk', hw: 8, len: 34,
+      { name: 'FRONT GATE', armor: [-1.2, 17], theme: 'junk', hw: 8, len: 34,
         covers: [{ k: 'junk', x: -4, z: 9, col: '#8a4a3a' }, { k: 'tires', x: 3, z: 12 }, { k: 'junk', x: 4, z: 20, col: '#4a6a8a' }, { k: 'barrel', x: -1.5, z: 23, col: 'orange' }, { k: 'tires', x: -3.6, z: 28 }],
         props: [{ k: 'fire', x: 6.5, z: 8 }, { k: 'fire', x: -6.5, z: 18 }],
         pk: [{ k: 'aid', x: 6.5, z: 24 }],
@@ -3446,7 +3543,7 @@ const STAGES = [
           { need: 9, e: [{ t: 'hvy', x: -2, z: 30 }, { t: 'rush', x: 1, z: 30 }, { t: 'rush', x: 3, z: 31, d: 30 }, { t: 'pop', at: 'cov', c: 3 }] },
           { need: 14, e: [{ t: 'pop', at: 'cov', c: 4, sp: 'raccoon' }, { t: 'hvy', x: 3, z: 32 }, { t: 'thr', at: 'st', x: -1, z: 32 }] },
         ] },
-      { name: 'CAR STACKS', theme: 'junk', hw: 5, len: 34, capStyle: 'junk',
+      { name: 'CAR STACKS', armor: [3.6, 16], theme: 'junk', hw: 5, len: 34, capStyle: 'junk',
         covers: [{ k: 'tires', x: -2.6, z: 8 }, { k: 'barrel', x: 2.6, z: 11, col: 'gray' }, { k: 'junk', x: -2.2, z: 17, col: '#7a7a3a' }, { k: 'tires', x: 2.4, z: 23 }, { k: 'spool', x: -1, z: 28 }],
         waves: [
           { e: [{ t: 'pop', at: 'cov', c: 0 }, { t: 'pop', at: 'cov', c: 1, sp: 'possum' }, { t: 'rush', x: 0, z: 20 }] },
@@ -3509,6 +3606,7 @@ function drawEnemy(e) {
   if (!r || e.dead) return;
   if ((e.at === 'door' || e.at === 'win' || e.at === 'cov') && e.k < 0.35) return;
   const k = r.w / spr.w, hd = spr.head, head = { x: r.x + hd.x * k, y: r.y + hd.y * k, w: hd.w * k, h: hd.h * k };
+  if (FX.bighead && crop > 0.55) { const hs = bigHeadSprite(e), wh = head.w * 1.75; wctx.drawImage(e.flash > 0 && e.flash % 4 < 2 ? hs.flash : hs.img, Math.round(head.x + head.w / 2 - wh / 2), Math.round(head.y + head.h * 0.62 - wh * 0.62), Math.round(wh), Math.round(wh)); }
   if (e.civ && !e.civ.dead) Targets.push({ kind: 'enemy', dz: r.dz, r: head, head, ref: e });
   else Targets.push({ kind: 'enemy', dz: r.dz, r, shrink: 0.2, head, ref: e });
   if (e.st === 'aim' || e.st === 'swing' || (e.st === 'run' && e.aim > 0 && !e.shot)) Brk.push({ r, k: clamp(e.aim, 0, 1) });
@@ -3602,18 +3700,20 @@ function btnName(act) {
 }
 function drawHUD() {
   const P = PL;
-  // HP + vest
+  // HP + body armor (same size bar under it, only while you have some)
   ctx.fillStyle = '#000'; ctx.fillRect(36, 34, 428, 38);
   const k = clamp(P.hp / 100, 0, 1); ctx.fillStyle = k > 0.5 ? '#39ff6a' : k > 0.25 ? '#ffd23a' : (Math.floor(G.t / 10) % 2 ? '#ff2a3d' : '#ff7a86'); ctx.fillRect(42, 40, Math.round(416 * k), 26);
-  if (P.vest > 0) { ctx.fillStyle = '#7fa6ff'; ctx.fillRect(42, 66, Math.round(416 * P.vest / 50), 6); }
   txt('HP', 478, 66, 20, '#fff');
+  const AY = P.armor > 0 ? 48 : 0;
+  if (P.armor > 0) { ctx.fillStyle = '#000'; ctx.fillRect(36, 82, 428, 38); ctx.fillStyle = '#7fa6ff'; ctx.fillRect(42, 88, Math.round(416 * clamp(P.armor / 100, 0, 1)), 26); ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(42, 88, Math.round(416 * clamp(P.armor / 100, 0, 1)), 6); txt('ARMOR', 478, 114, 20, '#7fa6ff'); }
   // weapon
   const W = P.weapon;
   if (W === 'pistol') {
-    txt('PISTOL', 40, 118, 20, '#ffd23a');
-    for (let i = 0; i < 6; i++) { ctx.fillStyle = '#000'; ctx.fillRect(210 + i * 30, 94, 22, 30); ctx.fillStyle = i < P.mag ? '#e8c040' : '#3a3a40'; ctx.fillRect(214 + i * 30, 98, 14, 22); if (i < P.mag) { ctx.fillStyle = '#c87a2a'; ctx.fillRect(214 + i * 30, 98, 14, 6); } }
-    if (P.reloadT > 0) { ctx.fillStyle = '#000'; ctx.fillRect(40, 136, 360, 14); ctx.fillStyle = '#7fa6ff'; ctx.fillRect(42, 138, Math.round(356 * (1 - P.reloadT / 48)), 10); txt('RELOADING', 410, 152, 16, '#7fa6ff'); }
-  } else txt(PICK[W].name + '  ' + P.ammo, 40, 118, 22, PICK[W].col);
+    txt('PISTOL', 40, 118 + AY, 20, '#ffd23a');
+    for (let i = 0; i < PMAG(); i++) { ctx.fillStyle = '#000'; ctx.fillRect(210 + i * 30, 94 + AY, 22, 30); ctx.fillStyle = i < P.mag ? '#e8c040' : '#3a3a40'; ctx.fillRect(214 + i * 30, 98 + AY, 14, 22); if (i < P.mag) { ctx.fillStyle = '#c87a2a'; ctx.fillRect(214 + i * 30, 98 + AY, 14, 6); } }
+    if (FX.bottomless) txt('BOTTOMLESS', 214 + PMAG() * 30, 118 + AY, 14, '#ff2bd6');
+    if (P.reloadT > 0) { ctx.fillStyle = '#000'; ctx.fillRect(40, 136 + AY, 360, 14); ctx.fillStyle = '#7fa6ff'; ctx.fillRect(42, 138 + AY, Math.round(356 * (1 - P.reloadT / RELOAD_T())), 10); txt('RELOADING', 410, 152 + AY, 16, '#7fa6ff'); }
+  } else txt(PICK[W].name + '  ' + P.ammo, 40, 118 + AY, 22, PICK[W].col);
   // score + where we are
   const RX = isCoarse() ? 1880 : 1740;
   txt('SCORE ' + G.run.score.toLocaleString('en-US'), RX, 70, 26, '#fff', 'right');
@@ -3647,8 +3747,19 @@ function drawHUD() {
     const over = Targets.some(t => (t.kind === 'enemy' || t.kind === 'boss' || t.kind === 'proj') && inR(t.r, Aim.x, Aim.y, t.shrink || 0));
     const overCiv = Targets.some(t => t.kind === 'civ' && inR(t.r, Aim.x, Aim.y, t.shrink || 0));
     const cx = Aim.x * SCALE, cy = Aim.y * SCALE, col = overCiv ? '#39ff6a' : over ? '#ff2a3d' : '#ffffff', R = P.ducking ? 16 : 22;
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
-    ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+    const ret = FX.eq.reticle;
+    if (ret === 'donut') {
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 16; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+      ctx.strokeStyle = '#e8a860'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+      ctx.strokeStyle = over ? '#ff2a3d' : overCiv ? '#39ff6a' : '#ff8ac8'; ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+      ['#2bf3ff', '#ffe14d', '#ffffff', '#7dff4a', '#ff2a3d', '#2bf3ff'].forEach((c, i) => { const a = i * 1.05 + 0.3; ctx.fillStyle = c; ctx.fillRect(cx + Math.cos(a) * R - 2, cy + Math.sin(a) * R - 2, 4, 4); });
+    } else {
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+      ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+    }
+    if (ret === 'badge') { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(cx, cy, 11, 13, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.ellipse(cx, cy, 9, 11, 0, 0, 7); ctx.fill(); ctx.fillStyle = col === '#ffffff' ? '#2b6bff' : col; ctx.fillRect(cx - 3, cy - 3, 6, 6); }
+    if (ret === 'star') { ctx.fillStyle = '#000'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 6 : 14; ctx.lineTo(cx + Math.cos(a) * (r + 2), cy + Math.sin(a) * (r + 2)); } ctx.fill(); ctx.fillStyle = '#ffd23a'; ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 5 : 12; ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } ctx.fill(); }
+    if (ret === 'skull') { ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy - 2, 11, 0, 7); ctx.fill(); ctx.fillRect(cx - 7, cy + 4, 14, 8); ctx.fillStyle = '#f4f4f4'; ctx.beginPath(); ctx.arc(cx, cy - 2, 9, 0, 7); ctx.fill(); ctx.fillRect(cx - 5, cy + 4, 10, 6); ctx.fillStyle = '#111'; ctx.fillRect(cx - 6, cy - 4, 4, 4); ctx.fillRect(cx + 2, cy - 4, 4, 4); }
     ctx.fillStyle = '#000'; [[-R - 14, -3, 16, 6], [R - 2, -3, 16, 6], [-3, -R - 14, 6, 16], [-3, R - 2, 6, 16]].forEach(([x, y, w, h]) => ctx.fillRect(cx + x - 1, cy + y - 1, w + 2, h + 2));
     ctx.fillStyle = col; [[-R - 14, -2, 16, 4], [R - 2, -2, 16, 4], [-2, -R - 14, 4, 16], [-2, R - 2, 4, 16]].forEach(([x, y, w, h]) => ctx.fillRect(cx + x, cy + y, w, h));
     ctx.fillRect(cx - 2, cy - 2, 4, 4);
@@ -3719,6 +3830,7 @@ function showTitle() {
   G.titleZ = 1;
   showMenu('title', 'titleMenu', [
     { label: 'NEW SHIFT', action: newRun },
+    { label: 'PRIZES', action: () => { if (window.NBScores && NBScores.prizes) NBScores.prizes({ game: 'fiveo', onClose: () => { refreshFX(); showTitle(); } }); }, cls: 'red' },
     { label: goreLabel, action: b => { toggleGore(); b.textContent = goreLabel(); }, cls: 'red' },
     { label: 'FULLSCREEN', action: toggleFullscreen, cls: 'red' },
     { label: 'EXIT TO ARCADE', action: exitToArcade, cls: 'red' },
@@ -3759,7 +3871,10 @@ function briefStage(si) {
   storyPanel(s.name + (s.final ? '' : ' // ' + s.rank), s.brief, 'ROLL OUT', () => startStage(si));
 }
 function startStage(si) {
+  refreshFX();
   hideScreens(); buildStage(si); PL = newPlayer();
+  if (FX.armor) PL.armor = 100;                                     // loadout from the prize counter
+  if (FX.gun) { PL.weapon = FX.gun; PL.ammo = WEAPONS[FX.gun].ammo; }
   Cam.x = PL.x + 0.55; Cam.z = PL.z - 1.3; Cam.h = 1.55;
   G.floaters = []; G.banner = null; G.hintT = 0; G.hurtFlash = 0;
   G.state = 'play'; Audio2.resumeMusic(); setTouchUI(true);
@@ -3888,7 +4003,7 @@ function frame(now) {
 }
 function boot() {
   try { Audio2.muted = localStorage.getItem(MUTE_KEY) === '1'; music.muted = Audio2.muted; G.gore = localStorage.getItem(GORE_KEY) === 'low' ? 'low' : 'max'; } catch (e) { }
-  buildSprites();
+  buildSprites(); refreshFX();
   const rc = $('rotateChonx'); rc.width = S.chonx.w; rc.height = S.chonx.h; rc.getContext('2d').drawImage(S.chonx.img, 0, 0);
   setupTouch();
   $('cPause').addEventListener('click', e => { e.preventDefault(); if (G.state === 'play') pauseGame(); });
