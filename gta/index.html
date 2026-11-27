@@ -3352,8 +3352,9 @@ function showIntro(){
   const rows = [['Seats so far', seats + ' / ' + WEEK_GOAL], ['Target by tonight', d.goal + ' seats'], ['Bingo Bucks', '$' + bucks], ['Fruitcake', cakes]];
   $('introstats').innerHTML = rows.map(r => '<span>' + r[0] + '</span><span>' + r[1] + '</span>').join('');
   $('daybtn').textContent = 'START ' + d.name;
-  state = 'intro'; $('dayintro').hidden = false;
-  setTimeout(() => focusBtn($('daybtn')), 30);
+  // opens at the top so the day's title and news show first; the button is focused without scrolling to it
+  state = 'intro'; $('dayintro').hidden = false; $('dayintro').scrollTop = 0;
+  setTimeout(() => { $('dayintro').scrollTop = 0; focusBtn($('daybtn'), true); }, 30);
 }
 function beginDay(){
   ensureAudio();

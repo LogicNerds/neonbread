@@ -19,6 +19,19 @@ body{background:radial-gradient(ellipse at 50% 0%,#2a1250 0%,#0d0320 58%,#07010f
 #side{display:flex;flex-direction:column;gap:12px;width:min(460px,34vw);max-height:96vh}
 body.port #game{flex-direction:column;justify-content:flex-start}
 body.port #side{width:min(96vw,640px);max-height:none;flex:1;min-height:0}
+/* short landscape (phones on their side): a smaller card and tighter panel so the move options keep their room */
+@media (max-height:500px){
+  body:not(.port) #side{gap:7px;max-height:calc(100vh - 4vmin)}
+  body:not(.port) #topbtns button{padding:6px 4px}
+  body:not(.port) #turn{padding:7px 10px;line-height:1.4}
+  body:not(.port) #turn small{margin-top:3px}
+  body:not(.port) #cardWrap{gap:10px}
+  body:not(.port) #card{--cw:clamp(52px,17vh,96px)}
+  body:not(.port) #opts{gap:5px;min-height:84px}
+  body:not(.port) .opt{padding:8px 10px}
+  body:not(.port) .opt.big{padding:10px}
+  body:not(.port) #hint{line-height:1.5}
+}
 .panel{border-radius:14px;background:linear-gradient(180deg,rgba(36,16,72,.92),rgba(14,5,32,.94));border:2px solid #3a2a6a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
 #turn{padding:14px 12px;text-align:center;font-size:clamp(11px,1.15vw,20px);line-height:1.6;border-color:var(--pc);color:#fff;text-shadow:0 0 10px var(--pc);box-shadow:0 0 22px -6px var(--pc),0 8px 24px rgba(0,0,0,.45)}
 #turn small{display:block;font-size:.6em;color:#d8d0ff;text-shadow:none;margin-top:6px}
