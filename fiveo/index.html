@@ -2792,7 +2792,7 @@ function resolveShot(px, py, dmg, pierce) {
   for (const t of list) {
     if (t.kind === 'cover') { hitCover(t.ref, dmg, px, py); if (!pierce) { Impacts.push({ x: px, y: py, life: 10, c: t.ref.def.wood ? '#c8904a' : '#ffe8a0' }); return scored; } continue; }
     if (t.kind === 'enemy') { const e = t.ref; if (e.dead) continue; const head = inR(t.head, px, py); hitEnemy(e, head ? 'head' : 'body', dmg, t.dz); scored = true; if (!pierce) return true; continue; }
-    if (t.kind === 'civ') { hitCiv(t.ref, t.dz); return scored; }
+    if (t.kind === 'civ') { if (t.ref.dead || (t.ref.hostage && t.ref.hostage.civ.dead)) continue; hitCiv(t.ref, t.dz); return scored; }
     if (t.kind === 'proj') { shootProj(t.ref); return true; }
     if (t.kind === 'boss') { const head = !!t.head && inR(t.head, px, py); if (STG.boss.hit(t.part, dmg, head)) { scored = true; if (!pierce) return true; } else if (!pierce) { Impacts.push({ x: px, y: py, life: 10, c: '#ffe8a0' }); return scored; } continue; }
     if (t.kind === 'block') { if (!pierce) { Impacts.push({ x: px, y: py, life: 10, c: '#ffe8a0' }); Audio2.sfx('metal'); return scored; } continue; }
@@ -2992,6 +2992,8 @@ function updateCivs() {
   }
 }
 function hitCiv(c, dz) {
+  // one penalty per civilian: the other shotgun pellets / SMG rounds hitting the same body don't count again
+  if (c.dead || (c.hostage && c.hostage.civ.dead)) return;
   if (c.hostage) { // body shot through the hostage
     const e = c.hostage; e.civ.dead = true; c.dead = true;
   }
