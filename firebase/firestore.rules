@@ -9,6 +9,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // optional accounts: each signed-in player can read and write only their own saved stuff
+    match /players/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['wallet', 'saves', 'rev', 'updated'])
+        && request.resource.data.wallet is string && request.resource.data.wallet.size() < 200000
+        && request.resource.data.saves is map && request.resource.data.saves.size() <= 40
+        && request.resource.data.rev is int
+        && request.resource.data.updated is timestamp;
+    }
+
     function maxScore(game) {
       return game == 'chonx' ? 2000000 : game == 'yeet' ? 50000000 : game == 'karen' ? 1000000 : game == 'cheekyops' ? 2000000 : game == 'fiveo' ? 1000000 : 10000000;   // gta + pedxing: 10M
     }

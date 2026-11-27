@@ -706,6 +706,151 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
   });
   window.NBTickets = Tickets;
 
+
+  // ---------------------------------------------------------------- accounts (optional sign-in: Google or an emailed link)
+  // A signed-in player's ticket wallet, leaderboard name and each game's progress live in players/{uid}.
+  // Guests never load the Firebase SDK. Every write to a synced localStorage key (from any game) schedules a sync.
+  // Merge rules (Elijah, Nov 27): the first sign-in on a device ADDS that device's tickets and prizes to the account and keeps
+  // the furthest-along game saves; after that the device mirrors the account. Best scores always keep the higher one.
+  // Signing out clears the synced data from the device. Sound and gore settings stay per device.
+  const FBCFG = { apiKey: 'AIzaSyBXZXXveAqers-aoMH_y-itAESHTt-0Ym0', authDomain: 'neon-bread-arcade.firebaseapp.com', projectId: PROJECT, appId: '1:873176739130:web:bb531384997bf4efff7403' };
+  const SDK_URL = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const SYNC_KEYS = [TK_KEY, NAME_KEY, 'chonx26_save_v1', 'cheekyops_save_v1', 'gta-week', 'cheekyops_best', 'fiveo_best', 'bodykaren26_best', 'yeet26_best', 'gta-bestweek', 'pedxing_best', 'pedxing_cash', 'pedxing_cars', 'pedxing_car', 'pedxing_paint'];
+  const BEST_KEYS = ['cheekyops_best', 'fiveo_best', 'bodykaren26_best', 'yeet26_best', 'gta-bestweek', 'pedxing_best'];
+  const PROGRESS = { chonx26_save_v1: s => +s.level || 0, cheekyops_save_v1: s => (s.missions || []).filter(m => m && (m.done || m.locked)).length, 'gta-week': s => +s.dayIdx || 0 };
+  // keys that only make sense together: on the first sign-in the whole group comes from whichever side is further along
+  const GROUPS = [{ keys: ['pedxing_cash', 'pedxing_cars', 'pedxing_car', 'pedxing_paint'], score: g => { const c = pj(g.pedxing_cars); return (Array.isArray(c) ? c.length : 0) * 1e9 + (+g.pedxing_cash || 0); } }];
+  const UID_KEY = 'nb_sync_uid', BASE_KEY = 'nb_sync_base', PEND_KEY = 'nb_email_pending';
+  const rawSet = Storage.prototype.setItem, rawRemove = Storage.prototype.removeItem;
+  const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsPut = (k, v) => { try { if (v == null) rawRemove.call(localStorage, k); else rawSet.call(localStorage, k, v); } catch (e) { } };
+  const pj = v => { try { return JSON.parse(v); } catch (e) { return null; } };
+  const pw = v => { const w = pj(v); return w && typeof w.bal === 'number' ? Object.assign(tkBlank(), w) : tkBlank(); };
+  const Acct = { auth: null, user: null, init: null, status: 'out', busy: null, again: false, timer: 0, lastMerge: null, listeners: [] };
+  function acctFire() { Acct.listeners.forEach(f => { try { f(Acct); } catch (e) { } }); if (NB && NB._mode === 'menu' && NB._st && NB._st.live) NB._st.live(); }
+  function setStatus(st) { Acct.status = st; acctFire(); }
+  // any game writing a synced key schedules a sync (our own writes use the raw setter, so they don't loop)
+  try {
+    Storage.prototype.setItem = function (k, v) { rawSet.call(this, k, v); if (Acct.user && SYNC_KEYS.indexOf(k) >= 0) markDirty(); };
+    Storage.prototype.removeItem = function (k) { rawRemove.call(this, k); if (Acct.user && SYNC_KEYS.indexOf(k) >= 0) markDirty(); };
+  } catch (e) { }
+  function markDirty(ms) { clearTimeout(Acct.timer); Acct.timer = setTimeout(() => sync(), ms || 1500); }
+  // ---- Firestore REST with the player's ID token
+  const DOC = uid => BASE + '/players/' + uid;
+  async function authed(url, opt) {
+    const t = await Acct.user.getIdToken();
+    const r = await fetch(url, Object.assign({}, opt, { headers: Object.assign({ Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, (opt && opt.headers) || {}) }));
+    if (r.status === 404) return null;
+    const j = r.status === 204 ? {} : await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || ('HTTP ' + r.status));
+    return j;
+  }
+  async function fsGet(uid) {
+    const j = await authed(DOC(uid)); if (!j) return null;
+    const f = j.fields || {}, sf = (f.saves && f.saves.mapValue && f.saves.mapValue.fields) || {}, saves = {};
+    for (const k in sf) saves[k] = 'stringValue' in sf[k] ? sf[k].stringValue : null;
+    return { wallet: (f.wallet && f.wallet.stringValue) || null, saves, rev: +((f.rev && f.rev.integerValue) || 0) };
+  }
+  function fsPut(uid, d) {
+    const sf = {}; for (const k in d.saves) if (d.saves[k] != null) sf[k] = { stringValue: d.saves[k] };
+    return authed(DOC(uid), { method: 'PATCH', body: JSON.stringify({ fields: { wallet: { stringValue: d.wallet }, saves: { mapValue: { fields: sf } }, rev: { integerValue: String(d.rev) }, updated: { timestampValue: new Date().toISOString() } } }) });
+  }
+  const fsDel = uid => authed(DOC(uid), { method: 'DELETE' });
+  // ---- merging
+  function localSnap() { const saves = {}; SYNC_KEYS.forEach(k => { if (k !== TK_KEY) saves[k] = lsGet(k); }); return { wallet: lsGet(TK_KEY), saves }; }
+  // local changes since `b` (what this device last synced) land on top of `c` (the cloud copy)
+  function mergeWallet(c, l, b) {
+    const o = JSON.parse(JSON.stringify(c));
+    ['bal', 'earned', 'spent', 'runs', 'golden'].forEach(k => { o[k] = Math.max(0, (c[k] || 0) + (l[k] || 0) - (b[k] || 0)); });
+    o.owned = Object.assign({}, c.owned); for (const k in l.owned) if (!o.owned[k]) o.owned[k] = l.owned[k];
+    if (JSON.stringify(l.equip || {}) !== JSON.stringify(b.equip || {})) o.equip = l.equip || {};
+    if (JSON.stringify(l.cheats || {}) !== JSON.stringify(b.cheats || {})) o.cheats = l.cheats || {};
+    ['best', 'day', 'chal'].forEach(f => { o[f] = Object.assign({}, c[f]); for (const g in (l[f] || {})) if (!(g in o[f]) || l[f][g] > o[f][g]) o[f][g] = l[f][g]; });
+    return o;
+  }
+  function mergeSaves(c, l, b, first) {
+    const o = {}, v = (m, k) => (m && m[k] != null ? m[k] : null), done = {};
+    if (first) GROUPS.forEach(g => {
+      const pick = (g.score(l || {}) > g.score(c || {})) || !g.keys.some(k => v(c, k) != null) ? l : c;
+      g.keys.forEach(k => { o[k] = v(pick, k); done[k] = 1; });
+    });
+    SYNC_KEYS.forEach(k => {
+      if (k === TK_KEY || done[k]) return;
+      const cv = v(c, k), lv = v(l, k);
+      if (BEST_KEYS.indexOf(k) >= 0) { const n = Math.max(+cv || 0, +lv || 0); o[k] = n ? String(n) : (cv != null ? cv : lv); return; }
+      if (first) {
+        if (PROGRESS[k]) { const pc = pj(cv), pl = pj(lv); let a = 0, z = 0; try { a = pc ? PROGRESS[k](pc) : -1; z = pl ? PROGRESS[k](pl) : -1; } catch (e) { } o[k] = z > a ? lv : (cv != null ? cv : lv); }
+        else o[k] = cv ? cv : lv;
+        return;
+      }
+      o[k] = lv !== v(b, k) ? lv : cv;
+    });
+    return o;
+  }
+  const sameSaves = (a, b) => SYNC_KEYS.every(k => k === TK_KEY || ((a && a[k] != null ? a[k] : null) === (b && b[k] != null ? b[k] : null)));
+  // ---- one sync: pull, merge, push, write back. Never overlaps itself.
+  function sync() {
+    if (!Acct.user) return Promise.resolve(false);
+    if (Acct.busy) { Acct.again = true; return Acct.busy; }
+    Acct.busy = (async () => {
+      const uid = Acct.user.uid; let ok = false;
+      setStatus('syncing');
+      try {
+        const cloud = (await fsGet(uid)) || { wallet: null, saves: {}, rev: 0 };
+        const local = localSnap(), mine = lsGet(UID_KEY) === uid;
+        const base = mine ? (pj(lsGet(BASE_KEY)) || { wallet: null, saves: {} }) : { wallet: null, saves: {} };
+        const cw = pw(cloud.wallet), lw = pw(local.wallet);
+        const mw = mergeWallet(cw, lw, pw(base.wallet));
+        if (!mine && cloud.wallet) { if (Object.keys(cw.equip || {}).length) mw.equip = cw.equip; if (Object.keys(cw.cheats || {}).length) mw.cheats = cw.cheats; }
+        const ms = mergeSaves(cloud.saves, local.saves, base.saves, !mine);
+        const out = { wallet: JSON.stringify(mw), saves: ms, rev: (cloud.rev || 0) + 1 };
+        if (out.wallet !== cloud.wallet || !sameSaves(ms, cloud.saves) || !cloud.rev) await fsPut(uid, out);
+        // anything a game wrote while we were talking to the server goes on top of what we just saved
+        const now = localSnap();
+        let wNew = out.wallet, sNew = Object.assign({}, ms), late = false;
+        if (now.wallet !== local.wallet) { wNew = JSON.stringify(mergeWallet(mw, pw(now.wallet), lw)); late = true; }
+        SYNC_KEYS.forEach(k => { if (k !== TK_KEY && (now.saves[k] != null ? now.saves[k] : null) !== (local.saves[k] != null ? local.saves[k] : null)) { sNew[k] = now.saves[k]; late = true; } });
+        const changed = wNew !== now.wallet || !sameSaves(sNew, now.saves);
+        lsPut(TK_KEY, wNew); SYNC_KEYS.forEach(k => { if (k !== TK_KEY) lsPut(k, sNew[k]); });
+        lsPut(UID_KEY, uid); lsPut(BASE_KEY, JSON.stringify({ wallet: out.wallet, saves: ms }));
+        if (!mine) Acct.lastMerge = { added: lw.bal, prizes: Object.keys(lw.owned || {}).length, bal: pw(wNew).bal };
+        if (changed) { tkFire(tkLoad()); try { window.dispatchEvent(new Event('nb-sync')); } catch (e) { } }
+        if (late) Acct.again = true;
+        ok = true; setStatus('synced');
+      } catch (e) { Acct.err = String((e && e.message) || e); setStatus('error'); setTimeout(() => markDirty(10), 15000); }
+      Acct.busy = null;
+      if (Acct.again) { Acct.again = false; markDirty(300); }
+      return ok;
+    })();
+    return Acct.busy;
+  }
+  // ---- the Firebase SDK, loaded only when someone signs in (or is signed in on this device)
+  function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.async = true; s.onload = res; s.onerror = () => rej(new Error('SDK')); document.head.appendChild(s); }); }
+  function initAuth() {
+    if (Acct.init) return Acct.init;
+    Acct.init = (async () => {
+      if (!(window.firebase && window.firebase.auth)) { await loadScript(SDK_URL + 'firebase-app-compat.js'); await loadScript(SDK_URL + 'firebase-auth-compat.js'); }
+      if (!firebase.apps.length) firebase.initializeApp(FBCFG);
+      const auth = Acct.auth = firebase.auth();
+      try { auth.useDeviceLanguage(); } catch (e) { }
+      auth.onAuthStateChanged(u => { Acct.user = u || null; setStatus(u ? 'in' : 'out'); if (u) sync(); });
+      auth.getRedirectResult().then(r => { if (r && r.user) afterSignIn(); }).catch(() => { });
+      if (auth.isSignInWithEmailLink(location.href)) finishEmailLink();
+      return auth;
+    })().catch(e => { Acct.init = null; throw e; });
+    return Acct.init;
+  }
+  function cleanUrl() { try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) { } }
+  async function signOutClear() {
+    try { if (Acct.auth) await Acct.auth.signOut(); } catch (e) { }
+    SYNC_KEYS.forEach(k => lsPut(k, null)); lsPut(UID_KEY, null); lsPut(BASE_KEY, null);
+    Acct.user = null; Acct.lastMerge = null; setStatus('out'); tkFire(tkLoad());
+    try { window.dispatchEvent(new Event('nb-sync')); } catch (e) { }
+  }
+  function acctName() { const u = Acct.user; return u ? (u.email || u.displayName || 'PLAYER').toUpperCase() : ''; }
+  // a signed-in device restores its session on every page; an emailed link completes here too
+  setTimeout(() => { if (lsGet(UID_KEY) || /[?&](oobCode|nbsignin)=/.test(location.search)) initAuth().catch(() => { }); }, 0);
+
   // ---------------------------------------------------------------- styles
   const CSS = `
 #nbs{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:rgba(6,0,18,.9);font-family:'Press Start 2P',monospace;color:#fff;-webkit-user-select:none;user-select:none;touch-action:manipulation}
@@ -768,6 +913,15 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
 .nbp-i b{font-weight:normal;font-size:10px;color:#5fe0b7}
 .nbp-i b.off{color:#7d72b8}
 .nbp-i em{font-style:normal;font-size:9px;color:#a99be0}
+.nbs-in{font-size:24px;padding:16px 18px;width:760px;max-width:100%;background:#120a30;color:#fff;border:5px solid #3a2f78;text-align:center;text-transform:lowercase;-webkit-user-select:text;user-select:text}
+.nbs-in:focus{outline:none;border-color:var(--nbc);box-shadow:0 0 18px var(--nbc)}
+.nbs-fine{font-size:14px;color:#a99be0;line-height:1.9}
+.nbs-fine a{color:#00e5ff}
+.nbs-ok{font-size:18px;color:#5fe0b7;line-height:1.8}
+.nbs-b.dis{opacity:.45}
+.nbs-col{display:flex;flex-direction:column;gap:16px;align-items:center}
+.nbs-col .nbs-b{min-width:620px}
+#nbsP.portrait .nbs-col .nbs-b{min-width:560px}
 #nbsP.portrait .nbp-list{max-height:820px}
 #nbsP.portrait .nbt-wrap{flex-direction:column;align-items:center;gap:24px}
 #nbsP.portrait .nbt-side{min-width:0;width:100%}
@@ -869,7 +1023,7 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
 
   window.addEventListener('keydown', e => {
     if (!NB.active) return;
-    const inp = e.target && e.target.id === 'nbsIn';
+    const inp = e.target && (e.target.id === 'nbsIn' || e.target.id === 'nbsMail');
     if (inp && e.key !== 'Enter' && e.key !== 'Escape') return; // phone keyboard typing goes through the input event
     const k = e.code, map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', Enter: 'start', NumpadEnter: 'start', Escape: 'b', Backspace: 'bs', Tab: 'tab', Space: 'a' };
     let act = map[k];
@@ -894,6 +1048,12 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     active: false, _mode: null, _dev: null, _cache: {},
     GAMES, ARCADE_URL, weekKey, weekLabel, blocked, clean, post, top, page, rank, tickets: Tickets,
     exitToArcade() { location.href = ARCADE_URL; },
+    // ---- accounts
+    acct: { signedIn: () => !!Acct.user, name: acctName, status: () => Acct.status, onChange: f => Acct.listeners.push(f), sync: () => sync() },
+    // the sign-in / account screen. opt: { game, onClose, reason }
+    account(opt) { opt = opt || {}; ensureDom(); open(opt.game); NB._st = { game: opt.game, onClose: opt.onClose, menu: true }; NB._mode = 'menu'; if (Acct.user) renderAccount(); else renderSignIn(opt.reason); },
+    // a sign-in nudge if one is due (kind: 'buy'); returns false when there's nothing to show
+    nudge(kind, opt) { opt = opt || {}; if (!nudgeFor(kind)) return false; ensureDom(); open(opt.game); NB._st = { game: opt.game, onClose: opt.onClose, menu: true }; NB._mode = 'menu'; renderNudge(kind); return true; },
 
     // After every run: name entry -> post -> board. onClose fires when the player continues.
     submit(opt) {
@@ -930,6 +1090,7 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
       if (NB._mode === 'error') return actError(a);
       if (NB._mode === 'tickets') return actTickets(a);
       if (NB._mode === 'prizes') return actPrizes(a);
+      if (NB._mode === 'menu') return actMenu(a);
     },
   };
   window.NBScores = NB;
@@ -1242,7 +1403,7 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
       '<div class="nbt-wrap"><div class="nbt-mach"><div class="nbt-slot"></div><div class="nbt-strip' + (gold ? ' gold' : '') + '"></div></div>' +
       '<div class="nbt-side"><div class="nbt-count">0</div><div class="nbt-lines">' +
       q.lines.map(l => '<div class="nbt-l' + (l.gold ? ' gold' : '') + '"><span>' + esc(l.t) + '</span><b>+' + fmt(l.n) + '</b></div>').join('') +
-      '</div><div class="nbt-bal">TICKETS ON THIS DEVICE: ' + fmt(before) + '</div></div></div>' +
+      '</div><div class="nbt-bal">' + (Acct.user ? 'TICKETS IN YOUR ACCOUNT: ' : 'TICKETS ON THIS DEVICE: ') + fmt(before) + '</div></div></div>' +
       '<div class="nbs-row"><button class="nbs-b sel" data-c="1">SKIP</button></div>' +
       '<div class="nbs-hint">' + tkHint() + '</div>';
     const strip = panel.querySelector('.nbt-strip');
@@ -1275,7 +1436,7 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     const st = NB._st, tq = st.tq; tq.done = true;
     panel.querySelectorAll('.nbt-l').forEach(e => e.classList.add('on'));
     tkPaint(tq.q.total);
-    const bal = panel.querySelector('.nbt-bal'); if (bal) bal.textContent = 'TICKETS ON THIS DEVICE: ' + fmt(tq.before + tq.q.total);
+    const bal = panel.querySelector('.nbt-bal'); if (bal) bal.textContent = (Acct.user ? 'TICKETS IN YOUR ACCOUNT: ' : 'TICKETS ON THIS DEVICE: ') + fmt(tq.before + tq.q.total);
     const b = panel.querySelector('[data-c]'); if (b) b.textContent = 'CONTINUE';
     tkSound('done');
   }
@@ -1283,7 +1444,153 @@ h1.big{font-size:72px;color:var(--sign);text-shadow:0 0 20px var(--sign);margin-
     const st = NB._st; if (!st || !st.tq) return;
     if (!(a === 'a' || a === 'start' || a === 'b')) return;
     if (!st.tq.done) return tkFinish();
+    if (nudgeFor('payout')) return renderNudge('payout');
     close();
+  }
+
+  // ---------------------------------------------------------------- account screens (sign in, email link, account, nudges)
+  // A small menu renderer: kicker, title, message, optional extra html, buttons. Arrows / D-pad move, Cross / Enter press, Circle / Esc back.
+  function renderMenu(o) {
+    const st = NB._st; NB._mode = 'menu';
+    st.btns = o.buttons; st.back = o.back || close; st.live = o.live || null; st.foc = o.foc || 0;
+    panel.innerHTML = '<div class="nbs-k">' + (o.kicker || 'NEON BREAD ARCADE') + '</div><div class="nbs-h">' + o.title + '</div>' +
+      (o.msg ? '<div class="nbs-m">' + o.msg + '</div>' : '') + (o.extra || '') +
+      '<div class="nbs-col">' + o.buttons.map((b, i) => '<button class="nbs-b' + (b.alt ? ' alt' : '') + (b.dis ? ' dis' : '') + '" data-k="' + i + '">' + b.label + '</button>').join('') + '</div>' +
+      (o.fine ? '<div class="nbs-fine">' + o.fine + '</div>' : '') +
+      '<div class="nbs-hint">' + (dev() === 'pad' ? '&#9650;&#9660; PICK &middot; ' + P('CROSS', 'A') + ' PRESS &middot; ' + P('CIRCLE', 'B') + ' BACK' : dev() === 'touch' ? '' : '&#9650;&#9660; PICK &middot; ENTER PRESS &middot; ESC BACK') + '</div>';
+    panel.querySelectorAll('.nbs-b').forEach(b => b.onclick = () => { st.foc = +b.dataset.k; menuPress(); });
+    const fine = panel.querySelector('.nbs-fine a'); if (fine) fine.onclick = e => { e.preventDefault(); window.open(fine.href, '_blank', 'noopener'); };
+    const inp = panel.querySelector('#nbsMail');
+    if (inp) { inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); menuPress(o.enterBtn || 0); } }); setTimeout(() => { try { inp.focus({ preventScroll: true }); } catch (e) { inp.focus(); } }, 60); }
+    paintMenu(); fit();
+  }
+  function paintMenu() { const st = NB._st; panel.querySelectorAll('.nbs-col .nbs-b').forEach(b => b.classList.toggle('sel', +b.dataset.k === st.foc)); }
+  function menuPress(i) { const st = NB._st; if (i != null) st.foc = i; const b = st.btns && st.btns[st.foc]; if (!b || b.dis) { blip(200, 0.08); return; } blip(880, 0.05); b.fn(); }
+  function actMenu(a) {
+    const st = NB._st; if (!st || !st.btns) return;
+    const n = st.btns.length;
+    if (a === 'up' || a === 'left') { st.foc = (st.foc + n - 1) % n; paintMenu(); blip(520, 0.04); }
+    if (a === 'down' || a === 'right' || a === 'tab') { st.foc = (st.foc + 1) % n; paintMenu(); blip(520, 0.04); }
+    if (a === 'a' || a === 'start') menuPress();
+    if (a === 'b') st.back();
+  }
+  const FINE = 'YOU MUST BE 13 OR OLDER TO SIGN IN. PLAYING NEVER NEEDS AN ACCOUNT.<br><a href="' + ARCADE_URL + 'privacy/">PRIVACY</a>';
+  const AUTH_ERR = {
+    'auth/operation-not-allowed': "SIGN-IN ISN'T SWITCHED ON YET. TRY AGAIN LATER.", 'auth/unauthorized-domain': "THIS SITE ISN'T ALLOWED TO SIGN IN YET.",
+    'auth/network-request-failed': 'NO CONNECTION. CHECK YOUR INTERNET AND TRY AGAIN.', 'auth/invalid-email': "THAT EMAIL DOESN'T LOOK RIGHT.",
+    'auth/invalid-action-code': 'THAT LINK EXPIRED OR WAS ALREADY USED. ASK FOR A NEW ONE.', 'auth/expired-action-code': 'THAT LINK EXPIRED. ASK FOR A NEW ONE.',
+    'auth/too-many-requests': 'TOO MANY TRIES. WAIT A FEW MINUTES.', 'auth/user-disabled': 'THIS ACCOUNT IS SWITCHED OFF.',
+  };
+  const authErr = e => AUTH_ERR[e && e.code] || 'SOMETHING WENT WRONG. TRY AGAIN.';
+  function renderSignIn(reason, err) {
+    const ready = !!Acct.auth;
+    if (!ready) initAuth().then(() => { if (NB._mode === 'menu' && NB._st && NB._st.signin) renderSignIn(reason, err); }).catch(() => { if (NB._mode === 'menu' && NB._st && NB._st.signin) renderSignIn(reason, 'NO CONNECTION. CHECK YOUR INTERNET AND TRY AGAIN.'); });
+    NB._st.signin = true;
+    renderMenu({ title: 'SAVE YOUR STUFF', msg: reason || 'SIGN IN TO KEEP YOUR TICKETS, PRIZES AND GAME PROGRESS ON EVERY DEVICE.',
+      extra: err ? '<div class="nbs-e">' + err + '</div>' : '',
+      buttons: [{ label: ready ? 'SIGN IN WITH GOOGLE' : 'LOADING...', dis: !ready, fn: googleSignIn }, { label: 'EMAIL ME A LINK', alt: true, dis: !ready, fn: renderEmail }, { label: 'NOT NOW', alt: true, fn: close }],
+      fine: FINE });
+  }
+  function googleSignIn() {
+    const auth = Acct.auth; if (!auth) return;
+    const pv = new firebase.auth.GoogleAuthProvider(); pv.setCustomParameters({ prompt: 'select_account' });
+    auth.signInWithPopup(pv).then(afterSignIn).catch(e => {
+      const c = e && e.code;
+      if (c === 'auth/popup-blocked' || c === 'auth/operation-not-supported-in-this-environment') { auth.signInWithRedirect(pv).catch(e2 => renderSignIn(null, authErr(e2))); return; }
+      if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return;
+      renderSignIn(null, authErr(e));
+    });
+  }
+  function renderEmail(err, val) {
+    NB._st.signin = false;
+    renderMenu({ title: 'EMAIL ME A LINK', msg: "TYPE YOUR EMAIL. WE'LL SEND A LINK. OPEN IT ON THIS DEVICE TO SIGN IN. NO PASSWORD.",
+      extra: '<input id="nbsMail" class="nbs-in" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" value="' + esc(val || '') + '">' + (err ? '<div class="nbs-e">' + err + '</div>' : ''),
+      buttons: [{ label: 'SEND THE LINK', fn: sendLink }, { label: 'BACK', alt: true, fn: () => renderSignIn() }], back: () => renderSignIn(), fine: FINE });
+  }
+  function sendLink() {
+    const inp = panel.querySelector('#nbsMail'), email = ((inp && inp.value) || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return renderEmail("THAT EMAIL DOESN'T LOOK RIGHT.", email);
+    renderMenu({ title: 'SENDING...', msg: email.toUpperCase(), buttons: [{ label: 'WAIT', dis: true, fn: () => { } }] });
+    Acct.auth.sendSignInLinkToEmail(email, { url: ARCADE_URL + '?nbsignin=1', handleCodeInApp: true }).then(() => {
+      lsPut(PEND_KEY, email);
+      renderMenu({ title: 'CHECK YOUR EMAIL', msg: 'WE SENT A SIGN-IN LINK TO<br>' + esc(email.toUpperCase()) + '<br><br>OPEN IT ON THIS DEVICE. IT CAN TAKE A MINUTE, AND IT MIGHT LAND IN SPAM.', buttons: [{ label: 'OK', fn: close }] });
+    }).catch(e => renderEmail(authErr(e), email));
+  }
+  // the emailed link brings the player back to the arcade with a code in the address
+  function finishEmailLink() {
+    const email = lsGet(PEND_KEY);
+    if (email) return completeLink(email);
+    ensureDom(); open(null); NB._st = { menu: true }; NB._mode = 'menu';
+    const ask = err => renderMenu({ title: 'ALMOST IN', msg: 'TYPE THE EMAIL THE LINK WAS SENT TO.', extra: '<input id="nbsMail" class="nbs-in" type="email" inputmode="email" autocomplete="email">' + (err ? '<div class="nbs-e">' + err + '</div>' : ''),
+      buttons: [{ label: 'SIGN IN', fn: () => { const v = (panel.querySelector('#nbsMail').value || '').trim(); if (!v) return ask("THAT EMAIL DOESN'T LOOK RIGHT."); completeLink(v); } }, { label: 'CANCEL', alt: true, fn: () => { cleanUrl(); close(); } }], back: () => { cleanUrl(); close(); } });
+    ask();
+  }
+  function completeLink(email) {
+    if (!NB.active) { ensureDom(); open(null); NB._st = { menu: true }; NB._mode = 'menu'; }
+    renderMenu({ title: 'SIGNING IN...', msg: esc(email.toUpperCase()), buttons: [{ label: 'WAIT', dis: true, fn: () => { } }] });
+    Acct.auth.signInWithEmailLink(email, location.href).then(() => { lsPut(PEND_KEY, null); cleanUrl(); afterSignIn(); })
+      .catch(e => { cleanUrl(); renderMenu({ title: "COULDN'T SIGN IN", msg: authErr(e), buttons: [{ label: 'OK', fn: close }] }); });
+  }
+  // right after signing in: wait for the first sync, then show what happened
+  async function afterSignIn() {
+    if (!NB.active) { ensureDom(); open(null); NB._st = { menu: true }; NB._mode = 'menu'; }
+    renderMenu({ title: 'SIGNED IN', msg: 'SAVING YOUR STUFF...', buttons: [{ label: 'WAIT', dis: true, fn: () => { } }] });
+    for (let i = 0; i < 40 && !Acct.user; i++) await new Promise(r => setTimeout(r, 100));
+    await sync();
+    if (NB._mode === 'menu') renderAccount(true);
+  }
+  function renderAccount(welcome) {
+    const m = Acct.lastMerge, w = tkLoad();
+    const stat = () => Acct.status === 'syncing' ? 'SAVING...' : Acct.status === 'error' ? "COULDN'T REACH THE SERVER. WE'LL KEEP TRYING." : 'EVERYTHING IS SAVED TO YOUR ACCOUNT.';
+    const msg = esc(acctName()) + '<br><br>TICKETS: ' + fmt(w.bal) + ' &middot; PRIZES: ' + Object.keys(w.owned || {}).length;
+    const extra = (welcome && m && (m.added || m.prizes) ? '<div class="nbs-ok">ADDED ' + fmt(m.added) + ' TICKETS' + (m.prizes ? ' AND ' + m.prizes + ' PRIZES' : '') + ' FROM THIS DEVICE.</div>' : '') +
+      '<div class="nbs-fine" id="nbsStat">' + stat() + '</div>';
+    renderMenu({ title: welcome ? "YOU'RE IN" : 'YOUR ACCOUNT', msg, extra,
+      buttons: [{ label: 'DONE', fn: close }, { label: 'SIGN OUT', alt: true, fn: confirmSignOut }, { label: 'DELETE MY ACCOUNT', alt: true, fn: confirmDelete }],
+      live: () => { const e = panel.querySelector('#nbsStat'); if (e) e.textContent = stat(); } });
+  }
+  function confirmSignOut() {
+    renderMenu({ title: 'SIGN OUT?', msg: 'YOUR STUFF STAYS SAVED IN YOUR ACCOUNT.<br>THIS DEVICE GETS CLEARED UNTIL YOU SIGN IN AGAIN.', foc: 1,
+      buttons: [{ label: 'SIGN OUT', fn: async () => {
+        renderMenu({ title: 'SIGNING OUT...', msg: 'SAVING FIRST.', buttons: [{ label: 'WAIT', dis: true, fn: () => { } }] });
+        const ok = await sync();
+        const go = async () => { await signOutClear(); renderMenu({ title: 'SIGNED OUT', msg: 'SEE YOU NEXT TIME.', buttons: [{ label: 'OK', fn: close }] }); };
+        if (ok) return go();
+        renderMenu({ title: "COULDN'T SAVE", msg: "WE COULDN'T REACH THE SERVER, SO YOUR NEWEST TICKETS MIGHT NOT BE SAVED.<br>SIGN OUT ANYWAY?", foc: 1, buttons: [{ label: 'SIGN OUT ANYWAY', fn: go }, { label: 'STAY SIGNED IN', alt: true, fn: () => renderAccount() }], back: () => renderAccount() });
+      } }, { label: 'STAY SIGNED IN', alt: true, fn: () => renderAccount() }], back: () => renderAccount() });
+  }
+  function confirmDelete() {
+    renderMenu({ title: 'DELETE YOUR ACCOUNT?', msg: 'THIS ERASES YOUR SAVED TICKETS, PRIZES AND GAME PROGRESS FROM OUR SERVERS AND CLEARS THIS DEVICE.<br>SCORES ALREADY ON THE LEADERBOARDS STAY UP.', foc: 1,
+      buttons: [{ label: 'DELETE IT', fn: async () => {
+        renderMenu({ title: 'DELETING...', msg: '', buttons: [{ label: 'WAIT', dis: true, fn: () => { } }] });
+        const u = Acct.user; let note = '';
+        try { await fsDel(u.uid); } catch (e) { return renderMenu({ title: "COULDN'T DELETE", msg: 'NO CONNECTION. NOTHING WAS DELETED. TRY AGAIN.', buttons: [{ label: 'OK', fn: () => renderAccount() }] }); }
+        try { await u.delete(); } catch (e) { note = (e && e.code) === 'auth/requires-recent-login' ? '<br><br>YOUR SAVED STUFF IS GONE. TO REMOVE THE SIGN-IN ITSELF, SIGN IN AGAIN AND DELETE ONCE MORE.' : ''; }
+        await signOutClear();
+        renderMenu({ title: 'ACCOUNT DELETED', msg: 'YOUR SAVED TICKETS, PRIZES AND PROGRESS ARE ERASED.' + note, buttons: [{ label: 'OK', fn: close }] });
+      } }, { label: 'KEEP IT', alt: true, fn: () => renderAccount() }], back: () => renderAccount() });
+  }
+  // ---- nudges: after a ticket payout (once a day, plus once each at 500 / 2,000 / 10,000 tickets) and after the first prize
+  const NUDGE_TH = [10000, 2000, 500];
+  function nudgeFor(kind) {
+    if (Acct.user || lsGet(UID_KEY)) return null;          // signed in (or a signed-in device still waking up)
+    const w = tkLoad();
+    if (kind === 'payout') {
+      if (w.bal <= 0) return null;
+      const th = NUDGE_TH.find(t => w.bal >= t) || 0;
+      if (th > (+lsGet('nb_nudge_th') || 0)) { lsPut('nb_nudge_th', String(th)); lsPut('nb_nudge_day', pacificDay()); return 'th'; }
+      if (lsGet('nb_nudge_day') !== pacificDay()) { lsPut('nb_nudge_day', pacificDay()); return 'day'; }
+      return null;
+    }
+    if (kind === 'buy') { if (lsGet('nb_nudge_buy')) return null; lsPut('nb_nudge_buy', '1'); return 'buy'; }
+    return null;
+  }
+  function renderNudge(kind) {
+    const w = tkLoad(), buy = kind === 'buy';
+    initAuth().catch(() => { });           // warm up the SDK so the Google popup isn't blocked
+    renderMenu({ title: buy ? "DON'T LOSE IT" : 'SAVE YOUR ' + fmt(w.bal) + ' TICKETS?',
+      msg: buy ? 'YOUR PRIZES ONLY LIVE ON THIS DEVICE.<br>SIGN IN TO KEEP THEM ON EVERY DEVICE.' : "RIGHT NOW THEY ONLY LIVE ON THIS DEVICE.<br>CLEAR YOUR BROWSER AND THEY'RE GONE.",
+      buttons: [{ label: 'SIGN IN', fn: () => renderSignIn() }, { label: 'NOT NOW', alt: true, fn: close }], fine: FINE });
   }
 })();
 /* NB-SCORES END */
