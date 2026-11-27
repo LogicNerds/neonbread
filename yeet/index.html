@@ -81,6 +81,15 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
 #rotate canvas{width:162px;height:144px;image-rendering:pixelated;animation:bob 1.4s ease-in-out infinite;margin-bottom:50px}
 #rotate p{font-size:18px;line-height:2.2;color:#ff6b9d;padding:0 20px}
 @keyframes bob{0%,100%{transform:translateY(0) rotate(-10deg)}50%{transform:translateY(-30px) rotate(10deg)}}
+/* NB-FIT: 2-column menus when a screen is too tall; end screens side by side (readout left, title + buttons right) */
+.screen.two .menu:not(.nrow){display:grid;grid-auto-flow:column;column-gap:28px;justify-content:center;align-items:stretch}
+.screen.side{flex-direction:row;gap:90px}
+.screen.side .sideL{flex:0 0 auto;margin:0;min-width:640px;max-width:none}
+.screen.side .sideR{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 1 auto;max-width:760px}
+.screen.side .sideL .row > span,.screen.side table.sideL td,.screen.side table.sideL th{white-space:nowrap}
+.screen.side .sideR > *{max-width:100%}
+.screen.side .sideR .menu{margin-top:10px}
+.screen.side .sideR .btn{white-space:nowrap}
 </style>
 <script id="nb-scores">
 /* NB-SCORES START v1 — Neon Bread Arcade global leaderboards.
@@ -2211,19 +2220,23 @@ h1.big{font-size:72px;color:var(--pink);text-shadow:0 0 20px var(--pink);margin-
     <div class="hint" id="namesHint"></div>
   </div>
 
-  <div class="screen dim" id="results">
-    <h1 class="big">PARTY RESULTS</h1>
-    <div id="resWinner"></div>
-    <table id="resTable"></table>
-    <div id="resPost"></div>
-    <div class="menu" id="resMenu"></div>
+  <div class="screen dim side" id="results">
+    <table class="sideL" id="resTable"></table>
+    <div class="sideR">
+      <h1 class="big">PARTY RESULTS</h1>
+      <div id="resWinner"></div>
+      <div id="resPost"></div>
+      <div class="menu" id="resMenu"></div>
+    </div>
   </div>
 
-  <div class="screen" id="cps">
-    <div class="cpsTitle">&#128680; CPS IS HERE! &#128680;</div>
-    <div class="cpsSub">Bro said "Landing Optional &#128128;"!</div>
-    <div class="cpsStats" id="cpsStats"></div>
-    <div class="menu" id="cpsMenu"></div>
+  <div class="screen side" id="cps">
+    <div class="cpsStats sideL" id="cpsStats"></div>
+    <div class="sideR">
+      <div class="cpsTitle">&#128680; CPS IS HERE! &#128680;</div>
+      <div class="cpsSub">Bro said "Landing Optional &#128128;"!</div>
+      <div class="menu" id="cpsMenu"></div>
+    </div>
   </div>
 </div>
 <script>
@@ -4300,13 +4313,68 @@ const TOUCH_COL_MIN = 150;
 function layout() {
   const vw = window.innerWidth, vh = window.innerHeight;
   let s = Math.min(vw / 1920, vh / 1080);
-  if (isCoarse() && vw > vh) s = Math.min((vw - 2 * TOUCH_COL_MIN) / 1920, vh / 1080);
+  if (isCoarse() && vw > vh && $('touch').classList.contains('on')) s = Math.min((vw - 2 * TOUCH_COL_MIN) / 1920, vh / 1080);
   $('stage').style.transform = `translate(-50%,-50%) scale(${s})`;
   document.documentElement.style.setProperty('--cw', Math.max(0, (vw - 1920 * s) / 2) + 'px');
   $('rotate').classList.toggle('on', isCoarse() && vh > vw);
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', () => setTimeout(layout, 200));
+// NB-FIT: keeps every menu screen inside the 1920x1080 stage on any screen.
+// 1) If a screen is too tall, its menu buttons go to 2 columns (first half left, second half right,
+//    so up/down still walks the list in order). 2) Anything still too big is zoomed down to fit.
+// On touch, the stage only leaves room for the side control columns while those controls are showing,
+// so menus get the full screen height.
+const NBFit = (() => {
+  const stage = document.getElementById('stage'), AV_H = 1010, AV_W = 1850;
+  function extent(sc) {
+    const r = sc.getBoundingClientRect(), k = r.height / 1080 || 1;
+    let t = Infinity, b = -Infinity, l = Infinity, rr = -Infinity;
+    for (const c of sc.children) {
+      const cs = getComputedStyle(c);
+      if (cs.display === 'none' || cs.position === 'absolute' || cs.position === 'fixed') continue;
+      const q = c.getBoundingClientRect();
+      if (!q.width && !q.height) continue;
+      t = Math.min(t, q.top); b = Math.max(b, q.bottom); l = Math.min(l, q.left); rr = Math.max(rr, q.right);
+    }
+    return t === Infinity ? { h: 0, w: 0 } : { h: (b - t) / k, w: (rr - l) / k };
+  }
+  function fitScreen(sc) {
+    if (/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) return;   // scrolling lists (cast) stay as they are
+    sc.classList.remove('two');
+    for (const c of sc.children) c.style.zoom = '';
+    const menus = [...sc.querySelectorAll('.menu:not(.nrow)')];
+    menus.forEach(m => { m.style.gridTemplateRows = ''; });
+    let e = extent(sc);
+    if (e.h > AV_H) {
+      let two = false;
+      menus.forEach(m => { const n = m.children.length; if (n >= 4) { m.style.gridTemplateRows = 'repeat(' + Math.ceil(n / 2) + ', auto)'; two = true; } });
+      if (two) { sc.classList.add('two'); e = extent(sc); }
+    }
+    const z = Math.min(1, e.h ? AV_H / e.h : 1, e.w ? AV_W / e.w : 1);
+    if (z < 0.995) for (const c of sc.children) c.style.zoom = z.toFixed(3);
+  }
+  let busy = false, queued = false;
+  function fitAll() {
+    queued = false; busy = true;
+    stage.querySelectorAll('.screen.on').forEach(fitScreen);
+    obs.takeRecords(); busy = false;
+  }
+  function queue() { if (!queued) { queued = true; requestAnimationFrame(fitAll); } }
+  const obs = new MutationObserver(list => {
+    if (busy) return;
+    for (const m of list) {
+      if (m.type !== 'attributes' || (m.target.classList && m.target.classList.contains('screen'))) { queue(); return; }
+    }
+  });
+  obs.observe(stage, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+  // the control columns come and go with the touch controls, so re-run the stage layout when they do
+  const touch = document.getElementById('touch');
+  if (touch) new MutationObserver(() => { layout(); }).observe(touch, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', queue);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(queue);
+  return { fit: queue };
+})();
 
 // =====================================================================
 // MAIN LOOP + BOOT

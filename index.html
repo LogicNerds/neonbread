@@ -229,6 +229,16 @@ body.port #ring{padding:24px 0 10px}
 .chip.acct:hover{background:#ffe14d;color:#06010d}
 .chip.acct.in{color:#5fe0b7;border-color:#5fe0b7;box-shadow:0 0 10px rgba(95,224,183,.5)}
 .chip.acct.in:hover{background:#5fe0b7}
+/* short landscape (phones on their side): SIGN IN / SOUND stack in the top-right corner and the sign is sized to stay clear of them */
+@media (orientation:landscape) and (max-height:500px) and (min-width:640px){
+  #bar{flex-direction:column;gap:6px;align-items:stretch}
+  #bar .chip{font-size:9px;padding:7px 9px}
+  #sign{margin-top:12px}
+  .tube{font-size:min(4.6vw,calc((100vw - 300px) / 19.5),9vh)}
+  .tube.b{font-size:min(2.3vw,4.6vh);margin-top:.35em}
+  #tag{margin-top:.8em}
+  #ring{padding-top:14px}
+}
 #help{position:relative;z-index:3;font-size:clamp(8px,.75vw,11px);color:#8f82c9;line-height:2;text-align:center;padding:0 16px;margin-top:clamp(8px,2vh,20px)}
 footer{position:relative;z-index:3;font-size:clamp(8px,.75vw,11px);color:#6b5fa3;padding:clamp(10px,2vh,22px) 0 max(14px,env(safe-area-inset-bottom));letter-spacing:.1em}
 body.port #help{display:none}
@@ -3397,8 +3407,12 @@ function layout() {
   if (port) cw = Math.min(vw * .52, 300, (vh - 220) / 2.75);
   else {
     // cabinet height is about 2.05 x its width, plus tagline and button; the ring is about 5 cabinets wide
-    const byW = (vw - 40) / 5.2, byH = (vh - Math.min(vh * .36, 310)) / 2.75;   // room for the sign above the ring
-    cw = Math.max(110, Math.min(byW, byH, 330));
+    // room for the sign above the ring; on short screens (phones on their side) measure what's really there
+    const short = vh < 500;
+    const h = sel => { const el = document.querySelector(sel); return el ? el.getBoundingClientRect().height : 0; };
+    const reserve = short ? $('sign').getBoundingClientRect().bottom + 14 + h('#help') + h('footer') + 16 : Math.min(vh * .36, 310);
+    const byW = (vw - 40) / 5.2, byH = (vh - reserve) / 2.75;
+    cw = Math.max(short ? 60 : 110, Math.min(byW, byH, 330));
   }
   document.documentElement.style.setProperty('--cw', cw.toFixed(1) + 'px');
 }
