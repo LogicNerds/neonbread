@@ -3001,9 +3001,7 @@ function hitCiv(c, dz) {
   STG.stats.civs++;
   addScore(-1000); Audio2.sfx('splat'); Audio2.sfx('deny');
   partBurst(c.x, 1.0, c.z, 18, BLOOD, 2.5, 40, 0.07);
-  banner('CIVILIAN HIT', '#ff2a3d', 90, '-1000 POINTS  -25 HP');
-  PL.hp = Math.max(0, PL.hp - 25); G.hurtFlash = 18; curZone().dmg = true;
-  if (PL.hp <= 0) playerDown();
+  banner('CIVILIAN HIT', '#ff2a3d', 90, '-1000 POINTS');      // points only, no HP (Elijah, Nov 27)
   void dz;
 }
 
