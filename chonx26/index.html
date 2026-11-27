@@ -93,6 +93,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
     cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
     pedxing: { title: 'PED X-ING', color: '#d4ff00' },
+    fiveo: { title: 'CHONX FIVE O', color: '#2b6bff' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
@@ -203,7 +204,7 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
   // A run pays score / rate (aiming for ~20-40 on an average run, min 5, max 150) plus bonuses.
   // Party mode never calls submit(), so party runs earn nothing.
   const TK_KEY = 'nb_tickets_v1';
-  const TK_RATE = { chonx: 1000, cheekyops: 2000, yeet: 600, gta: 1500, karen: 400, pedxing: 1500 };
+  const TK_RATE = { chonx: 1000, cheekyops: 2000, yeet: 600, gta: 1500, karen: 400, pedxing: 1500, fiveo: 1000 };
   const TK = { min: 5, max: 150, best: 25, top10: 50, firstToday: 10, golden: 500, goldenOdds: 1 / 40 };
   function pacificDay(d) {
     const p = {};
@@ -401,6 +402,8 @@ h1.big{font-size:64px;color:#ff4bd8;text-shadow:0 0 20px #ff4bd8;margin-bottom:5
       ['6 HEADSHOTS', 125, s => s.heads >= 6], ['SCORE 12,000', 75, s => s.score >= 12000], ['CLEAR ALL 5 STORES', 150, s => s.stores >= 5]],
     pedxing: [['x3 COMBO', 50, s => s.combo >= 3], ['x4 COMBO', 75, s => s.combo >= 4], ['x5 COMBO', 125, s => s.combo >= 5],
       ['A CLEAN SHIFT', 100, s => s.clean], ['SCORE 40,000', 75, s => s.score >= 40000], ['SCORE 70,000', 125, s => s.score >= 70000]],
+    fiveo: [['CLEAR A CALL', 75, s => s.stages >= 1], ['CLEAR 2 CALLS', 125, s => s.stages >= 2], ['40 TAKEDOWNS', 75, s => s.kills >= 40],
+      ['15 HEADSHOTS', 100, s => s.heads >= 15], ['SCORE 40,000', 100, s => s.score >= 40000], ['PUT MANGE IN CUFFS', 150, s => s.mange]],
   };
   Tickets.challenge = (game, day) => {
     const list = CHALLENGES[game]; if (!list) return null;

@@ -251,6 +251,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
     karen: { title: 'BODY THE KAREN', color: '#00e5ff' },
     cheekyops: { title: 'CHONX: CHEEKY OPS', color: '#ff2a3d' },
     pedxing: { title: 'PED X-ING', color: '#d4ff00' },
+    fiveo: { title: 'CHONX FIVE O', color: '#2b6bff' },
   };
   const ARCADE_URL = 'https://www.neonbreadent.com/';
   const NAME_LEN = 6;
@@ -361,7 +362,7 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
   // A run pays score / rate (aiming for ~20-40 on an average run, min 5, max 150) plus bonuses.
   // Party mode never calls submit(), so party runs earn nothing.
   const TK_KEY = 'nb_tickets_v1';
-  const TK_RATE = { chonx: 1000, cheekyops: 2000, yeet: 600, gta: 1500, karen: 400, pedxing: 1500 };
+  const TK_RATE = { chonx: 1000, cheekyops: 2000, yeet: 600, gta: 1500, karen: 400, pedxing: 1500, fiveo: 1000 };
   const TK = { min: 5, max: 150, best: 25, top10: 50, firstToday: 10, golden: 500, goldenOdds: 1 / 40 };
   function pacificDay(d) {
     const p = {};
@@ -559,6 +560,8 @@ body.port #sign{margin-top:calc(max(10px,env(safe-area-inset-top)) + 52px)}
       ['6 HEADSHOTS', 125, s => s.heads >= 6], ['SCORE 12,000', 75, s => s.score >= 12000], ['CLEAR ALL 5 STORES', 150, s => s.stores >= 5]],
     pedxing: [['x3 COMBO', 50, s => s.combo >= 3], ['x4 COMBO', 75, s => s.combo >= 4], ['x5 COMBO', 125, s => s.combo >= 5],
       ['A CLEAN SHIFT', 100, s => s.clean], ['SCORE 40,000', 75, s => s.score >= 40000], ['SCORE 70,000', 125, s => s.score >= 70000]],
+    fiveo: [['CLEAR A CALL', 75, s => s.stages >= 1], ['CLEAR 2 CALLS', 125, s => s.stages >= 2], ['40 TAKEDOWNS', 75, s => s.kills >= 40],
+      ['15 HEADSHOTS', 100, s => s.heads >= 15], ['SCORE 40,000', 100, s => s.score >= 40000], ['PUT MANGE IN CUFFS', 150, s => s.mange]],
   };
   Tickets.challenge = (game, day) => {
     const list = CHALLENGES[game]; if (!list) return null;
@@ -1396,6 +1399,7 @@ const GAMES = [
   { id: 'gta', url: 'gta/', title: 'GRANDMA THEFT AUTOMATIC', c: '#ffcc4d', b1: '#5fe0b7', b2: '#ff7a6b', tag: 'BORROW EVERY GRANDMA IN TOWN BEFORE THANKSGIVING DINNER.' },
   { id: 'karen', url: 'karen/', title: 'BODY THE KAREN', c: '#00e5ff', b1: '#ff2bd6', b2: '#ffe14d', tag: 'BEFORE SHE FINDS THE MANAGER!' },
   { id: 'pedxing', url: 'pedxing/', title: 'PED X-ING', c: '#d4ff00', b1: '#ff2a3d', b2: '#ffffff', tag: 'KNOW YOUR RIGHT OF WAY.' },
+  { id: 'fiveo', url: 'fiveo/', title: 'CHONX FIVE O', c: '#2b6bff', b1: '#ff2a3d', b2: '#2b6bff', tag: 'READY. AIM. CHONK.' },
   { id: 'counter', counter: true, url: null, title: 'PRIZE COUNTER', c: '#ffb13b', tag: 'TRADE YOUR TICKETS FOR PRIZES.' },
   { id: 'bored', door: true, url: 'boredgames/', title: 'BORED GAMES', c: '#b04bff', tag: 'THE BACK ROOM. BOARD GAMES FOR THE WHOLE CREW.' },
 ];
@@ -1582,6 +1586,16 @@ function drawMarquee(cv, g) {
     // little crosshairs either side
     x.strokeStyle = g.c; x.lineWidth = 1;
     for (const cx of [9, W - 10]) { x.beginPath(); x.arc(cx + .5, 13.5, 5, 0, 7); x.stroke(); x.fillStyle = g.c; x.fillRect(cx - 6, 13, 13, 1); x.fillRect(cx, 7, 1, 13); }
+    return;
+  }
+  if (g.id === 'fiveo') {
+    const a = 'CHONX', b = 'FIVE O', wb = textW(b, 2);
+    pixText(x, a, Math.round((W - textW(a)) / 2), 3, '#ffffff', 1, '#000');
+    const sx = Math.round((W - wb) / 2);
+    pixText(x, 'FIVE', sx, 11, '#ff2a3d', 2, '#000'); pixText(x, 'O', sx + textW('FIVE ', 2), 11, '#2b6bff', 2, '#000');
+    // light bar either side, blinking red / blue
+    const on = Math.floor(performance.now() / 300) % 2;
+    x.fillStyle = on ? '#ff2a3d' : '#5a0a14'; x.fillRect(3, 9, 6, 4); x.fillStyle = on ? '#3a0a5a' : '#2b6bff'; x.fillRect(W - 9, 9, 6, 4);
     return;
   }
   if (g.id === 'pedxing') {
@@ -1884,7 +1898,41 @@ function pedxScene(x, t) {
   else { const w = textW("DON'T JAYWALK"); if (Math.floor(lt * 3) % 3 !== 2) pixText(x, "DON'T JAYWALK", Math.round((SW - w) / 2), 6, '#ff7a1a', 1, '#000'); }
 }
 const lerp = (a, b, k) => a + (b - a) * k;
-const SCENES = { chonx: chonxScene, cheekyops: cheekyScene, yeet: yeetScene, gta: gtaScene, karen: karenScene, pedxing: pedxScene };
+// Chonx Five O: down the street from behind Chonx; a Stray pops up from behind a car, the brackets close, he drops
+const FOGANG = spr(['..kk.kk..', '..kkkkk..', '.kkwkwkk.', '..kkkkk..', '...yyy...', '.jjjjjjj.', 'jjjggjjjj', 'jj.jjj.jj', '...ppp...', '...p.p...', '..ss.ss..'], { k: '#8a5a3a', w: '#111', y: '#ffcc00', j: '#2a2a30', g: '#22252c', p: '#2a3048', s: '#1a1a1a' });
+const FOCAR = spr(['...cccccccc...', '..cbbbbbbbbc..', '.cccccccccccc.', 'crrccccccccrrc', 'cccccwwwwccccc', 'kkkkkkkkkkkkkk', '.kk........kk.'], { c: '#3a6ac8', b: '#2a3a50', r: '#ff2a3d', w: '#f0e8b0', k: '#1a1a1e' });
+const FOCHONX = spr(['...nnnnnn...', '..nnnnnnnn..', '.kkkkkkkkkk.', '.ffffffffff.', 'ffffffffffff', 'fffddddddfff', '.ffffffffff.', 'uuuuuuuuuuuu', 'uuuuuuuuuuuu'], { n: '#1a2550', k: '#0a0a0a', f: '#d9893b', d: '#a8621f', u: '#26346c' });
+function fiveoScene(x, t) {
+  const HY2 = 44;
+  x.fillStyle = '#2a1a4a'; x.fillRect(0, 0, SW, 22); x.fillStyle = '#8a3a6a'; x.fillRect(0, 22, SW, 14); x.fillStyle = '#ff8a4a'; x.fillRect(0, 36, SW, HY2 - 36);
+  for (let k = 0; k < 10; k++) { const bh = 6 + (k * 13) % 14; x.fillStyle = '#2a1228'; x.fillRect(k * 13, HY2 - bh, 12, bh); }
+  // street + buildings in perspective
+  x.fillStyle = '#26262e'; x.beginPath(); x.moveTo(52, HY2); x.lineTo(76, HY2); x.lineTo(SW + 30, SH); x.lineTo(-30, SH); x.closePath(); x.fill();
+  x.fillStyle = '#6a3a3a'; x.beginPath(); x.moveTo(0, 0); x.lineTo(50, 28); x.lineTo(50, HY2 + 1); x.lineTo(0, 70); x.closePath(); x.fill();
+  x.fillStyle = '#4a3a4a'; x.beginPath(); x.moveTo(SW, 0); x.lineTo(78, 28); x.lineTo(78, HY2 + 1); x.lineTo(SW, 70); x.closePath(); x.fill();
+  x.fillStyle = '#ffd88a'; for (let k = 0; k < 5; k++) { x.fillRect(6 + k * 8, 18 + k * 2, 3, 4); x.fillRect(SW - 9 - k * 8, 18 + k * 2, 3, 4); }
+  x.fillStyle = '#d8c040'; x.fillRect(63, HY2, 1, SH - HY2); x.fillRect(65, HY2, 1, SH - HY2);
+  for (let k = 0; k < 6; k++) { const z = ((k * 12 + t * 20) % 70), y = HY2 + z * 0.75; x.fillStyle = '#e8e8e8'; x.fillRect(Math.round(50 - z * 0.7), Math.round(y), 2, 1); x.fillRect(Math.round(78 + z * 0.7), Math.round(y), 2, 1); }
+  // the car and the Stray behind it
+  const LOOP = 4.2, lt = t % LOOP, cx = 80, cy = 52;
+  const rise = Math.min(1, lt / 0.4), dead = lt > 2.4;
+  if (!dead) x.drawImage(FOGANG, cx + 2, Math.round(cy - 4 - rise * 6));
+  else { const k = Math.min(1, (lt - 2.4) * 3); x.save(); x.translate(cx + 6, cy + 5); x.rotate(k * 1.4); x.drawImage(FOGANG, -4, -11); x.restore(); x.fillStyle = '#d4001e'; for (let i = 0; i < 14; i++) { const kk = (lt - 2.4) * 22; if (lt < 3.2) x.fillRect(Math.round(cx + 6 + Math.cos(i * 1.9) * kk * (0.3 + (i % 3) * 0.3)), Math.round(cy - 6 + Math.sin(i * 2.7) * kk * 0.4 + kk * kk * 0.02), 1, 1); } }
+  x.drawImage(FOCAR, cx - 2, cy + 2);
+  // closing brackets
+  if (!dead && lt > 0.4) {
+    const k = Math.min(1, (lt - 0.4) / 1.9), pad = Math.round((1 - k) * 9), bx0 = cx + 1 - pad, by0 = Math.round(cy - 11) - pad, bx1 = cx + 12 + pad, by1 = cy + 1 + pad;
+    x.fillStyle = k < 0.5 ? '#fff' : k < 0.8 ? '#ffb02a' : '#ff2a3d';
+    [[bx0, by0, 3, 1], [bx0, by0, 1, 3], [bx1 - 3, by0, 3, 1], [bx1, by0, 1, 3], [bx0, by1, 3, 1], [bx0, by1 - 2, 1, 3], [bx1 - 3, by1, 3, 1], [bx1, by1 - 2, 1, 3]].forEach(([a, b, w, h]) => x.fillRect(a, b, w, h));
+  }
+  // Chonx from behind, pistol up
+  x.fillStyle = '#26346c'; x.fillRect(38, 78, 4, 6); x.fillStyle = '#d9893b'; x.fillRect(40, 74, 3, 4); x.fillStyle = '#22252c'; x.fillRect(41, 71, 2, 3);
+  x.drawImage(FOCHONX, 22, 84);
+  if (lt > 2.3 && lt < 2.45) { x.fillStyle = '#ffd23a'; x.fillRect(40, 67, 4, 4); x.fillStyle = 'rgba(255,240,200,.35)'; x.fillRect(0, 0, SW, SH); }
+  if (dead && lt < 3.6) { const w1 = textW('HEADSHOT'); pixText(x, 'HEADSHOT', Math.round((SW - w1) / 2), 6, '#ffd23a', 1, '#000'); }
+  else { const w = textW('READY. AIM. CHONK.'); pixText(x, 'READY. AIM. CHONK.', Math.round((SW - w) / 2), 6, '#ffffff', 1, '#000'); }
+}
+const SCENES = { chonx: chonxScene, cheekyops: cheekyScene, yeet: yeetScene, gta: gtaScene, karen: karenScene, pedxing: pedxScene, fiveo: fiveoScene };
 
 // small scores screen in the cabinet (alternates with the attract scene)
 function scoreScreen(x, g, t, scope) {
@@ -2158,7 +2206,7 @@ function insertCoin() {
 // Drawn in code in a 100x100 space and cached. The games' PRIZES menus keep the shared pixel icons.
 const CIcon = (() => {
   const TAU = Math.PI * 2, OL = '#170a26', PX = 192, FONT = '"Press Start 2P", monospace';
-  const GCOL = { chonx: '#39ff6a', yeet: '#ff6b9d', gta: '#ffcc4d', karen: '#00e5ff', cheekyops: '#ff2a3d', pedxing: '#d4ff00' };
+  const GCOL = { chonx: '#39ff6a', yeet: '#ff6b9d', gta: '#ffcc4d', karen: '#00e5ff', cheekyops: '#ff2a3d', pedxing: '#d4ff00', fiveo: '#2b6bff' };
   const RAINBOW = ['#ff3b3b', '#ff9a1f', '#ffe14d', '#3ddc5a', '#2f8cff', '#9b4bff'];
   function shade(hex, k) { const v = parseInt(hex.slice(1), 16); const f = c => Math.max(0, Math.min(255, Math.round(k > 1 ? c + (255 - c) * (k - 1) : c * k))); return '#' + [f(v >> 16), f((v >> 8) & 255), f(v & 255)].map(n => n.toString(16).padStart(2, '0')).join(''); }
   function lin(g, x0, y0, x1, y1, cols) { const gr = g.createLinearGradient(x0, y0, x1, y1); cols.forEach((c, i) => gr.addColorStop(i / (cols.length - 1), c)); return gr; }
