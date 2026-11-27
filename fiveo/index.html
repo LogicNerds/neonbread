@@ -2506,6 +2506,7 @@ function buildStage(si) {
   def.zones.forEach((zd, i) => {
     const th = THEMES[zd.theme];
     const zone = Object.assign({ wallH: th.wallH, hw: 8, len: 34, waves: [], covers: [], props: [], pk: [] }, zd);
+    zone.waves = (zd.waves || []).slice();     // own copy: the encore below must never be added to the stage data itself
     zone.i = i; zone.z0 = z; zone.z1 = z + zone.len; zone.seed = def.seed * 31 + i * 977;
     zone.open = [];
     zone.waves.forEach(w => w.e.forEach(e => {
@@ -2513,7 +2514,7 @@ function buildStage(si) {
     }));
     (zone.decoDoors || []).forEach(([s, dz]) => zone.open.push({ s, z: dz, kind: 'door' }));
     // encore: the last wave's spots fill up again with fresh Strays (more of a fight before the area is secure)
-    if (!zone.boss && zone.waves.length) { const w0 = zone.waves[zone.waves.length - 1]; zone.waves.push({ need: (zone.waves[zone.waves.length - 1].need || 0) + 3, e: w0.e.filter(e => e.t !== 'hos' && e.t !== 'civ').map(e => Object.assign({}, e, e.at === 'cov' || e.at === 'door' || e.at === 'win' ? {} : { z: Math.min(zone.len - 3, (e.z || 20) + 5) }, { drop: undefined })) }); }
+    if (!zone.boss && zone.waves.length) { const w0 = zone.waves[zone.waves.length - 1]; zone.waves.push({ need: Math.min(zone.len - 6, (zone.waves[zone.waves.length - 1].need || 0) + 3), e: w0.e.filter(e => e.t !== 'hos' && e.t !== 'civ').map(e => Object.assign({}, e, e.at === 'cov' || e.at === 'door' || e.at === 'win' ? {} : { z: Math.min(zone.len - 3, (e.z || 20) + 5) }, { drop: undefined })) }); }
     zone.wi = 0; zone.wave = []; zone.wdelay = 40; zone.cleared = false; zone.dmg = false; zone.tape = 0;
     zone.texL = facadeCanvas(zone, -1); zone.texR = facadeCanvas(zone, 1);
     const prev = st.zones[i - 1];
@@ -2824,7 +2825,7 @@ function updateEnemies() {
         e.x += clamp(tx - e.x, -3 * STEP, 3 * STEP); e.z += clamp(tz - e.z, -5 * STEP, 5 * STEP);
         for (const o of STG.objs) if (Math.abs(e.x - o.x) < o.w / 2 + 0.3 && Math.abs(e.z - o.z) < o.d / 2 + 0.3) e.x += (e.x < o.x ? -1 : 1) * 4 * STEP;
         e.walkT = (e.walkT || 0) + 1;
-        if (Math.abs(e.z - tz) < 0.4 && Math.abs(e.x - tx) < 1.3) { e.st = 'swing'; e.aim = 0; }
+        if (Math.abs(e.z - tz) < 0.4 && Math.abs(e.x - tx) < 1.6) { e.st = 'swing'; e.aim = 0; }      // 1.6 = his reach, so a car corner can't keep him from ever swinging
         break;
       }
       case 'swing': e.aim += 1 / 30; if (Math.floor(e.aim * 6) > Math.floor((e.aim - 1 / 30) * 6)) Audio2.sfx('tick', e.aim); if (e.aim >= 1) { if (Math.abs(e.x - P.x) < 1.6 && Math.abs(e.z - P.z) < 2.4) { damagePlayer(10); Audio2.sfx('thud'); } e.st = 'backoff'; e.tm = 40; } break;
