@@ -33,6 +33,20 @@ body{display:flex;flex-direction:column;align-items:center;min-height:100%;
 #exit.foc,#exit:hover{background:linear-gradient(180deg,#7ff4ff,#00c4dc);color:#07010f;box-shadow:0 0 20px var(--cyan)}
 #hint{position:relative;z-index:2;font-size:9px;color:#7d72b8;margin-bottom:10px;text-align:center;line-height:1.8;padding:0 10px}
 #credit{position:relative;z-index:2;font-size:9px;color:#5a4f8a;margin:6px 0 20px}
+/* short landscape (phones on their side): sign on one line, tables side by side */
+@media (orientation:landscape) and (max-height:600px){
+  #sign{margin-top:10px}
+  .tube{display:inline;font-size:min(5.4vw,9.5vh)}
+  .tube.b{margin-left:.5em}
+  .sub{margin-top:.9em}
+  #tables{flex-wrap:nowrap;margin-top:10px;gap:3vw}
+  .tbl{width:min(330px,40vw);padding:10px 12px 12px}
+  .tbl canvas{aspect-ratio:auto;height:min(26vh,150px);object-fit:contain}
+  .tbl h2{margin-top:8px;font-size:min(2.4vw,18px)}
+  .tbl p{margin-top:6px;font-size:9px;line-height:1.7;min-height:3.4em}
+  .tbl .who{margin-top:4px;line-height:1.6}
+  #exit{margin:10px 0 8px;padding:11px 20px}
+}
 </style>
 </head>
 <body>

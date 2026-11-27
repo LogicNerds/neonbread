@@ -19,6 +19,19 @@ body{background:radial-gradient(ellipse at 50% 0%,#2a1250 0%,#0d0320 58%,#07010f
 #side{display:flex;flex-direction:column;gap:12px;width:min(460px,34vw);max-height:96vh}
 body.port #game{flex-direction:column;justify-content:flex-start}
 body.port #side{width:min(96vw,640px);max-height:none;flex:1;min-height:0}
+/* short landscape (phones on their side): a smaller card and tighter panel so the move options keep their room */
+@media (max-height:500px){
+  body:not(.port) #side{gap:7px;max-height:calc(100vh - 4vmin)}
+  body:not(.port) #topbtns button{padding:6px 4px}
+  body:not(.port) #turn{padding:7px 10px;line-height:1.4}
+  body:not(.port) #turn small{margin-top:3px}
+  body:not(.port) #cardWrap{gap:10px}
+  body:not(.port) #card{--cw:clamp(52px,17vh,96px)}
+  body:not(.port) #opts{gap:5px;min-height:84px}
+  body:not(.port) .opt{padding:8px 10px}
+  body:not(.port) .opt.big{padding:10px}
+  body:not(.port) #hint{line-height:1.5}
+}
 .panel{border-radius:14px;background:linear-gradient(180deg,rgba(36,16,72,.92),rgba(14,5,32,.94));border:2px solid #3a2a6a;box-shadow:0 8px 24px rgba(0,0,0,.45)}
 #turn{padding:14px 12px;text-align:center;font-size:clamp(11px,1.15vw,20px);line-height:1.6;border-color:var(--pc);color:#fff;text-shadow:0 0 10px var(--pc);box-shadow:0 0 22px -6px var(--pc),0 8px 24px rgba(0,0,0,.45)}
 #turn small{display:block;font-size:.6em;color:#d8d0ff;text-shadow:none;margin-top:6px}
@@ -53,6 +66,23 @@ body.port #side{width:min(96vw,640px);max-height:none;flex:1;min-height:0}
 .screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;z-index:20;text-align:center;overflow-y:auto}
 .screen.on{display:flex}
 .screen.dim{background:rgba(6,1,13,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+/* centered with auto margins, so a screen taller than the window scrolls from its top instead of losing it */
+.screen{justify-content:flex-start}
+.screen > :first-child{margin-top:auto}
+.screen > :last-child{margin-bottom:auto}
+/* short landscape (phones on their side): logo left, menu right; win screen art left, result and buttons right */
+@media (orientation:landscape) and (max-height:600px){
+  #sTitle.on{display:grid;grid-template-columns:auto auto;grid-template-areas:"logo menu" "tag menu" "hint menu" "credit menu";align-content:center;justify-content:center;align-items:center;column-gap:6vw;row-gap:10px}
+  #sTitle > *,#sWin > *{margin:0}
+  #sTitle .logo{grid-area:logo;font-size:min(6.4vw,13vh)}
+  #sTitle .tagl{grid-area:tag;max-width:42vw}
+  #mhint{grid-area:hint;max-width:42vw}
+  #sTitle .credit{grid-area:credit}
+  #sTitle .menu{grid-area:menu;min-width:min(320px,40vw)}
+  .screen .btn{padding:11px 16px}
+  #sWin.on{display:grid;grid-template-columns:auto auto;grid-template-areas:"art head" "art sub" "art menu";align-content:center;justify-content:center;align-items:center;column-gap:5vw;row-gap:12px}
+  #winArt{grid-area:art} #winHead{grid-area:head} #winSub{grid-area:sub;max-width:44vw} #winMenu{grid-area:menu;min-width:min(320px,40vw)}
+}
 .logo{font-size:clamp(34px,10.5vw,128px);color:#ffd3f6;letter-spacing:.04em;white-space:nowrap;text-shadow:0 0 6px #fff,0 0 16px var(--pink),0 0 40px var(--pink),0 0 80px var(--pink);animation:buzz 6s infinite}
 @keyframes buzz{0%,91%,93%,95%,100%{opacity:1}92%,94%{opacity:.35}}
 .tagl{font-size:clamp(9px,1.3vw,16px);color:var(--yellow);line-height:1.8;max-width:760px;text-shadow:0 0 10px rgba(255,225,77,.5)}

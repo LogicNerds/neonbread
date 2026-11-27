@@ -1614,6 +1614,13 @@ body.touch #touch{display:flex}
 .stats{display:grid;grid-template-columns:1fr auto;gap:6px 16px;font-size:22px;font-variant-numeric:tabular-nums}
 .stats span:nth-child(even){color:var(--sun);font-family:var(--display);font-size:13px;text-align:right;padding-top:3px}
 #tablecv{width:100%;image-rendering:pixelated;border:3px solid var(--black);background:#2a2140}
+/* end of day, landscape: table picture and stats on the left, title, story and buttons on the right */
+@media (orientation:landscape) and (min-width:640px){
+  #end .card{width:min(1040px,100%);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:26px;row-gap:12px;align-items:start;
+    grid-template-areas:"tbl eye" "tbl title" "tbl msg" "stats menu" "stats next" "stats btns"}
+  #endeyebrow{grid-area:eye} #endtitle{grid-area:title} #tablecv{grid-area:tbl} #endmsg{grid-area:msg}
+  #end #menu{grid-area:menu} #end #stats{grid-area:stats} #nextup{grid-area:next} #end .row{grid-area:btns}
+}
 .cash{color:var(--lilac);font-family:var(--display);font-size:14px}
 @media (prefers-reduced-motion: reduce){.toast{animation-duration:2.4s}.shake{animation:none}}
 @media (max-width:520px){#hud-top{gap:5px}.chip{padding:6px 7px}#heatname{display:none}}
@@ -2185,10 +2192,10 @@ function moveFocus(d){
   focusBtn(bs[i < 0 ? 0 : (i + d + bs.length) % bs.length]);
 }
 // focus a menu button; with a controller connected, also show the ▶ highlight
-function focusBtn(el){
+function focusBtn(el, keepScroll){
   if (!el) return;
   document.querySelectorAll('.padsel').forEach(b => b.classList.remove('padsel'));
-  el.focus();
+  if (keepScroll) el.focus({ preventScroll: true }); else el.focus();
   if (pad.connected) el.classList.add('padsel');
 }
 addEventListener('mousemove', () => document.querySelectorAll('.padsel').forEach(b => b.classList.remove('padsel')));
@@ -3250,9 +3257,10 @@ function endDay(){
   if (final) rows.push(['Big Bertha', berthaDown ? 'DEFEATED' : 'GOT AWAY'], ['Best week', Math.max(best, seats) + ' seats']);
   $('stats').innerHTML = rows.map(r => '<span>' + r[0] + '</span><span>' + r[1] + '</span>').join('');
   drawTable();
-  $('end').hidden = false; setTimeout(() => focusBtn($('againbtn')), 30);
+  // the end card opens at the top so the day's result shows first; the button is focused without scrolling to it
+  $('end').hidden = false; $('end').scrollTop = 0; setTimeout(() => { $('end').scrollTop = 0; focusBtn($('againbtn'), true); }, 30);
   // end of the week: post the week's score to the Neon Bread Arcade leaderboard (GitHub build only)
-  if (final && window.NBScores) NBScores.submit({ game: 'gta', score, stats: { seats, bertha: !!berthaDown }, feats: seats >= WEEK_GOAL ? [{ t: 'FULL HOUSE: 100 SEATS', n: 50 }] : [], onClose: () => focusBtn($('againbtn')) });
+  if (final && window.NBScores) NBScores.submit({ game: 'gta', score, stats: { seats, bertha: !!berthaDown }, feats: seats >= WEEK_GOAL ? [{ t: 'FULL HOUSE: 100 SEATS', n: 50 }] : [], onClose: () => focusBtn($('againbtn'), true) });
 }
 // the full 100-seat Thanksgiving table: two long tables, 25 chairs per side (heads and shoulders only)
 function drawTable(){
@@ -3344,8 +3352,9 @@ function showIntro(){
   const rows = [['Seats so far', seats + ' / ' + WEEK_GOAL], ['Target by tonight', d.goal + ' seats'], ['Bingo Bucks', '$' + bucks], ['Fruitcake', cakes]];
   $('introstats').innerHTML = rows.map(r => '<span>' + r[0] + '</span><span>' + r[1] + '</span>').join('');
   $('daybtn').textContent = 'START ' + d.name;
-  state = 'intro'; $('dayintro').hidden = false;
-  setTimeout(() => focusBtn($('daybtn')), 30);
+  // opens at the top so the day's title and news show first; the button is focused without scrolling to it
+  state = 'intro'; $('dayintro').hidden = false; $('dayintro').scrollTop = 0;
+  setTimeout(() => { $('dayintro').scrollTop = 0; focusBtn($('daybtn'), true); }, 30);
 }
 function beginDay(){
   ensureAudio();
