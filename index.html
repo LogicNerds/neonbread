@@ -2592,6 +2592,67 @@ const CIcon = (() => {
   A['pedxing.dash.bobble'] = g => bobble(g, g => { [30, 70].forEach(x => { S(g, tone(g, x, 14, 9, '#f2a24e'), 3, E(g, x, 15, 8.5, 8.5)); S(g, '#ff9fb6', 0, E(g, x, 16, 4.5, 4.5)); }); S(g, tone(g, 50, 36, 28, '#f2a24e'), 3, E(g, 50, 37, 28, 25)); S(g, '#fde3b8', 2.5, E(g, 36, 46, 10, 8)); S(g, '#fde3b8', 2.5, E(g, 64, 46, 10, 8)); eye(g, 40, 33, 3.8); eye(g, 60, 33, 3.8); S(g, '#ff6f8f', 2, E(g, 50, 41, 3.4, 2.4)); }, '#8a4be8');
   A['pedxing.horn.partyhorn'] = g => { S(g, lin(g, 0, 50, 0, 70, ['#ffe14d', '#e0a800']), 3, () => { g.moveTo(8, 58); g.lineTo(40, 52); g.lineTo(40, 68); g.lineTo(8, 62); g.closePath(); }); const coil = () => { g.moveTo(40, 60); g.lineTo(60, 60); g.bezierCurveTo(86, 60, 90, 34, 72, 30); g.bezierCurveTo(60, 28, 58, 44, 68, 44); g.bezierCurveTo(74, 44, 74, 38, 70, 37); }; L(g, OL, 16, coil); L(g, '#ff2bd6', 12, coil); L(g, '#2bf3ff', 3, coil); [[20, 30, '#ffe14d'], [30, 20, '#2bf3ff'], [88, 70, '#ff2bd6'], [14, 82, '#7dff4a']].forEach(([x, y, c]) => S(g, c, 0, R(g, x, y, 6, 4, 1))); };
   A['pedxing.horn.dad'] = g => { hornBulb(g, '#2b4a8a', '#cfd4de'); text(g, 'DAD', 70, 86, 10, '#fff', 3); };
+  // ---- Chonx Five O
+  const cap5 = (g, crown, band, brim) => { S(g, lin(g, 0, 6, 0, 26, [shade(crown, 1.3), crown, shade(crown, .7)]), 3, () => { g.moveTo(24, 24); g.bezierCurveTo(22, 6, 78, 6, 76, 24); g.closePath(); }); S(g, band, 2.5, R(g, 23, 21, 54, 7, 3)); if (brim) S(g, brim, 2.5, () => { g.moveTo(30, 28); g.quadraticCurveTo(50, 36, 70, 28); g.lineTo(66, 26); g.quadraticCurveTo(50, 30, 34, 26); g.closePath(); }); };
+  const badge5 = (g, x, y, s) => { S(g, rad(g, x, y, s, '#fff3a0', '#d4a800'), 2, () => starPath(g, x, y, s, 6, .62)); S(g, '#2b6bff', 0, E(g, x, y, s * .35, s * .35)); };
+  A['fiveo.outfit.trench'] = g => chonx(g, { hood: '#b89a6a', hoodD: '#7a6040', trim: '#8a7048', strap: '#5a4632' }, g => {
+    S(g, lin(g, 0, 60, 0, 98, ['#d8bc8a', '#a08458']), 2.5, () => { g.moveTo(32, 64); g.lineTo(46, 98); g.lineTo(36, 98); g.lineTo(24, 70); g.closePath(); g.moveTo(68, 64); g.lineTo(54, 98); g.lineTo(64, 98); g.lineTo(76, 70); g.closePath(); });
+    S(g, lin(g, 0, 4, 0, 26, ['#7a6248', '#4a3826']), 3, () => { g.moveTo(8, 24); g.quadraticCurveTo(50, 32, 92, 24); g.quadraticCurveTo(80, 18, 74, 18); g.bezierCurveTo(72, 0, 28, 0, 26, 18); g.quadraticCurveTo(20, 18, 8, 24); });
+    S(g, '#2a1e14', 0, R(g, 26, 14, 48, 5, 2)); });
+  A['fiveo.outfit.riot'] = g => chonx(g, { hood: '#1a2550', hoodD: '#0e1634', trim: '#33468a', strap: '#0e1634' }, g => {
+    text(g, 'POLICE', 50, 84, 6.5, '#ffffff', 2.5);
+    S(g, lin(g, 0, 0, 0, 30, ['#33468a', '#1a2550']), 3, () => { g.moveTo(18, 30); g.bezierCurveTo(14, -2, 86, -2, 82, 30); g.closePath(); });
+    S(g, 'rgba(160,210,255,.55)', 2.5, () => { g.moveTo(20, 28); g.lineTo(80, 28); g.lineTo(78, 46); g.quadraticCurveTo(50, 52, 22, 46); g.closePath(); }); hi(g, 34, 34, 10, 3, -.1, .55); });
+  A['fiveo.outfit.swat'] = g => chonx(g, { hood: '#1c1c22', hoodD: '#0a0a0e', trim: '#3a3a44', strap: '#3a3a44' }, g => {
+    S(g, lin(g, 0, 66, 0, 96, ['#3a3a44', '#1c1c22']), 2.5, R(g, 30, 70, 40, 24, 4)); text(g, 'SWAT', 50, 82, 8, '#ffffff', 2.5);
+    S(g, lin(g, 0, 2, 0, 26, ['#3a3a44', '#14141a']), 3, () => { g.moveTo(20, 26); g.bezierCurveTo(16, 0, 84, 0, 80, 26); g.closePath(); }); S(g, '#3a3a44', 2, R(g, 20, 22, 60, 6, 3)); });
+  A['fiveo.outfit.moto'] = g => chonx(g, { hood: '#6a3a1e', hoodD: '#4a2612', trim: '#8a5a32', strap: '#3a2010' }, g => {
+    L(g, '#c8ccd4', 2.5, () => { g.moveTo(50, 64); g.lineTo(50, 98); });
+    S(g, lin(g, 0, 0, 0, 30, ['#ffffff', '#c8ccd4']), 3, () => { g.moveTo(18, 30); g.bezierCurveTo(14, -2, 86, -2, 82, 30); g.closePath(); }); S(g, '#1a2550', 0, R(g, 46, 2, 8, 26, 2)); badge5(g, 50, 16, 6);
+    S(g, 'rgba(40,40,50,.75)', 2, () => { g.moveTo(22, 30); g.lineTo(78, 30); g.lineTo(76, 34); g.lineTo(24, 34); g.closePath(); }); });
+  A['fiveo.outfit.miami'] = g => chonx(g, { hood: '#ff9ad0', hoodD: '#d870a8', trim: '#7af0e0', strap: '#ff9ad0' }, g => {
+    S(g, '#7af0e0', 2.5, () => { g.moveTo(40, 64); g.lineTo(60, 64); g.lineTo(50, 92); g.closePath(); });
+    S(g, lin(g, 0, 8, 0, 22, ['#c87a3a', '#8a4e16']), 2.5, () => { g.moveTo(26, 22); g.bezierCurveTo(30, 6, 70, 4, 78, 18); g.bezierCurveTo(64, 12, 44, 14, 26, 22); });
+    S(g, '#14081f', 2, R(g, 30, 32, 17, 8, 3)); S(g, '#14081f', 2, R(g, 53, 32, 17, 8, 3)); L(g, '#14081f', 2, () => { g.moveTo(47, 35); g.lineTo(53, 35); }); hi(g, 36, 34, 4, 1.5, 0, .7); hi(g, 59, 34, 4, 1.5, 0, .7); },
+    (g, P) => {});
+  // pistols, side on
+  function pistol5(g, body, light, grip, pattern) {
+    const sl = () => { g.moveTo(10, 34); g.lineTo(84, 34); g.quadraticCurveTo(90, 34, 90, 40); g.lineTo(90, 48); g.lineTo(10, 48); g.closePath(); };
+    S(g, lin(g, 0, 34, 0, 48, [shade(body, 1.3), body, shade(body, .7)]), 3, sl);
+    S(g, lin(g, 0, 48, 0, 88, [shade(grip, 1.2), grip, shade(grip, .7)]), 3, () => { g.moveTo(50, 46); g.lineTo(80, 46); g.lineTo(86, 84); g.quadraticCurveTo(86, 90, 78, 90); g.lineTo(64, 90); g.quadraticCurveTo(58, 90, 58, 84); g.closePath(); });
+    L(g, OL, 3, () => { g.moveTo(40, 48); g.quadraticCurveTo(40, 66, 56, 64); });
+    if (pattern) pattern(g);
+    L(g, light, 2.5, () => { g.moveTo(16, 38); g.lineTo(80, 38); }); [24, 30, 36].forEach(x => L(g, shade(body, .6), 1.5, () => { g.moveTo(x, 36); g.lineTo(x, 46); }));
+    S(g, OL, 0, R(g, 6, 38, 6, 6, 1));
+  }
+  A['fiveo.gun.wood'] = g => pistol5(g, '#3a3e48', '#7a808c', '#a86a32', g => { g.strokeStyle = 'rgba(70,35,10,.55)'; g.lineWidth = 1.5; [58, 66, 74, 82].forEach(y => { g.beginPath(); g.moveTo(60, y); g.quadraticCurveTo(70, y - 3, 82, y + 1); g.stroke(); }); });
+  A['fiveo.gun.chrome'] = g => { pistol5(g, '#c8d2dc', '#ffffff', '#5a606c'); sparkle(g, 76, 22, 6); };
+  A['fiveo.gun.neon'] = g => glow(g, '#ff2bd6', 12, () => pistol5(g, '#ff2bd6', '#ffd3f6', '#2a1650', g => L(g, '#2bf3ff', 3, () => { g.moveTo(62, 56); g.lineTo(80, 56); })));
+  A['fiveo.gun.gold'] = g => { glow(g, '#ffcc00', 12, () => pistol5(g, '#e8b800', '#fff3a0', '#d4a800')); sparkle(g, 82, 20, 7); sparkle(g, 22, 76, 5); };
+  // crosshairs (same frame as the Cheeky Ops reticles)
+  A['fiveo.reticle.badge'] = g => reticle(g, '#ffffff', g => badge5(g, 50, 50, 11));
+  A['fiveo.reticle.donut'] = g => { S(g, lin(g, 0, 14, 0, 86, ['#f0c080', '#c88a48']), 3, E(g, 50, 50, 36, 36)); S(g, rad(g, 50, 46, 32, '#ffc0e0', '#ff6ab0'), 0, () => { for (let i = 0; i <= 24; i++) { const a = i / 24 * TAU, r = 31 + Math.sin(i * 1.7) * 2.5; i ? g.lineTo(50 + Math.cos(a) * r, 50 + Math.sin(a) * r) : g.moveTo(50 + Math.cos(a) * r, 50 + Math.sin(a) * r); } g.closePath(); }); S(g, '#2a1840', 3, E(g, 50, 50, 11, 11)); [['#2bf3ff', 30, 30, .4], ['#ffe14d', 66, 28, -.6], ['#ffffff', 74, 56, .9], ['#7dff4a', 34, 70, -.2], ['#ff2a3d', 58, 74, .5], ['#2bf3ff', 24, 52, 1.2], ['#ffe14d', 50, 24, .1]].forEach(([c, x, y, r]) => { g.save(); g.translate(x, y); g.rotate(r); S(g, c, 0, R(g, -4, -1.5, 8, 3, 1.5)); g.restore(); }); hi(g, 36, 30, 10, 4, -.6, .35); };
+  A['fiveo.reticle.star'] = g => reticle(g, '#ffe14d', g => S(g, rad(g, 50, 50, 10, '#fff3a0', '#e0a800'), 1.5, () => starPath(g, 50, 51, 10, 5, .45)));
+  A['fiveo.reticle.skull'] = g => reticle(g, '#ff2a3d', g => { S(g, '#e8ecf2', 1.5, E(g, 50, 48, 8, 7)); S(g, '#e8ecf2', 1.5, R(g, 45, 52, 10, 6, 2)); S(g, OL, 0, E(g, 47, 48, 2, 2)); S(g, OL, 0, E(g, 53, 48, 2, 2)); });
+  // muzzle flashes
+  function flash5(g, cols, core) { [0, 1].forEach(ring => { for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + ring * .39, r = ring ? 26 : 40, w = ring ? 7 : 9, c = cols[(i + ring) % cols.length]; glow(g, c, 10, () => S(g, c, 2, () => { g.moveTo(50 + Math.cos(a - .2) * 10, 50 + Math.sin(a - .2) * 10); g.lineTo(50 + Math.cos(a) * r, 50 + Math.sin(a) * r); g.lineTo(50 + Math.cos(a + .2) * 10, 50 + Math.sin(a + .2) * 10); g.closePath(); })); void w; } }); glow(g, core, 14, () => S(g, rad(g, 50, 50, 13, '#ffffff', core), 2, E(g, 50, 50, 13, 13))); }
+  A['fiveo.flash.blue'] = g => flash5(g, ['#2b6bff', '#7fa6ff'], '#bfe0ff');
+  A['fiveo.flash.green'] = g => flash5(g, ['#39ff6a', '#a8ffb8'], '#d8ffd8');
+  A['fiveo.flash.pink'] = g => flash5(g, ['#ff2bd6', '#ff9ae8'], '#ffd3f6');
+  A['fiveo.flash.rainbow'] = g => flash5(g, RAINBOW.concat(['#ff2bd6', '#2bf3ff']), '#ffffff');
+  // loadout unlocks: a little "LOADOUT" tag in the corner so they read as gameplay items
+  const loadTag = g => { S(g, '#ff2bd6', 2, R(g, 54, 82, 42, 13, 4)); text(g, 'LOADOUT', 75, 89, 4.6, '#ffffff'); };
+  const vest5 = g => { S(g, lin(g, 0, 14, 0, 86, ['#3a4e8a', '#1a2550']), 3, () => { g.moveTo(24, 22); g.lineTo(38, 14); g.quadraticCurveTo(50, 26, 62, 14); g.lineTo(76, 22); g.lineTo(80, 84); g.quadraticCurveTo(50, 92, 20, 84); g.closePath(); }); S(g, lin(g, 0, 38, 0, 74, ['#4e66aa', '#2a3a6a']), 2.5, R(g, 32, 38, 36, 36, 6)); L(g, '#14182a', 2.5, () => { g.moveTo(22, 58); g.lineTo(78, 58); }); badge5(g, 50, 48, 8); hi(g, 36, 30, 8, 3, -.5, .3); };
+  A['cheat.fiveo.armor'] = g => { vest5(g); loadTag(g); };
+  A['cheat.fiveo.shotgun'] = g => { g.save(); g.translate(50, 50); g.rotate(-.5); g.translate(-50, -50); S(g, lin(g, 0, 42, 0, 54, ['#8a909c', '#3a3e46']), 3, R(g, 4, 42, 62, 9, 3)); S(g, '#2a2d36', 2.5, R(g, 4, 51, 46, 5, 2)); S(g, lin(g, 0, 44, 0, 66, ['#c08040', '#7a4a1e']), 3, () => { g.moveTo(64, 42); g.lineTo(96, 46); g.lineTo(96, 62); g.lineTo(70, 56); g.closePath(); }); S(g, '#8a5a2a', 2.5, R(g, 26, 52, 18, 8, 3)); g.restore(); loadTag(g); };
+  A['cheat.fiveo.smg'] = g => { S(g, lin(g, 0, 34, 0, 50, ['#5a606c', '#26282e']), 3, R(g, 14, 34, 62, 16, 4)); S(g, '#3a3e46', 2.5, R(g, 4, 38, 12, 6, 2)); S(g, '#26282e', 3, R(g, 44, 48, 10, 30, 2)); S(g, '#26282e', 3, () => { g.moveTo(62, 48); g.lineTo(72, 48); g.lineTo(76, 66); g.lineTo(66, 66); g.closePath(); }); S(g, '#3a3e46', 2.5, R(g, 74, 38, 18, 8, 3)); L(g, '#8a909c', 2, () => { g.moveTo(18, 38); g.lineTo(72, 38); }); loadTag(g); };
+  A['cheat.fiveo.magnum'] = g => { S(g, lin(g, 0, 32, 0, 46, ['#ffffff', '#a8b0bc']), 3, R(g, 4, 34, 48, 11, 3)); S(g, rad(g, 58, 40, 14, '#e8ecf2', '#8a909c'), 3, E(g, 58, 41, 13, 11)); [52, 58, 64].forEach(x => S(g, '#5a606c', 0, E(g, x, 41, 2, 2))); S(g, lin(g, 0, 46, 0, 84, ['#8a5a2a', '#4a2a10']), 3, () => { g.moveTo(62, 48); g.lineTo(76, 46); g.lineTo(84, 80); g.quadraticCurveTo(84, 86, 76, 86); g.lineTo(70, 86); g.closePath(); }); hi(g, 22, 37, 12, 2, 0, .6); loadTag(g); };
+  A['cheat.fiveo.medkit'] = g => { S(g, '#8a909c', 3, R(g, 38, 12, 24, 12, 4)); S(g, lin(g, 0, 20, 0, 80, ['#ffffff', '#d8dce4']), 3, R(g, 12, 20, 76, 58, 8)); S(g, '#e8202a', 2.5, () => { g.moveTo(43, 32); g.lineTo(57, 32); g.lineTo(57, 42); g.lineTo(67, 42); g.lineTo(67, 56); g.lineTo(57, 56); g.lineTo(57, 66); g.lineTo(43, 66); g.lineTo(43, 56); g.lineTo(33, 56); g.lineTo(33, 42); g.lineTo(43, 42); g.closePath(); }); text(g, '+1', 22, 30, 7, '#39ff6a', 2.5); loadTag(g); };
+  A['cheat.fiveo.mag8'] = g => { S(g, lin(g, 0, 0, 100, 0, ['#5a606c', '#26282e']), 3, () => { g.moveTo(34, 10); g.lineTo(62, 10); g.lineTo(70, 86); g.lineTo(42, 86); g.closePath(); }); for (let k = 0; k < 4; k++) S(g, lin(g, 0, 18 + k * 16, 0, 28 + k * 16, ['#ffe680', '#c89a20']), 1.5, R(g, 38 + k * 1.6, 16 + k * 16, 24, 10, 4)); text(g, '8', 80, 34, 16, '#ffe14d', 3); loadTag(g); };
+  A['cheat.fiveo.reload'] = g => { S(g, lin(g, 0, 0, 100, 0, ['#5a606c', '#26282e']), 3, () => { g.moveTo(44, 26); g.lineTo(64, 26); g.lineTo(70, 82); g.lineTo(50, 82); g.closePath(); }); S(g, '#e8c040', 1.5, R(g, 48, 30, 16, 8, 3)); [[10, 22, 34], [4, 38, 30], [12, 54, 28]].forEach(([x, y, w]) => OLs(g, '#2bf3ff', 3, () => { g.moveTo(x, y); g.lineTo(x + w, y); })); glow(g, '#ffe14d', 8, () => S(g, '#ffe14d', 2, () => { g.moveTo(80, 10); g.lineTo(70, 34); g.lineTo(80, 34); g.lineTo(72, 56); g.lineTo(92, 26); g.lineTo(82, 26); g.lineTo(88, 10); g.closePath(); })); loadTag(g); };
+  // collectibles
+  A['col.badge'] = g => { glow(g, '#ffcc00', 10, () => S(g, rad(g, 50, 48, 38, '#fff3a0', '#c48a00'), 3, () => starPath(g, 50, 50, 38, 7, .78))); S(g, rad(g, 50, 50, 22, '#ffe680', '#d4a800'), 2.5, E(g, 50, 50, 22, 22)); S(g, rad(g, 50, 50, 12, '#7fa6ff', '#1a3a9a'), 2, E(g, 50, 50, 12, 12)); text(g, '5-O', 50, 51, 7, '#ffffff', 2); hi(g, 36, 30, 10, 4, -.6, .5); sparkle(g, 84, 16, 6); };
+  A['col.mangebob'] = g => bobble(g, g => { [[20, 22, -.5], [80, 22, .5]].forEach(([x, y, r]) => S(g, tone(g, x, y, 10, '#48484e'), 3, E(g, x, y + 4, 8, 14, r))); S(g, tone(g, 50, 34, 30, '#6e6e74'), 3, E(g, 50, 36, 28, 26)); S(g, '#9a9aa2', 2.5, E(g, 50, 50, 15, 11)); S(g, '#14081f', 2, E(g, 50, 44, 5, 3.4)); S(g, '#14081f', 2, R(g, 30, 28, 15, 10, 3)); L(g, '#14081f', 2, () => { g.moveTo(22, 26); g.lineTo(78, 20); }); eye(g, 62, 33, 4); L(g, '#e8b0b0', 2.5, () => { g.moveTo(66, 16); g.lineTo(72, 40); }); L(g, OL, 2.5, () => { g.moveTo(42, 56); g.quadraticCurveTo(50, 60, 58, 56); }); S(g, '#2a2a2a', 2.5, R(g, 30, 60, 40, 7, 3)); [36, 44, 52, 60].forEach(x => S(g, '#d0d0d0', 1, () => { g.moveTo(x, 60); g.lineTo(x + 2.5, 55); g.lineTo(x + 5, 60); g.closePath(); })); }, '#2a2a30');
   // ---- cheat envelopes and the codes inside them
   Object.keys(GCOL).forEach(game => { A['env.' + game] = g => envelope(g, GCOL[game]); });
 
